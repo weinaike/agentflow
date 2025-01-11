@@ -6,7 +6,7 @@ import argparse
 
 logging.basicConfig(level=logging.WARNING)
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='Run the workflows')
     parser.add_argument('config', type=str, help='The configuration file for the workflows')
     parser.add_argument('--specific_flow','-f', nargs="+", type=str, help='The specific flow to run', default=[])
@@ -22,3 +22,6 @@ if __name__ == "__main__":
     print(sp_flow, sp_node)
     workflows = Workflows(config_file)
     asyncio.run(workflows.run(specific_flow=sp_flow, specific_node=sp_node))
+
+if __name__ == "__main__":
+    main()

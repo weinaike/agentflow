@@ -29,6 +29,7 @@ classifiers = [
 ]
 
 [project.scripts]
+agentflow = "AgentFlow.main:main"
 # 在这里定义任何可用的命令行工具
 [tool.setuptools.packages.find]
 where = ["."]

@@ -38,6 +38,8 @@ AgentFlow是一个基于Python语言开发的智能体工作流构建框架。�
 
    ```bash
    python -m AgentFlow.main path/to/your/config.file
+   # 或者 pip install -e .后运行
+   agentflow path/to/your/config.file
    ```
 3. **监控与调试**
 
