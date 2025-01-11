@@ -1,0 +1,15 @@
+flow_name = "任务分解"
+flow_type = "SEQUENTIAL"
+description =  '''
+## 任务分解
+迁移方案已经确定, 先需要将迁移方案细化与分解具体任务，便于后续具体实施. 
+任务分解过程中需要考虑任务的依赖关系，以及任务颗粒度。
+'''
+
+
+
+[[nodes]]
+id = "node8"
+name = "任务规划"
+inputs = []
+config = "node8_config_taskPlan.toml"

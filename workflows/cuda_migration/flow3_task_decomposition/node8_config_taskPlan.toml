@@ -1,0 +1,33 @@
+type = "Agent"
+task = '''汇总所有任务，根据依赖关系，形成任务列表。'''
+
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+questions = [
+    "输出任务清单",
+]
+participants = ["assistant"]
+
+summary_prompt = '''
+总结以上内容，详细且完整的任务清单
+'''
+
+
+[[agents]]
+name = "assistant"
+tools = []
+system_prompt = '''
+角色：项目经理
+职责：
+1. 制定任务优先级列表
+
+原则：
+1. 被依赖的任务优先迁移，
+2. 同模块的任务放在一起
+
+'''
+
+
+
+

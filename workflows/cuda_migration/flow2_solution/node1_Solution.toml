@@ -1,0 +1,28 @@
+
+type = "Agent"
+task = '''Galsim是一个用于模拟天体光学成像的项目。 将亮度模型SBprofie通过光学仿真构建ImageView图像。Galsim项目底层是以C++开发的，通过python接口提供给用户使用。渲染仿真上存在瓶颈. 特别是光子射击方法，计算量大。为了提高性能，决定扩展Galsim功能， 使用CUDA加速光子射击(Photon shooting)方法。'''
+
+
+[manager]
+summary_prompt = '''总结具体的技术方案'''
+max_turns = 10
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    '''编写Galsim的光子射击渲染方法的C++代码迁移到CUDA实现的技术方案, 技术方案包括以下部分：
+    1. 接口设计与实现方案：要求保持接口兼容
+    2. 迁移模块：列出涉及的类，函数，数据结构
+    3. 模块迁移方案
+    4. 示例：举例说明如何保持接口兼容同时实现CUDA加速''', 
+]
+
+
+[[agents]]
+name = "assistant"
+tools = ["read_file_content","run_shell_code"]
+system_prompt = '''
+角色：架构师
+职责：
+1. 利用项目的系统架构，完成新需求的方案设计
+'''
+

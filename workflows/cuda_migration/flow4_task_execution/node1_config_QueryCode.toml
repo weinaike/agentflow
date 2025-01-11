@@ -1,0 +1,35 @@
+
+type = "Agent"
+task = "查询代码"
+
+[manager]
+summary_prompt = "汇总所有查询到的代码"
+max_turns = 5
+mode = 'Questionnaire'
+participants = ["assistant","user"]
+questions = [
+    "根据任务目标查询主函数代码与依赖函数代码，了解代码结构，为后续代码迁移与编辑做准备",
+]
+
+
+[[agents]]
+name = "assistant"
+tools = ["find_definition", "find_declaration", "read_function_from_file", "get_dir_structure"]
+system_prompt =  '''
+角色：软件工程师
+职责：
+1. 查询代码及其依赖函数
+
+'''
+
+
+[[agents]]
+name = "user"
+system_prompt =  '''
+角色: 高级软件工程师
+职责: 
+1. 代码查询完整，信息已足够CUDA迁移，输出 TERMINATE 结束任务
+2. 代码查询不完整，需要继续查询，输出 CONTINUE 继续任务
+
+'''
+

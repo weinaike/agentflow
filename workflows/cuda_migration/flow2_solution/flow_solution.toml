@@ -1,0 +1,14 @@
+flow_name = "迁移方案"
+flow_type = "SEQUENTIAL"
+description =  '''
+## 方案设计目标
+Galsim是一个用于模拟天体光学成像的项目。 将亮度模型SBprofie通过光学仿真构建ImageView图像。
+Galsim项目底层是以C++开发的，通过python接口提供给用户使用。渲染仿真上存在瓶颈. 特别是光子射击方法，计算量大。
+为了提高性能，决定扩展Galsim功能， 使用CUDA加速光子射击(Photon shooting)方法。
+'''
+
+[[nodes]]
+id = "node1"
+name = "迁移方案"
+inputs = ["flow1.node1", "flow1.node3", "flow1.node4", "flow1.node5"]
+config = "node1_Solution.toml"

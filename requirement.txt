@@ -1,0 +1,8 @@
+python==3.10
+autogen-agentchat==0.4.0.dev12
+autogen-ext[openai,azure]==0.4.0.dev12
+toml
+graphviz
+libclang
+pylint
+

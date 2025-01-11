@@ -1,0 +1,43 @@
+project_name = "GalSim光子射击算法CUDA加速"
+project_id = "project_1"
+description = '''Galsim是一个用于模拟天体光学成像的项目。将亮度模型SBprofie通过光学仿真构建ImageView图像。
+亮度模型仿真渲染的方法主要包含三种：
+1. Discrete Fourier transform rendering
+2. Real-space Direct rendering
+3. Photon shooting
+
+** 项目的必要信息 ** 
+项目路径：/home/wnk/code/GalSim/
+源文件路径: /home/wnk/code/GalSim/src/
+头文件路径: /home/wnk/code/GalSim/include/
+构建与编译路径: /home/wnk/code/GalSim/build/
+namespace: galsim
+'''
+workspace_path = "workspace/test"
+llm_config = "docs/OAI_CONFIG_LIST.json"
+
+[[flows]]
+flow_name = "架构理解"
+flow_id = "flow1"
+config = "workflows/cuda_migration/flow1_architect_understand/flow_architect_understand.toml"
+previous_flows = []
+
+
+[[flows]]
+flow_name = "迁移方案"
+flow_id = "flow2"
+config = "workflows/cuda_migration/flow2_solution/flow_solution.toml"
+previous_flows = ["flow1"]
+
+[[flows]]
+flow_name = "任务分解"
+flow_id = "flow3"
+config = "workflows/cuda_migration/flow3_task_decomposition/flow_task_decomposition.toml"
+previous_flows = ["flow2"]
+
+
+[[flows]]
+flow_name = "任务分解"
+flow_id = "flow4"
+config = "workflows/cuda_migration/flow4_task_execution/flow_task_execution.toml"
+previous_flows = ["flow3"]

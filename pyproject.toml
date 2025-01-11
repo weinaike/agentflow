@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "AgentFlow"
+version = "0.1.0"
+description = "AgentFlow是一个用于构建智能体工作流的Python框架，通过配置文件定义复杂工作流，实现智能体任务的自动化分解与执行。"
+readme = "Readme.md"
+authors = [
+    {name="Naike Wei", email="weinaike@gmail.com"}
+]
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "autogen-agentchat==0.4.0.dev12",  
+    "autogen-ext[openai,azure]==0.4.0.dev12",
+    "toml",
+    "graphviz",
+    "libclang",
+    "pylint"
+]
+
+keywords = ["agent", "workflow", "automation", "python"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+
+[project.scripts]
+# 在这里定义任何可用的命令行工具
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["AgentFlow"]
