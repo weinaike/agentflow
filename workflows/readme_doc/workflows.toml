@@ -4,9 +4,9 @@ description = '''AgentFlow是一个用于智能体(Agent)工作流构建的框�
 
 ** 项目的必要信息 ** 
 项目语言: python
-项目路径：/home/wnk/code/flow/
-源文件路径: /home/wnk/code/flow/AgentFlow/
-文档路径: /home/wnk/code/flow/docs/
+项目路径：/home/wnk/code/agentflow/
+源文件路径: /home/wnk/code/agentflow/AgentFlow/
+文档路径: /home/wnk/code/agentflow/docs/
 '''
 workspace_path = "workspace/readme_doc"
 llm_config = "docs/OAI_CONFIG_LIST.json"
