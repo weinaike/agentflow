@@ -2,7 +2,7 @@ import re
 import os
 from typing_extensions import Annotated, List, Union
 import difflib
-
+from .utils import thread_safe_singleton
 
 preview_promt = '''
 -----------------------------------------------------
@@ -17,7 +17,7 @@ def ensure_line(s):
     if not s.endswith('\n'):
         s += '\n'
     return s
-
+@thread_safe_singleton
 class FileEditClass:
 
     def __init__(self, ):

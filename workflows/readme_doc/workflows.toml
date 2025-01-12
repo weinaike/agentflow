@@ -2,14 +2,16 @@ project_name = "智能体工作流框架项目介绍"
 project_id = "project_2"
 description = '''AgentFlow是一个用于智能体(Agent)工作流构建的框架项目。通过AgentFlow框架，用户可以通过配置文件构建智能体工作流，实现智能体的任务分解与执行。
 
-** 项目的必要信息 ** 
-项目语言: python
-项目路径：/home/wnk/code/agentflow/
-源文件路径: /home/wnk/code/agentflow/AgentFlow/
-文档路径: /home/wnk/code/agentflow/docs/
 '''
 workspace_path = "workspace/readme_doc"
 llm_config = "docs/OAI_CONFIG_LIST.json"
+
+[codebase]
+language = "Python"
+project_path = "/home/wnk/code/agentflow/"
+source_path = "/home/wnk/code/agentflow/AgentFlow/"
+
+
 
 [[flows]]
 flow_name = "项目说明文档生成"

@@ -5,16 +5,18 @@ description = '''Galsim是一个用于模拟天体光学成像的项目。将亮
 1. Discrete Fourier transform rendering
 2. Real-space Direct rendering
 3. Photon shooting
-
-** 项目的必要信息 ** 
-项目路径：/home/wnk/code/GalSim/
-源文件路径: /home/wnk/code/GalSim/src/
-头文件路径: /home/wnk/code/GalSim/include/
-构建与编译路径: /home/wnk/code/GalSim/build/
-namespace: galsim
 '''
 workspace_path = "workspace/test"
 llm_config = "docs/OAI_CONFIG_LIST.json"
+
+[codebase]
+language = "C++"
+project_path = "/home/wnk/code/GalSim/"
+source_path = "/home/wnk/code/GalSim/src/"
+header_path = "/home/wnk/code/GalSim/include/galsim/"
+build_path = "/home/wnk/code/GalSim/build/"
+namespace = "galsim"
+
 
 [[flows]]
 flow_name = "架构理解"

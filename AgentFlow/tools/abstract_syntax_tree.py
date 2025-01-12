@@ -3,7 +3,8 @@ import clang.cindex
 import pickle
 import json
 from typing import Union, List
-
+from .utils import thread_safe_singleton
+@thread_safe_singleton
 class AST:    
 
     find_definition_description = '''
@@ -21,9 +22,16 @@ find_definition("addTo", "PhotonArray")
 因而调用方式为
 find_declaration("Bounds")
 '''
+    def __init__(self):
+        self.directory = None
+        self.include = None
+        self.filter_namespaces = None
+        self.index = None
+        self.symbol_table = None
+        self.cache_file = None
+        self.source_files = None
 
-
-    def __init__(self, src_dir:str, include_dir:list, namespaces = ['galsim'], cache_file = 'symbol_table.pkl', load = True):
+    def create_cache(self, src_dir:str, include_dir:list, namespaces = ['galsim'], cache_file = 'symbol_table.pkl', load = True):
         self.directory = src_dir
         self.include = include_dir
         self.filter_namespaces = namespaces
