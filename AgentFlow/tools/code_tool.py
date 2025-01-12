@@ -7,13 +7,7 @@ from .file_edit import FileEditClass
 from .abstract_syntax_tree import AST
 import json
 
-
-src = '/home/wnk/code/GalSim/src'  # Change this to the path of your source code directory
-include = ['/home/wnk/code/GalSim/include/galsim/']  # Change this to the path of your include directory
-namespaces=['galsim']
-cache_file = 'workspace/symbol_table.pkl'
-
-ast = AST(src, include, namespaces, cache_file, load = True)   
+   
 def find_definition(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                     class_name:Annotated[str, "The class name to which the function or variable belongs."] = None) -> dict:
     """
@@ -23,8 +17,7 @@ def find_definition(symbol:Annotated[str, "The name of the function or variable 
         因而调用方式为
         find_definition("addTo", "PhotonArray")
     """
-    
-    global ast
+    ast = AST()
     return ast.find_definition(symbol, class_name)
 
 def find_declaration(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
@@ -37,34 +30,85 @@ def find_declaration(symbol:Annotated[str, "The name of the function or variable
         find_declaration("Bounds")
     '''
     
-    global ast
+    ast = AST()
     return ast.find_declaration(symbol, class_name)
-
-fe = FileEditClass()
 
 ############ 查询功能 #########
 
 def read_code_from_file(filename: str)->str:
+    '''
+    Function to read code from a file
+    params:
+        filename: the file to read the code from
 
-
-
-    global fe
+    returns:
+        str: the content of the file
+        exception: if an exception occurred while reading the file
+    '''
+    fe = FileEditClass()
     return fe.read_code_from_file(filename)
 
 def read_function_from_file(filename: str, function_name: str)->str:
-    global fe
+    '''
+    Function to read a function from a file
+    params:
+        filename: the file to read the function from
+        function_name: the function name to read
+
+    returns:
+        str: the content of the function
+        exception: if an exception occurred while reading the file
+
+    '''
+    fe = FileEditClass()
     return fe.read_function_from_file(filename, function_name)
 
 
 def find_function_range(filename: Annotated[str, "the file to locate the function"],
                         function_name: Annotated[str, "the function name to locate"])->tuple[int, int]:
-    global fe
+    '''
+    file edit:  Function to find the range of a function in a cpp/h file
+    params:
+        filename: the file to locate the function
+        function_name: the function name to locate
+
+    returns:
+        start_line: the start line number of the function (1-indexed)
+        end_line: the end line number of the function (1-indexed)
+
+    example:
+        find_function_range('path_to_file/file.cpp', 'Position& operator=(const Position<T>& rhs)')
+
+        # Returns (64, 69) if the function is found
+        # Returns (None, None) if the function is not found
+    '''
+    fe = FileEditClass()
     return fe.find_function_range(filename, function_name)
 
 ############ 新建文件 #########
 def save_code_to_new_file(filename:Annotated[str, "the file to save the code"],
                             code: Annotated[str, "code to save"])->str:
-    global fe
+    '''
+    file edit: Function to save a code block to a new file
+    params:
+        filename: the file to save the code to
+        code_block: the code block to save
+
+    returns:
+        success: if the code block was successfully saved
+
+    example:
+        save_code_to_file('path_to_file/file.cpp', """
+            #include <iostream>
+            int main()
+            {
+                std::cout << "Hello, World!" << std::endl;
+                return 0;
+            }
+        """)
+        save_code_to_file('file.cpp', ['#include <iostream>', 'int main()', '{', '    std::cout << "Hello, World!" << std::endl;', '    return 0;', '}'])
+    '''    
+    fe = FileEditClass()
     return fe.save_code_to_new_file(filename, code)
 
 
@@ -89,7 +133,7 @@ def file_edit_insert_include_header(filename:Annotated[str, "the file to insert 
     '''
     
     
-    global fe  
+    fe = FileEditClass()  
     return fe.insert_include_header(filename, include_statement, preview=True)
 
 def file_edit_insert_code_block(filename: Annotated[str, "the file to insert the code block"],
@@ -106,7 +150,7 @@ def file_edit_insert_code_block(filename: Annotated[str, "the file to insert the
         success: if the code block was successfully inserted
     '''         
     
-    global fe
+    fe = FileEditClass()
     return fe.insert_code_block(filename, start_line, code_block, preview=True)
 
 def file_edit_delete_one_line(filename: Annotated[str, "the file to delete the lines from"], 
@@ -124,7 +168,7 @@ def file_edit_delete_one_line(filename: Annotated[str, "the file to delete the l
         delete_one_line('path_to_file/file.cpp', 10)
     '''    
     
-    global fe
+    fe = FileEditClass()
     return fe.delete_one_line(filename, line_number, preview=True)
 
 def file_edit_delete_code_block(filename: Annotated[str, "the file to delete the lines from"], 
@@ -144,7 +188,7 @@ def file_edit_delete_code_block(filename: Annotated[str, "the file to delete the
         delete_code_block('path_to_file/file.cpp', 64, 69)
     '''    
     
-    global fe
+    fe = FileEditClass()
     return fe.delete_code_block(filename, start_line, end_line, preview=True)
 
 def file_edit_replace_code_block(filename: Annotated[str, "the file to edit "], 
@@ -174,7 +218,7 @@ def file_edit_replace_code_block(filename: Annotated[str, "the file to edit "],
         )
         replace_code_block('file.cpp', 64, 69, ['Position& operator=(const Position<T>& rhs)', '{', '    int a = 0;', '    int b = 0;', '    if (&rhs == this) return *this;', '    else { x=rhs.x; y=rhs.y; return *this; }', '}'])
     '''
-    global fe
+    fe = FileEditClass()
     return fe.replace_code_block(filename, start_line, end_line, new_code_block, preview=True)
 
 
@@ -204,19 +248,20 @@ def file_edit_update_function_defination(filename: Annotated[str, "the cpp/h fil
         )    
     '''    
     
-    global fe
+    fe = FileEditClass()
     return fe.update_function_defination(filename, function_name, new_code_block,preview=True)
 
 def file_edit_rollback(filename: Annotated[str, "the file to save"]) -> str:
     '''回退一步（取消上一次编辑）'''
-    global fe
+    fe = FileEditClass()
     fe.rollback(filename)
     return f'{filename}, roll back success, 请重新编辑'
 
 def file_edit_save(filename: Annotated[str, "the file to save"]) -> str:
     '''所有编辑动作都已完成，提交保存'''
-    global fe
+    fe = FileEditClass()
     files, res_file = fe.preview_to_commit(filename)
+    ast = AST()
     ast.update_symbol_table(files)
     if len(res_file) == 0:
         return f'{filename} save success 所有操作均已保存'
@@ -266,12 +311,13 @@ diagrams:
     path = project_path
     build_path = os.path.join(path, "build")
 
-    src = '/home/wnk/code/GalSim/src'  # Change this to the path of your source code directory
-    include = ['/home/wnk/code/GalSim/include/galsim/']  # Change this to the path of your include directory
-    namespaces=['galsim']
-    cache_file = 'workspace/symbol_table.pkl'
+    # src = '/home/wnk/code/GalSim/src'  # Change this to the path of your source code directory
+    # include = ['/home/wnk/code/GalSim/include/galsim/']  # Change this to the path of your include directory
+    # namespaces=['galsim']
+    # cache_file = 'workspace/symbol_table.pkl'
 
-    ast = AST(src, include, namespaces, cache_file, load = True)   
+    ast = AST()
+    # ast.create_cache(src, include, namespaces, cache_file, load = True)   
   
     pattern = re.compile(r'^(?P<namespace>[\w:]+)::(?P<classname>[\w:<>]+)::(?P<functionname>operator\(\)|[\w:<>~!@#$%^&*+=|]+)\(.*\)( const)?$')
     pattern2 = re.compile(r'(?P<namespace>[a-zA-Z_][\w:]*)::(?P<classname>[a-zA-Z_]\w*(?:<[^<>]*>)?)::(?P<functionname>[a-zA-Z_]\w*)\([^)]*\)')

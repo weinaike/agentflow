@@ -1,7 +1,7 @@
 from .flows import BaseFlow, FlowFactory
 from .nodes import BaseNode
-from .data_model import WorkflowsParam, Context
-
+from .data_model import WorkflowsParam, Context, LanguageEnum
+from .tools import AST
 import os
 import toml
 import json
@@ -18,6 +18,22 @@ def load_config(config_file: str) -> WorkflowsParam:
     with open(config_file, 'r') as f:
         config = f.read()
     config = toml.loads(config)
+
+    codebase = config['codebase']
+    config['description'] += f"** 项目必要信息**"
+    if 'language' in codebase:
+        config['description'] += f"\n** language ** : {codebase['language']}\n"
+    if 'project_path' in codebase:
+        config['description'] += f"\n** 项目路径 ** : {codebase['project_path']}\n"
+    if 'source_path' in codebase:
+        config['description'] += f"\n** 源码目录 ** : {codebase['source_path']}\n"
+    if 'header_path' in codebase:
+        config['description'] += f"\n** 头文件目录 ** : {codebase['header_path']}\n"
+    if 'build_path' in codebase:
+        config['description'] += f"\n** 编译与构建目录 ** : {codebase['build_path']}\n"
+    if 'namespace' in codebase:
+        config['description'] += f"\n** 命名空间 ** : {codebase['namespace']}\n"
+
     if 'backup_dir' not in config:
         config['backup_dir'] = os.path.join(config['workspace_path'], 'cache')
     config['description'] += f"\n** 项目文件备份目录 (backup_dir) ** : {config['backup_dir']}\n"
@@ -47,6 +63,29 @@ class Workflows:
         logger.info('-----------------Workflows-----------------')
         logger.info(json.dumps(self.param.model_dump(), indent=4, ensure_ascii=False))
         logger.info('-----------------Workflows-----------------')
+
+        if self.param.codebase:
+            if self.param.codebase.language == LanguageEnum.CPP:
+
+                src = self.param.codebase.source_path
+                
+                include = []
+                if isinstance(self.param.codebase.header_path, list):
+                    include = self.param.codebase.header_path
+                elif isinstance(self.param.codebase.header_path, str):
+                    include = [self.param.codebase.header_path]
+                else:
+                    include = []
+                namespaces = []
+                if isinstance(self.param.codebase.namespace, list):
+                    namespaces = self.param.codebase.namespace
+                elif isinstance(self.param.codebase.namespace, str):
+                    namespaces = [self.param.codebase.namespace]
+                else:
+                    namespaces=[]
+                cache_file = f'workspace/symbol_table_{self.param.project_id}.pkl'
+                ast = AST()
+                ast.create_cache(src, include, namespaces, cache_file, load = True)
 
     def get_previous_flow_nodes(self, flow_nodes: List[str]) -> Dict[str, BaseNode]:
 

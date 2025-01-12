@@ -197,14 +197,43 @@ class ConditionFlowParam(flowDetailParam):
 
 ############### workflow  ################
 
+class LanguageEnum(str, Enum):
+    C = "C"
+    CPP = "C++"
+    PYTHON = "Python"
+    JAVA = "Java"
+    GO = "Go"
+    RUST = "Rust"
+    SWIFT = "Swift"
+    JAVASCRIPT = "JavaScript"
+    TYPESCRIPT = "TypeScript"
+    KOTLIN = "Kotlin"
+    SCALA = "Scala"
+    RUBY = "Ruby"
+    PHP = "PHP"
+    CSHARP = "C#"
+    OBJECTIVEC = "Objective-C"
+    SHELL = "Shell"
+    OTHER = "Other"
+
+class RepositoryParam(BaseModel):
+    language: LanguageEnum = LanguageEnum.PYTHON
+    project_path: str                               # 代码仓库路径
+    source_path: str                                # 源码路径
+    header_path: Optional[Union[str,List[str]]] = None     # 头文件路径
+    build_path: str = None                          # 编译路径
+    namespace: Optional[Union[str,List[str]]] = None      # 命名空间
+
 class WorkflowsParam(BaseModel):
     project_name: str
     project_id: str
     description: str
     workspace_path: str
     llm_config: str
+    codebase: RepositoryParam
     flows: List[flowNodeParam]
     backup_dir: str = None # 数据备份/缓存目录
+    
     def get_flow_param(self, flow_id: str) -> flowNodeParam:
         for flow in self.flows:
             if flow.flow_id == flow_id:
