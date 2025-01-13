@@ -33,7 +33,8 @@ AgentFlow是一个基于Python语言开发的智能体工作流构建框架。�
 
 1. **配置工作流**
 
-   - 通过YAML或JSON文件定义工作流，包括步骤、节点及其参数配置。
+   - 通过TOML文件定义工作流，包括流、节点及其参数配置。
+   - 具体配置说明，请参考 [docs/configuration_guide.md](./docs/configuration_guide.md)
 2. **运行工作流**
 
    ```bash
@@ -41,27 +42,18 @@ AgentFlow是一个基于Python语言开发的智能体工作流构建框架。�
    # 或者 pip install -e .后运行
    agentflow path/to/your/config.file
    ```
-3. **监控与调试**
 
-   - 利用日志和调试工具监控执行过程，记录异常信息。
-4. **扩展功能**
-
-   - 通过继承 `BaseNode`实现自定义执行节点。
-
-- **数据模型（data_model）**：定义参数结构，确保数据一致性。
-- **流程管理（flows）**：管理流程顺序和逻辑。
-- **节点管理（nodes）**：提供节点的具体功能实现。
-- **工具集合（tools）**：辅助模块，提供通用功能。
-
-#### 开发指南
+### 开发指南
 
 - **设计原则**：遵循SOLID和工厂模式，保证高内聚低耦合。
+- **配置管理**：利用TOML文件灵活管理流程和节点参数。
+- **上下文使用**：统一对象存储，保证信息的共享。
 - **新增流程与节点**：
   - 新流程需继承 `BaseFlow`，在 `FlowFactory`中注册。
   - 新节点需继承 `BaseNode`，在 `NodeFactory`中注册。
-- **上下文使用**：统一状态保证信息的共享。
-- **配置管理**：利用TOML文件灵活管理流程和节点参数。
-- **LLM配置**：详见docs/llm_config_list_template.json
+  - 新增LLM支持，格式详见docs/llm_config_list_template.json, 同时保证 data_model.py 中的 ModelEnum 包含对应模型枚举
+- **数据模型（data_model）**：定义参数结构，确保数据一致性。
+- **工具集合（tools）**：辅助模块，提供通用功能。
 
 ### 项目许可证
 
