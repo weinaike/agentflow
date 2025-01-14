@@ -224,7 +224,7 @@ class RepositoryParam(BaseModel):
     build_path: str = None                          # 编译路径
     namespace: Optional[Union[str,List[str]]] = None      # 命名空间
 
-class WorkflowsParam(BaseModel):
+class SolutionParam(BaseModel):
     project_name: str
     project_id: str
     description: str

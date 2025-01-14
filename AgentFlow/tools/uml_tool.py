@@ -1,27 +1,49 @@
 
 from typing_extensions import Annotated
-from .file_tool import parse_yml_content
+import yaml
 import os
 import subprocess
 import re
 import shutil
 
-def generate_uml(project_path:Annotated[str, "../path/to/project"], yml_file_content:Annotated[str,""]) ->str:
+
+def parse_yml_content(yml_file_content):
+    """解析 YAML 内容
+    :param yml_file_content: YAML 文件内容
+    :return: compilation_database_dir, path
     """
-    generate_uml函数生成UML类图中包含以下步骤:
+
+    config : dict = yaml.safe_load(yml_file_content)
+    
+    # 提取 output_directory
+    compilation_database_dir = config.get('compilation_database_dir')
+    output_directory = config.get('output_directory')
+        
+    # 提取 class_diagram 配置
+    diagram_names = list(config.get('diagrams', {}).keys())
+    path = os.path.join(output_directory, diagram_names[0] + '.puml')
+
+    return compilation_database_dir, path
+
+
+def generate_cpp_uml(project_path:Annotated[str, "../path/to/project"], yml_file_content:Annotated[str,""]) ->str:
+    """
+    generate_cpp_uml函数生成UML类图中包含以下步骤:
     1. 运行CMake配置项目: cmake project_path -DCMAKE_EXPORT_COMPILE_COMMANDS=ON; build目录为workspace/build
     2. 生成clang-uml配置文件: 将yml_file_content内容存为 workspace/build/clang-uml-config.yml
     3. 运行clang-uml生成UML类图: clang-uml clang-uml-config.yml, 生成的UML类图存放在workspace/build/class_diagram.puml文件中
     4. 读取workspace/build/class_diagram.puml文件, 返回UML类图内容
 
+
     Args:
         project_path (str): 项目路径
         yml_file_content (str): clang-uml的配置文件内容
+
     Returns:
         str: UML类图
 
     example:
-        uml_content = generate_uml("/home/wnk/code/galsim/", yml_file_content)
+        uml_content = generate_cpp_uml("/home/wnk/code/galsim/", yml_file_content)
     """
 
     build_path, puml_path = parse_yml_content(yml_file_content)
@@ -168,5 +190,121 @@ def generate_python_uml(project_path:Annotated[str, "../path/to/project"], backu
         return f"备份文件失败，{e}"
     
 
+def extract_classes(text: str):
+    # 正则表达式匹配类信息
+    pattern = re.compile(r'class "(.*?)" as (.*?)\nclass \2 \{\n(.*?)\n\}', re.DOTALL)
+    pattern2 = re.compile(r'abstract "(.*?)" as (.*?)\nabstract \2 \{\n(.*?)\n\}', re.DOTALL)
+    matches = pattern.findall(text)
+    matches.extend(pattern2.findall(text))
+    
+    id_map = {}
+    class_info = {}
+    for match in matches:
+        class_info[match[0]] = f'{{\n{match[2]}\n}}'
+        id_map[match[1]] = match[0]
+    return class_info, id_map
+
+def extract_connect(text: str) -> list:
+    # 正则表达式匹配所有类型的关系符号
+    relation_pattern = re.compile(r'(C_\d+)\s+([-.o*+<>|]{3,4})\s+(C_\d+)\s*(:\s*.*)?')
+    relation_matches = relation_pattern.findall(text)
+    
+    connections = []
+    for match in relation_matches:
+        connection = {
+            'source': match[0],
+            'relation': match[1],
+            'target': match[2],
+            'label': match[3].strip() if match[3] else ''
+        }
+        connections.append(connection)
+    return connections
 
 
+def extract_class_names_from_uml(puml_file_name:Annotated[str, "UML类图文件"]) -> list[str]:
+    """
+    extract_class_names_from_uml函数提取UML类图中的类名
+
+    Args:
+        puml_file_name (str): UML类图文件
+    Returns:
+        list: 类名列表
+
+    example:
+        class_names = extract_class_names_from_uml(uml_content)
+    """
+    with open(puml_file_name, 'r') as file:
+        content = file.read()
+    class_info, _ = extract_classes(content)
+    
+    # 提取类名    
+    return class_info.keys()
+
+
+def extract_connect_from_uml(puml_file_name:Annotated[str, "UML类图文件"]) -> str:
+    """
+    extract_connect_from_uml函数提取UML类图中的类之间的关系
+
+    Args:
+        puml_file_name (str): UML类图文件
+    Returns:
+        str: 类之间的关系
+
+    example:
+        connect = extract_connect_from_uml(puml_file_name)
+    """
+
+    with open(puml_file_name, 'r') as file:
+        content = file.read()
+
+    connections = extract_connect(content)
+
+    _, ip_map = extract_classes(content)
+
+    # 提取类之间的关系
+    for conn in connections:
+        if conn['source'] in ip_map:
+            conn['source'] = ip_map[conn['source']]
+        if conn['target'] in ip_map:
+            conn['target'] = ip_map[conn['target']]        
+
+    # 拼接输出字符串
+    connect = '@startuml'
+    for conn in connections:
+        connect += f"{conn['source']} {conn['relation']} {conn['target']}\n"
+    connect += '@enduml'
+    return connect
+
+def extract_class_structure_from_uml(puml_file_name:Annotated[str, "UML类图文件"], class_name : Annotated[str, "类名"]) -> str:
+    """
+    extract_class_structure_from_uml函数提取UML类图中的类结构
+
+    Args:
+        puml_file_name (str): UML类图文件
+    Returns:
+        str: 类结构
+
+    example:
+        class_structure = extract_class_structure_from_uml(puml_file_name)
+    """
+    with open(puml_file_name, 'r') as file:
+        content = file.read()
+
+    class_info, _ = extract_classes(content)
+
+    # 提取类结构
+    class_structure = ''
+    for key, val in class_info.items():
+        if class_name in key:
+            class_structure += f"class {key} {val}\n"
+    return class_structure
+
+
+if __name__ == '__main__':
+    file = '/home/wnk/code/GalSim/build/docs/diagrams/main_class.puml'
+    content = extract_class_names_from_uml(file)
+    # print(content)
+    content = extract_connect_from_uml(file)
+    print(content)
+    content = extract_class_structure_from_uml(file, 'PhotonArray')
+    # print(content)

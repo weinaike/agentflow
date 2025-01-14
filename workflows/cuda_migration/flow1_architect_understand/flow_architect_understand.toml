@@ -10,33 +10,31 @@ description =  '''
 
 '''
 
+# 总体了解项目功能与基本输入输出内容
 [[nodes]]
 id = "node1"
 name = "业务分析"
 inputs = []
-config = "node1_business_analysis.toml"
+config = "node1_BusinessAnalysis.toml"
 
+# 通过uml分析类之间的关系，提取核心类
 [[nodes]]
 id = "node2"
-name = "核心模块"
-inputs = []
-config = "node2_CoreModule.toml"
+name = "概要分析"
+inputs = ['node1']
+config = "node2_ConceptionAnalysis.toml"
 
+# 逐个分析核心类，提取核心成员， 核心方法，以及其派生关系
 [[nodes]]
 id = "node3"
-name = "单核心类UML"
-inputs = ["node2"]
-config = "node3_SingleClassUML.toml"
+name = "核心模块分析"
+inputs = ['node1', "node2"]
+config = "node3_CoreModule.toml"
 
+# 汇总内容，形成系统架构分析报告
 [[nodes]]
 id = "node4"
-name = "多核心类UML"
-inputs = ["node2"]
-config = "node4_MultiClassUML.toml"
-
-[[nodes]]
-id = "node5"
-name = "系统架构"
-inputs = ["node1", "node3", "node4"]
-config = "node5_SystemArchitect.toml"
+name = "系统架构汇总"
+inputs = ["node1", "node2", "node3"]
+config = "node4_SystemArchitect.toml"
 

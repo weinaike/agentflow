@@ -6,7 +6,7 @@ description = '''Galsim是一个用于模拟天体光学成像的项目。将亮
 2. Real-space Direct rendering
 3. Photon shooting
 '''
-workspace_path = "workspace/test"
+workspace_path = "workspace/galsim"
 llm_config = "docs/OAI_CONFIG_LIST.json"
 
 [codebase]
@@ -39,7 +39,7 @@ previous_flows = ["flow2"]
 
 
 [[flows]]
-flow_name = "任务分解"
+flow_name = "任务执行"
 flow_id = "flow4"
 config = "workflows/cuda_migration/flow4_task_execution/flow_task_execution.toml"
 previous_flows = ["flow3"]

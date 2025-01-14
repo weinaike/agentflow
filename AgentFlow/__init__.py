@@ -1,3 +1,3 @@
-from .work_flow import Workflows, WorkflowsParam
+from .solution import Solution
 
-__all__ = ['Workflows']
+__all__ = ['Solution']

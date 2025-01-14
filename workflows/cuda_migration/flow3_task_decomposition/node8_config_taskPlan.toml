@@ -5,18 +5,32 @@ task = '''汇总所有任务，根据依赖关系，形成任务列表。'''
 max_turns = 5
 mode = 'Questionnaire'
 questions = [
-    "输出任务清单",
+    "输出需要进行CUDA迁移的类与函数清单",
+    '基于以上类与函数， 查询uml与代码库，收集派生类信息',    
+
 ]
 participants = ["assistant"]
 
 summary_prompt = '''
-总结以上内容，详细且完整的任务清单
+汇总所有的基类与派生类所需要迁移的函数， 形成任务列表。
+格式如下：
+```json
+[
+    class1::function1,
+    class1::function2,
+    class2::functionA,
+    class2::functionB,
+    ...
+]
+
+
+
 '''
 
 
 [[agents]]
 name = "assistant"
-tools = []
+tools = ['extract_connect_from_uml','extract_class_structure_from_uml'] 
 system_prompt = '''
 角色：项目经理
 职责：

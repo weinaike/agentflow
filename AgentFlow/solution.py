@@ -1,47 +1,45 @@
 from .flows import BaseFlow, FlowFactory
 from .nodes import BaseNode
-from .data_model import WorkflowsParam, Context, LanguageEnum
+from .data_model import SolutionParam, Context, LanguageEnum
 from .tools import AST
 import os
 import toml
 import json
 import logging
 from typing import Dict, List
-# Configure logging
-import asyncio
-import argparse
+
 
 logger = logging.getLogger(__name__)
 
 
-def load_config(config_file: str) -> WorkflowsParam:
+def load_config(config_file: str) -> SolutionParam:
     with open(config_file, 'r') as f:
         config = f.read()
     config = toml.loads(config)
 
     codebase = config['codebase']
-    config['description'] += f"** 项目必要信息**"
+    config['description'] += f"\n\n** 项目必要信息**"
     if 'language' in codebase:
-        config['description'] += f"\n** language ** : {codebase['language']}\n"
+        config['description'] += f"** language ** : {codebase['language']}\n"
     if 'project_path' in codebase:
-        config['description'] += f"\n** 项目路径 ** : {codebase['project_path']}\n"
+        config['description'] += f"** 项目路径 ** : {codebase['project_path']}\n"
     if 'source_path' in codebase:
-        config['description'] += f"\n** 源码目录 ** : {codebase['source_path']}\n"
+        config['description'] += f"** 源码目录 ** : {codebase['source_path']}\n"
     if 'header_path' in codebase:
-        config['description'] += f"\n** 头文件目录 ** : {codebase['header_path']}\n"
+        config['description'] += f"** 头文件目录 ** : {codebase['header_path']}\n"
     if 'build_path' in codebase:
-        config['description'] += f"\n** 编译与构建目录 ** : {codebase['build_path']}\n"
+        config['description'] += f"** 编译与构建目录 ** : {codebase['build_path']}\n"
     if 'namespace' in codebase:
-        config['description'] += f"\n** 命名空间 ** : {codebase['namespace']}\n"
+        config['description'] += f"** 命名空间 ** : {codebase['namespace']}\n"
 
     if 'backup_dir' not in config:
         config['backup_dir'] = os.path.join(config['workspace_path'], 'cache')
     config['description'] += f"\n** 项目文件备份目录 (backup_dir) ** : {config['backup_dir']}\n"
-    return WorkflowsParam(**config)
+    return SolutionParam(**config)
 
 
-# Define the workflows class
-class Workflows:
+# Define the Solution class
+class Solution:
     def __init__(self, config_file: str):        
         self.param = load_config(config_file)
 
@@ -117,4 +115,6 @@ class Workflows:
             else:
                 logger.info(f"run {flow.id}")
                 context = await flow.run(context, specific_node=specific_node)
+                if specific_flow and flow.id in specific_flow:
+                    break
 

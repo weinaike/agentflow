@@ -6,4 +6,4 @@ workspace*
 OAI_CONFIG_LIST*
 AgentFlow.egg-info
 logs
-workflows/*
+examples

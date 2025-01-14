@@ -163,6 +163,7 @@ class AgentNode(BaseNode) :
 
     async def set_NodeOutput(self, content:str) -> None:        
         with open(self.param.output.address, "w") as f:
+            content = content.replace(self.temrminate_word, '')
             f.write(content)
         self.param.output.content = content
             

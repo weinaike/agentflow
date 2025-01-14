@@ -11,5 +11,5 @@ description =  '''
 [[nodes]]
 id = "node8"
 name = "任务规划"
-inputs = []
+inputs = ['flow1.node2', 'flow2.node1']
 config = "node8_config_taskPlan.toml"

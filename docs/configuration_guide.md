@@ -4,11 +4,11 @@
 
 ### 1.1 目的与概述
 
-    AgentFlow 是一个创新且高效的 Python 框架，专为用户提供精细化的智能体工作流解决方案。其设计目的是通过配置文件的形式，帮助用户快速构建和管理复杂的工作流体系，实现任务的自动化和高效执行。AgentFlow 支持灵活多变的工作流控制，包括顺序、循环等复杂流程组合，且通过提供多样化且可扩展的节点类型，使用户能够灵活应对不同的应用场景。框架的高度扩展性允许用户自定义工作流组件以满足特定需求，从而提升智能体任务执行的效率和稳定性，为项目开发带来显著的增益。
+AgentFlow 是一个创新且高效的 Python 框架，专为用户提供精细化的智能体工作流解决方案。其设计目的是通过配置文件的形式，帮助用户快速构建和管理复杂的工作流体系，实现任务的自动化和高效执行。AgentFlow 支持灵活多变的工作流控制，包括顺序、循环等复杂流程组合，且通过提供多样化且可扩展的节点类型，使用户能够灵活应对不同的应用场景。框架的高度扩展性允许用户自定义工作流组件以满足特定需求，从而提升智能体任务执行的效率和稳定性，为项目开发带来显著的增益。
 
 ### 1.2 适用对象
 
-    本项目适用于以下几类用户：
+本项目适用于以下几类用户：
 
 1. **开发者与工程师**：希望将智能体（Agent）工作流用于产品开发的技术人员。无论是初学者还是有经验的开发者，AgentFlow框架提供的详细文档和示例项目有助于快速掌握如何通过配置文件构建高效的智能体工作流。
 2. **技术架构师**：负责设计系统架构的专业人员，他们需要构建灵活且可扩展的工作流系统以满足特定业务需求。通过AgentFlow，架构师可以直观地管理流（Flow）和节点（Node），定制复杂的流程逻辑。
@@ -18,7 +18,7 @@
 
 ### 2.1 AgentFlow 概括介绍
 
-  AgentFlow是一种用于定义、组织和管理复杂任务的结构化系统，系统将复杂任务进行分解拆分，具体到每个节点，仅负责特定的、简单的任务。这使得节点中的智能体(Agent)能够稳定得开展工作。这种组织模式主要是基于以下因素：
+AgentFlow是一种用于定义、组织和管理复杂任务的结构化系统，系统将复杂任务进行分解拆分，具体到每个节点，仅负责特定的、简单的任务。这使得节点中的智能体(Agent)能够稳定得开展工作。这种组织模式主要是基于以下因素：
 
 - **LLM快思考模式**：导致其推理能力有限， 难以处理复杂任务
 - **有限得上下文窗口**：复杂任务往往需要大量的上下文、容易超过LLM的输入窗口
@@ -28,32 +28,27 @@
 
 1. **data_model.py** - 定义项目中用到的数据模型，是数据结构与其操作的定义中心。
 2. **flows/** - 包含实现各类工作流逻辑的模块。
-
-   -**base_flow.py** - 提供工作流的基础结构和功能，是所有特定工作流的基类，提供基本功能和接口。
-
+   - **base_flow.py** - 提供工作流的基础结构和功能，是所有特定工作流的基类，提供基本功能和接口。
    - **loop_flow.py** - 实现需要重复执行的循环工作流，是复杂任务重复执行的关键模块。
    - **sequential_flow.py** - 顺序执行的工作流实现，用于线性任务流程。
 3. **main.py** - 主程序入口，负责项目的初始化和启动流程。
 4. **nodes/** - 定义和实现工作流中的不同节点逻辑。
-
-   -**base_node.py** - 基础节点类型，是节点的基础抽象类，定义所有节点的模板和接口。
-
+   - **base_node.py** - 基础节点类型，是节点的基础抽象类，定义所有节点的模板和接口。
    - **loop_questionnaire_node.py** - 循环问卷节点，实现循环问卷逻辑的节点，用于动态任务调整。
    - **questionnaire_node.py** - 问卷节点，定义标准问卷逻辑节点。
 5. **prompt_template.py** - 提供用于构建和管理命令提示框架的模板，支持交互界面功能。
 6. **tools/** - 包含辅助工具集，用于支持项目的开发及运行时管理。
-
-    -**abstract_syntax_tree.py** - 操作和分析代码语法树的工具。
-    - **code_tool.py, file_edit.py, file_tool.py** - 提供文件和代码操作的细化功能，文件操作相关的功能。
-    - **shell_tool.py, uml_tool.py** - 提供脚本执行和UML相关的工具。
-    - **utils.py** - 通用工具方法。
-  7. **work_flow.py** - 负责整体工作流的调度和执行。
+   - **abstract_syntax_tree.py** - 操作和分析代码语法树的工具。
+   - **code_tool.py, file_edit.py, file_tool.py** - 提供文件和代码操作的细化功能，文件操作相关的功能。
+   - **shell_tool.py, uml_tool.py** - 提供脚本执行和UML相关的工具。
+   - **utils.py** - 通用工具方法。
+7. **solution.py** - 负责整体工作流的调度和执行。
 
 ### 2.3 工作流的基本组件
 
-#### 2.3.1 工作流（`WorkFlow`）
+#### 2.3.1 方案（`Solution`）
 
-`WorkFlow` 复杂组织与调度 `Flow` 完成服务工作, 其定义在 **work_flow.py** 文件中
+`Solution` 组织与调度 `Flow` 构建解决方案, 其定义在 **solution.py** 文件中
 
 #### 2.3.1 流（`Flow`）
 
@@ -68,7 +63,9 @@
     - **关键方法**：
       - `run`: 异步执行流，用于启动流的执行。
       - `create_node`: 根据配置创建节点集合，初始化流所需的节点。
-  - **子类实现**：不同类型的流可以继承BaseFlow，实现各自的逻辑，如顺序、循环或条件流等。
+  - **子类实现**：不同类型的流可以继承 `BaseFlow`，实现各自的逻辑，如顺序、循环或条件流等。
+    - **SequentialFlow**：根据有向无环图的依赖关系，顺序执行节点
+    - **LoopSequentialFlow**：使用多任务场景，每个任务单独执行一次SequentialFlow
 
 #### 2.3.2 节点（`Node`）
 
@@ -99,7 +96,7 @@ TOML (Tom's Obvious, Minimal Language) 是一种专门用于编写配置文件�
 
 配置文件被组织为模块化和可理解的结构，以路径 `agentflow/workflows/cuda_migration`为例进行说明。工作流包括以下几个部分：
 
-- **总的配置文件**：**根目录下放置**：`workflows.toml`， 用于定义整个工作流的基本信息和流程顺序。它协调不同的流，以实现完整的工作流执行。
+- **方案配置文件**：**根目录下放置**：`solution.toml`， 用于定义整个工作流的基本信息和流程顺序。它协调不同的流，以实现完整的工作流执行。
 - **工作流配置**：**每个子目录**（如 `flow1_architect_understand`, `flow2_solution` 等）对应一个工作流阶段（Flow），
 - **节点配置**：（如 `node1_business_analysis.toml`）描述在具体工作流过程中每个节点的详细任务，其与流配置文件处于同一目录
 - **高级选项配置**：调试选项、日志等级等（待开发）。
@@ -127,12 +124,12 @@ TOML (Tom's Obvious, Minimal Language) 是一种专门用于编写配置文件�
 │   ├── node2_config_genCode.toml
 │   ├── node3_config_editCode.toml
 │   └── node4_config_debugCode.toml
-└── workflows.toml				# 为项目提供整体的工作流配置，并链接其他细化的配置文件。
+└── solution.toml				# 为项目提供整体的工作流配置，并链接其他细化的配置文件。
 ```
 
 ### 3.2 各配置文件说明
 
-#### **3.2.1 总配置文件**
+#### **3.2.1 方案配置文件**
 
 总配置文件的数据结构
 
@@ -145,7 +142,7 @@ class RepositoryParam(BaseModel):
     build_path: str = None                          # 编译路径
     namespace: Optional[Union[str,List[str]]] = None      # 命名空间
 
-class WorkflowsParam(BaseModel):
+class SolutionParam(BaseModel):
     project_name: str
     project_id: str
     description: str
@@ -156,7 +153,7 @@ class WorkflowsParam(BaseModel):
     backup_dir: str = None # 数据备份/缓存目录
 ```
 
-**`workflows.toml`**：总配置文件，包含字段如下
+**`solution.toml`**：方案配置文件，包含字段如下
 
 - `project_name`、`project_id`、`description`、`workspace_path`、`llm_config`: 定义项目的基本信息
 - `codebase`：定义工作流项目所要分析处理的的目标代码库信息，
@@ -208,7 +205,7 @@ class flowNodeParam(BaseModel):
 class flowDetailParam(flowNodeParam):
     flow_type: FlowTypeEnum
     description: str
-    nodes: List[NodeParam]    
+    nodes: List[NodeParam]  
   
 ```
 
@@ -414,7 +411,6 @@ def run_shell_code(code:Annotated[str, "The shell code to run"],
 ```python
 # Define a mapping of tool names to functions
 tool_mapping = {
-    "generate_uml": generate_uml,
     "read_file_content": read_file_content,
     "read_clang_uml_readme_file": read_clang_uml_readme_file,
     "find_definition": find_definition,
