@@ -6,7 +6,7 @@ task = "查询代码"
 summary_prompt = "汇总所有查询到的代码"
 max_turns = 5
 mode = 'Questionnaire'
-participants = ["assistant","user"]
+participants = ["assistant"]
 questions = [
     "根据任务目标查询主函数代码与依赖函数代码，了解代码结构，为后续代码迁移与编辑做准备",
 ]

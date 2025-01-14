@@ -1,36 +1,23 @@
 
-[current_task]
-task = '''
-将生成的CUDA迁移代码，依次写入的代码库中
-
-'''
-
-[summary_prompt]
-prompt = '''
-汇总所有迁移代码的编辑结果
-
-'''
-type = "markdown" # json, markdown, plantuml, txt, list
+type = "Agent"
+task = '''将生成的CUDA迁移代码，依次写入的代码库中'''
 
 
-[output]
-key = "gen_code"
-description = "CUDA迁移代码"
-address = "node2_editCode.md"
+
+[manager]
+summary_prompt = '''汇总所有迁移代码的编辑结果'''
+max_turns = 10
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "将生成的CUDA迁移代码，依次写入的代码库中",
+]
 
 
-[agent_roles]
-cache_seed = 21 # 随机数种子
-count = 2 # 代理人数量
-conversation_count = 10 # 对话轮次
-clear_cache = true
 
-[agent_roles.dual_conversation]
 
-[agent_roles.dual_conversation.assistant]
+[[agents]]
 name = "assistant"
-need_human = "NEVER" # "是否需要人工参与"
-tool_call_type = 0 # 0: 调用工具，1: 执行工具
 tools = ["find_definition", "find_declaration","read_code_from_file", "read_function_from_file", "get_dir_structure", "read_file_content",
     "file_edit_delete_code_block", "file_edit_insert_include_header", "file_edit_replace_code_block", "save_code_to_new_file",
     "file_edit_update_function_defination", "file_edit_insert_code_block",  "file_edit_rollback", "file_edit_save","run_shell_code"]
@@ -55,13 +42,9 @@ system_prompt =  '''
 
 
 
-[agent_roles.dual_conversation.user]
+[[agents]]
 name = "user"
-need_human = "NEVER" # "是否需要人工参与"
-tools =  ["find_definition", "find_declaration","read_code_from_file", "read_function_from_file", "get_dir_structure", "read_file_content",
-    "file_edit_delete_code_block", "file_edit_insert_include_header", "file_edit_replace_code_block", "save_code_to_new_file",
-    "file_edit_update_function_defination", "file_edit_insert_code_block",  "file_edit_rollback", "file_edit_save","run_shell_code"]
-tool_call_type = 1 # 0: 调用工具，1: 执行工具
+tools =  []
 system_prompt =  '''
 角色: 高级软件工程师
 

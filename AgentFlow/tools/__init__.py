@@ -5,9 +5,7 @@ from .shell_tool import *
 
 # Define a mapping of tool names to functions
 tool_mapping = {
-    "generate_uml": generate_uml,
     "read_file_content": read_file_content,
-    "read_clang_uml_readme_file": read_clang_uml_readme_file,
     "find_definition": find_definition,
     "find_declaration": find_declaration,
     "read_plantuml_file": read_plantuml_file,
@@ -33,6 +31,10 @@ tool_mapping = {
     "function_dependency_query": function_dependency_query,
     "file_backup" : file_backup,
     "generate_python_uml": generate_python_uml,
+    "generate_cpp_uml": generate_cpp_uml,
+    "extract_class_names_from_uml": extract_class_names_from_uml,
+    "extract_connect_from_uml" : extract_connect_from_uml,
+    "extract_class_structure_from_uml": extract_class_structure_from_uml,
 }
 
 # __all__ = ["tool_mapping"]

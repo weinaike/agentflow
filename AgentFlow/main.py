@@ -1,5 +1,5 @@
 
-from .work_flow import Workflows
+from .solution import Solution
 import logging
 import asyncio
 import argparse
@@ -20,7 +20,7 @@ def main():
     sp_flow = args.specific_flow
     sp_node = args.specific_node
     print(sp_flow, sp_node)
-    workflows = Workflows(config_file)
+    workflows = Solution(config_file)
     asyncio.run(workflows.run(specific_flow=sp_flow, specific_node=sp_node))
 
 if __name__ == "__main__":

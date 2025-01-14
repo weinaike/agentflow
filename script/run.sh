@@ -1,2 +1,7 @@
-# python -m AgentFlow.main workflows/readme_doc/workflows.toml -f flow1 -n node2
-python -m AgentFlow.main workflows/cuda_migration/workflows.toml -f flow4 -n node1
+
+# 日志文件名，以时间戳命名
+solution='cuda_migration' #'readme_doc' # 'cuda_migration'
+log_file="logs/$solution-$(date +%Y%m%d%H%M%S).log"
+
+# 运行 AgentFlow
+python -m AgentFlow.main workflows/$solution/solution.toml -f flow4  | tee -a $log_file
