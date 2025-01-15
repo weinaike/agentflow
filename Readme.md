@@ -15,11 +15,20 @@ AgentFlow是一个基于Python语言开发的智能体工作流构建框架。�
 
 1. **克隆项目**：
 
-   ```bash
-   git clone https://github.com/weinaike/agentflow.git
-   cd agentflow
-   ```
+```bash
+git clone https://github.com/weinaike/agentflow.git
+cd agentflow
+```
 2. **安装依赖项**：
+
+   - uml分析依赖clang-uml
+   ```bash
+   sudo add-apt-repository ppa:bkryza/clang-uml
+   sudo apt update
+   sudo apt install clang-uml
+   ```
+
+   - python包依赖
 
    ```bash
    pip install -r requirements.txt

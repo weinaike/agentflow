@@ -5,7 +5,7 @@ task = '''采用clang-uml生成项目UML类图(PlantUML格式)'''
 max_turns = 5
 mode = 'Questionnaire'
 questions = [
-    "查询项目的目录结构，获知源文件位置，编写clang-uml配置文件",
+    "查询项目的目录结构，获知源文件位置，分析项目的构建方法(cmake or make)，编写clang-uml配置文件",
     "调用generate_cpp_uml函数生成UML类图, 若出错，请修改配置文件后，重新生成",
     "备份配置文件与puml文件到指定目录",
     "读取puml内容分析类间的关系， 不嫌麻烦地详细地分析各类间的关系",   
@@ -28,7 +28,7 @@ summary_prompt = '''
 
 [[agents]]
 name = "assistant"
-tools = ["generate_cpp_uml", "get_dir_structure", 'extract_connect_from_uml','file_backup']
+tools = ["generate_cpp_uml", "get_dir_structure_with_tree_cmd", 'extract_connect_from_uml','file_backup']
 system_prompt =  '''
 角色: 优秀的UML工程师
 职责: 编写clang-uml配置文件, 并调用函数生成项目完整的UML类图。分析UML类图。提取核心关键类。
@@ -36,10 +36,11 @@ system_prompt =  '''
 
 配置文件内容示例:
 ```yaml
-# compilation_database_dir 编译路径使用绝对路径
-compilation_database_dir: /home/wnk/code/GalSim/build
+# compilation_database_dir 编译路径使用绝对路径,即compile_commands.json所在路径
+# 对于cmake编译方法，CMakeList.txt下一级的build目录下， 对于mkae构建模式，一般与makefile同级
+compilation_database_dir: /home/wnk/code/project/build
 # output_directory 类图输出使用绝对路径
-output_directory: /home/wnk/code/GalSim/build/diagrams
+output_directory: /home/wnk/code/project/build/diagrams
 diagrams:
   # 类图名称， 根据需要调整
   main_class_diagram:
@@ -48,19 +49,20 @@ diagrams:
     glob:
       # 一个路径仅能够包含一个*通配符
       # glob字段可多行, 需保证包含所有.cpp源文件，不需要包含.h头文件与.cu核函数文件; 
-      - /home/wnk/code/GalSim/src/*.cpp
-      - /home/wnk/code/GalSim/src/math/*.cpp
-    # include 限制类图命名空间范围
+      - /home/wnk/code/project/src/*.cpp
+      - /home/wnk/code/project/src/math/*.cpp
+    # include 为非必要选择， 可以不指定 
     include:
       namespaces:
-        - galsim
+        - xxx
     # exclude 排除类图命名空间范围，例如std, boost可以简化类图
     exclude:
       namespaces:
         - std
-        - boost
+        - xxx
+    # 可以不指定 using_namespace
     using_namespace:
-      - galsim
+      - xxx
 ```
 
 

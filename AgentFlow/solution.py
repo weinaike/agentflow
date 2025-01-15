@@ -78,7 +78,10 @@ class Solution:
                 if isinstance(self.param.codebase.namespace, list):
                     namespaces = self.param.codebase.namespace
                 elif isinstance(self.param.codebase.namespace, str):
-                    namespaces = [self.param.codebase.namespace]
+                    if self.param.codebase.namespace == '':
+                        namespaces = []
+                    else:
+                        namespaces = [self.param.codebase.namespace]
                 else:
                     namespaces=[]
                 cache_file = f'workspace/symbol_table_{self.param.project_id}.pkl'

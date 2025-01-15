@@ -26,7 +26,7 @@ def parse_yml_content(yml_file_content):
     return compilation_database_dir, path
 
 
-def generate_cpp_uml(project_path:Annotated[str, "../path/to/project"], yml_file_content:Annotated[str,""]) ->str:
+def generate_cpp_uml(project_path:Annotated[str, "../path/to/project"], yml_file_content:Annotated[str,""], build_method:Annotated[str,"cmake or make"]) ->str:
     """
     generate_cpp_uml函数生成UML类图中包含以下步骤:
     1. 运行CMake配置项目: cmake project_path -DCMAKE_EXPORT_COMPILE_COMMANDS=ON; build目录为workspace/build
@@ -38,12 +38,15 @@ def generate_cpp_uml(project_path:Annotated[str, "../path/to/project"], yml_file
     Args:
         project_path (str): 项目路径
         yml_file_content (str): clang-uml的配置文件内容
+        build_method (str): 编译方法，cmake 或 make            
+            # 对于cmake编译方法，clang-uml-config.yml 中字段compilation_database_dir一般为CMakeList.txt下一级的build目录下
+            # 对于mkae构建模式，clang-uml-config.yml 中字段compilation_database_dir一般与makefile同级
 
     Returns:
         str: UML类图
 
     example:
-        uml_content = generate_cpp_uml("/home/wnk/code/galsim/", yml_file_content)
+        uml_content = generate_cpp_uml("/home/wnk/code/project/", yml_file_content)
     """
 
     build_path, puml_path = parse_yml_content(yml_file_content)
@@ -62,11 +65,16 @@ def generate_cpp_uml(project_path:Annotated[str, "../path/to/project"], yml_file
         if not os.path.exists(uml_dir):
             return f"output_directory 配置不正确，且 UML目录{uml_dir}创建失败， 请修改output_directory配置内容， 采用已存在或可一次创建的绝对路径"  
     
-
-    subprocess.run(['rm', 'CMakeCache.txt'], cwd=build_path, text=True, capture_output=True)  
-    cmake_result = subprocess.run(['cmake', project_path, '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON'], cwd=build_path, text=True, capture_output=True)
-    if cmake_result.returncode != 0:
-        return cmake_result.stderr
+    if build_method == "cmake":
+        subprocess.run(['rm', 'CMakeCache.txt'], cwd=build_path, text=True, capture_output=True)  
+        cmake_result = subprocess.run(['cmake', project_path, '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON'], cwd=build_path, text=True, capture_output=True)
+        if cmake_result.returncode != 0:
+            return cmake_result.stderr + '\n请确认项目的构建方法是否为make, 并提供准确的compilation_database_dir'
+    elif build_method == "make":
+        make_result = subprocess.run(['make', 'clean'], cwd=build_path, text=True, capture_output=True)
+        make_result = subprocess.run(['bear','--', 'make'], cwd=build_path, text=True, capture_output=True)
+        if make_result.returncode != 0:
+            return make_result.stderr + '\n请确认项目的构建方法是否为cmake, 并提供准确的compilation_database_dir'
     # print(cmake_result.stderr, cmake_result.stdout)
     # make
     # make_result = subprocess.run(['make', '-j12'], cwd="workspace/build", text=True, capture_output=True)
@@ -151,7 +159,7 @@ def generate_python_uml(project_path:Annotated[str, "../path/to/project"], backu
         str: UML类图
 
     example:
-        uml_content = generate_python_uml("/home/wnk/code/galsim/", "/home/wnk/code/workspace/backup")
+        uml_content = generate_python_uml("/home/wnk/code/project/", "/home/wnk/code/workspace/backup")
     """
 
     pyreverse = subprocess.run(['pyreverse','-A', '-o', 'puml', f'{project_path}'], cwd='.', text=True, capture_output=True)
