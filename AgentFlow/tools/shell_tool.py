@@ -48,7 +48,7 @@ def get_derived_class_of_function(func:Annotated[str, "function"], src_path:Anno
             str: 查询到的信息
 
         Example:
-            ret = get_derived_class_of_function("shoot", "/home/wnk/code/GalSim/src")
+            ret = get_derived_class_of_function("shoot", "/home/wnk/code/project/src")
 
             ret = """
         src/SBVonKarman.cpp:    void VonKarmanInfo::shoot(PhotonArray& photons, UniformDeviate ud) const
