@@ -86,7 +86,7 @@ class Solution:
                     namespaces=[]
                 cache_file = f'workspace/symbol_table_{self.param.project_id}.pkl'
                 ast = AST()
-                ast.create_cache(src, include, namespaces, cache_file, load = True)
+                ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, cache_file=cache_file, load=True)
 
     def get_previous_flow_nodes(self, flow_nodes: List[str]) -> Dict[str, BaseNode]:
 
