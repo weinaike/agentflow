@@ -586,9 +586,9 @@ class AST:
         #优先在建议的编译单元中查找。
         entry_symbol_table = self.tu_symbol_tables.get(suggested_entry, None)
         if entry_symbol_table:
-            def_cursor = entry_symbol_table.find_declaration_by_cursor(cursor)
-            if def_cursor:
-                return def_cursor
+            decl_cursor = entry_symbol_table.find_declaration_by_cursor(cursor)
+            if decl_cursor:
+                return decl_cursor
 
         for _, symbol_table in self.tu_symbol_tables.items():
             if symbol_table == entry_symbol_table:
