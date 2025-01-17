@@ -65,7 +65,7 @@ class AgentNode(BaseNode) :
         else:
             self._node_param = config
         self.print_param()
-        self.team: BaseGroupChat
+        self.team: BaseGroupChat = None
         self.state_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_chat_state.json")
 
         self.temrminate_word = 'TERMINATE'
@@ -100,19 +100,24 @@ class AgentNode(BaseNode) :
                                )
         return agent
 
-
-    async def load_state(self) -> None:
+    @abstractmethod
+    async def load_state(self) -> bool:
         if os.path.exists(self.state_file):
-            with open(self.state_file, "r") as f:
-                state = json.load(f)                
-                await self.team.load_state(state["team"])
-                await self.summary_agent.load_state(state["summary"])
+            try:
+                with open(self.state_file, "r") as f:
+                    state = json.load(f) 
+                    await self.summary_agent.load_state(state["summary"])
+                    return True
+            except Exception as e:
+                logger.exception(f"Error in node {self._node_param.id}: {e}")
+                return False
+        else:
+            return False
             
-         
-    async def save_state(self) -> Dict:
-        team_state = await self.team.save_state()
+    @abstractmethod
+    async def save_state(self) -> Dict:        
         summary_state = await self.summary_agent.save_state()
-        state = {"team": team_state, "summary": summary_state}
+        state = {"team": None, "summary": summary_state}
         with open(self.state_file, "w") as f:
             json.dump(state, f, ensure_ascii=False, indent=4)
         return state

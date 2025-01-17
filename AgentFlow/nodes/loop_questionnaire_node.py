@@ -21,22 +21,29 @@ logger = logging.getLogger(__name__)
 from ..prompt_template import FORMATE_SYSTEM_PROMPT, FORMATE_MODIFY
 
 
-async def execute_task(i:int, task:TaskItem, context:Context, node_param:AgentNodeParam) -> Tuple[Dict[str, str], Response]:
+async def execute_task(task:TaskItem, context:Context, node_param:AgentNodeParam) -> str:   
     new_param = copy.deepcopy(node_param)
     new_param.task = task.content
-    new_param.id += f'task{i}'
+    new_param.id += f'task{task.id}'
     seq_node = QuestionnaireNode(new_param)
 
+    if task.status == 'done':
+        resume = await seq_node.load_state()
+        if resume is True:
+            return seq_node.response
+
+    task.status = 'doing'
     try:
-        response = await seq_node.execute(context)
+        response = await seq_node.execute(context)        
+        await seq_node.save_state()
     except Exception as e:
         logger.error(f"Error in node {node_param.id}: {e}")
         seq_node.stop()
-        return None, None
+        task.status = 'todo'
+        return None
 
-    team_state = await seq_node.save_state()
-    
-    return team_state, response
+    task.status = 'done'
+    return response.chat_message.content
 
 
 
@@ -55,6 +62,7 @@ class LoopQuestionnaireNode(AgentNode):
         self.planner : AssistantAgent = self.create_agent(param, self._node_param.llm_config)
         self.tasks_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_tasks.json")
         
+        self.response : str = None
 
     async def run(self, context:Context) -> None:
         if os.path.exists(self.tasks_file):
@@ -66,34 +74,24 @@ class LoopQuestionnaireNode(AgentNode):
 
         states = dict()
         summaries = dict()
-        results : List[Tuple[Dict[str, str], Response]] = []
+        results : List[str] = []
 
         if self._loop_param.mode == LoopModeEnum.LOOP_ITERATION:
-            for i, task in enumerate(tasks):
-                results.append(await execute_task(i, task, context, self._node_param))
+            results = [await execute_task(task, context, self._node_param) for task in tasks]
         else:
-            tasks_to_run = []
-            for i, task in enumerate(tasks):
-                tasks_to_run.append(asyncio.create_task(execute_task(i, task, context, self._node_param)))
-
+            tasks_to_run = [asyncio.create_task(execute_task(task, context, self._node_param))for task in tasks]
             results = await asyncio.gather(*tasks_to_run)
 
         for result, task in zip(results, tasks):
-            if result[0] is None :
-                task.status = 'error'
-                states[f'task{i}'] = 'error'
-                summaries[f'task{i}'] = {"task": task.content, "output": 'error'}
-                continue
-            states[f'task{i}'] = result[0]
-            if isinstance(result[1],Response):
-                summaries[f'task{i}'] = {"task": task.content, "output": result[1].chat_message.content}
-                task.status = 'done'
-            else:
-                task.status = 'todo'
+            summaries[f'task{task.id}'] = {"task": task.content, "output": result if result is not None else "Error in executing task"}
+                    
         self._update_task(tasks)
         
         await self._set_LoopNodeOutput(summaries)
-        #await self._set_state(states)
+
+        self.response = json.dumps(summaries, ensure_ascii=False)
+        save_state = await self.save_state()
+
 
     def _update_task(self, tasks: List[TaskItem]) -> None:
         with open(self.tasks_file, 'w') as f:
@@ -148,3 +146,26 @@ class LoopQuestionnaireNode(AgentNode):
             f.write(content)
         self._node_param.output.content = content
 
+
+    async def load_state(self) -> bool:
+        try:
+            if os.path.exists(self.state_file):
+                with open(self.state_file, "r") as f:
+                    state = json.load(f)                
+                    await self.planner.load_state(state["planner"])
+                    await self.summary_agent.load_state(state["summary"])
+                    self.response = state["response"]
+                    return True
+            else:
+                return False
+        except Exception as e:
+            logger.error(f"load state error: {e}")
+            return False    
+            
+    async def save_state(self) -> Dict:
+        plan_state = await self.planner.save_state()
+        summary_state = await self.summary_agent.save_state()
+        state = {"planner": plan_state, "summary": summary_state, "response": self.response}
+        with open(self.state_file, "w") as f:
+            json.dump(state, f, ensure_ascii=False, indent=4)
+        return state

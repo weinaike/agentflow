@@ -67,11 +67,13 @@ FORMATE_SYSTEM_PROMPT = """
 ```json
 [
     {
+        "id": 1,
         "content": "task_content1",
         "status": "todo"
     },
     {
-        "content": "task_content1",
+        "id": 2,
+        "content": "task_content2",
         "status": "todo"
     },
 ]

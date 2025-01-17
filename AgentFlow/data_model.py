@@ -54,6 +54,7 @@ class LoopDependParam(BaseModel):
 
 # TaskItem 用于描述 并发或迭代任务的数据格式
 class TaskItem(BaseModel):
+    id: int
     content: str
     status: Literal["todo", "done", "doing"] = "todo"
 
