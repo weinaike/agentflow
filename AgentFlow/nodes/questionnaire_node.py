@@ -11,6 +11,8 @@ from ..data_model import AgentNodeParam, Context
 
 from typing import Union, Dict,List
 import logging
+import json
+import os
 logger = logging.getLogger(__name__)
 
 from ..prompt_template import TASK_TEMPLATE
@@ -43,6 +45,7 @@ class QuestionnaireNode(AgentNode):
                                         max_turns=self._node_param.manager.max_turns,
                                         ) 
         
+        self.response:str = None
 
     async def execute(self, context:Context) -> Response:
         content = self.gen_context(context)
@@ -73,5 +76,30 @@ class QuestionnaireNode(AgentNode):
                                                 messages=msgs, 
                                                 cancellation_token=self.cancellation_token)
                                             )
+        
+        self.response = summary.chat_message.content
         return summary
 
+
+    async def load_state(self) -> bool:
+        try:
+            if os.path.exists(self.state_file):
+                with open(self.state_file, "r") as f:
+                    state = json.load(f)                
+                    await self.team.load_state(state["team"])
+                    await self.summary_agent.load_state(state["summary"])
+                    self.response = Response(ChatMessage(content=state["response"], source="assistant"))
+                    return True
+            else:
+                return False
+        except Exception as e:
+            logger.error(f"load state error: {e}")
+            return False    
+            
+    async def save_state(self) -> Dict:
+        team_state = await self.team.save_state()
+        summary_state = await self.summary_agent.save_state()
+        state = {"team": team_state, "summary": summary_state, "response": self.response}
+        with open(self.state_file, "w") as f:
+            json.dump(state, f, ensure_ascii=False, indent=4)
+        return state
