@@ -279,7 +279,7 @@ def extract_connect_from_uml(puml_file_name:Annotated[str, "UML类图文件"]) -
     # 拼接输出字符串
     connect = '@startuml'
     for conn in connections:
-        connect += f"{conn['source']} {conn['relation']} {conn['target']}\n"
+        connect += f"{conn['source']} {conn['relation']} {conn['target']} {conn['label']}\n"
     connect += '@enduml'
     return connect
 
@@ -308,11 +308,49 @@ def extract_class_structure_from_uml(puml_file_name:Annotated[str, "UML类图文
     return class_structure
 
 
+def extract_Inheritance_classes_from_uml(puml_file_name:Annotated[str, "UML类图文件"], class_name:Annotated[str, "类名"]) -> list[str]:
+    """
+    extract_Inheritance_classes_from_uml 函数从UML类图中提取与输入类存在继承或派生关系的类
+
+    Args:
+        class_name (str): 类名
+        puml_file_name (str): UML类图文件
+    Returns:
+        list: 继承关系类名列表
+
+    example:
+        inheritance_classes = extract_Inheritance_classes_from_uml("class_name", puml_file_name)
+    """
+    with open(puml_file_name, 'r') as file:
+        content = file.read()
+    connections = extract_connect(content)
+    _, ip_map = extract_classes(content)
+
+    for conn in connections:
+        if conn['source'] in ip_map:
+            conn['source'] = ip_map[conn['source']]
+        if conn['target'] in ip_map:
+            conn['target'] = ip_map[conn['target']]        
+    
+    inheritance_classes = []
+    for conn in connections:
+        if '<|--' != conn['relation']:
+            continue
+        if (class_name in conn['source'] or class_name in conn['target']) :
+            inheritance_classes.append(conn)
+
+    outputs = []
+    for conn in inheritance_classes:
+        outputs.append(f'{conn["source"]} {conn["relation"]} {conn["target"]}')
+
+    return outputs
+
+
 if __name__ == '__main__':
     file = '/home/wnk/code/GalSim/build/docs/diagrams/main_class.puml'
     content = extract_class_names_from_uml(file)
     # print(content)
     content = extract_connect_from_uml(file)
-    print(content)
-    content = extract_class_structure_from_uml(file, 'PhotonArray')
     # print(content)
+    content = extract_Inheritance_classes_from_uml(file, 'SBProfile')
+    print(content)

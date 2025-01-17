@@ -13,7 +13,7 @@ tool_mapping = {
     "read_plantuml_file": read_plantuml_file,
     "run_shell_code": run_shell_code,
     "run_python_code": run_python_code,
-    "get_dir_structure": get_dir_structure,
+    "get_cpp_dir_structure": get_cpp_dir_structure,
     "get_dir_structure_with_tree_cmd": get_dir_structure_with_tree_cmd,
     "get_derived_class_of_class": get_derived_class_of_class,
     "get_derived_class_of_function": get_derived_class_of_function,
@@ -37,6 +37,8 @@ tool_mapping = {
     "extract_class_names_from_uml": extract_class_names_from_uml,
     "extract_connect_from_uml" : extract_connect_from_uml,
     "extract_class_structure_from_uml": extract_class_structure_from_uml,
+    "extract_Inheritance_classes_from_uml": extract_Inheritance_classes_from_uml,
+    "query_right_name": query_right_name,
 }
 
 # __all__ = ["tool_mapping"]

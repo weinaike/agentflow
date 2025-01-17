@@ -14,38 +14,38 @@ logger = logging.getLogger(__name__)
 class SequentialFlow(BaseFlow):
     def __init__(self, config : Union[Dict, SequentialFlowParam]):
         if isinstance(config, dict):
-            self.param = SequentialFlowParam(**config)
+            self._flow_param = SequentialFlowParam(**config)
         else:
-            self.param = config
+            self._flow_param = config
 
-        self.nodes : List[BaseNode] = []
-        logger.debug(f'---{self.param.flow_id} {self.param.flow_name} start---')
-        logger.debug(json.dumps(self.param.model_dump(), indent=4, ensure_ascii=False))
-        self.nodes = self.create_node(self.param)
-        logger.debug(f'---{self.param.flow_id} {self.param.flow_name} over---')
-        dot, graph = self.draw_flow_graph()
-        self.topological_order = self.topological_sort(graph)
+        self._nodes : List[BaseNode] = []
+        logger.debug(f'---{self._flow_param.flow_id} {self._flow_param.flow_name} start---')
+        logger.debug(json.dumps(self._flow_param.model_dump(), indent=4, ensure_ascii=False))
+        self._nodes = self.create_node(self._flow_param)
+        logger.debug(f'---{self._flow_param.flow_id} {self._flow_param.flow_name} over---')
+        dot, graph = self._draw_flow_graph()
+        self._topological_order = self._topological_sort(graph)
 
-    def draw_flow_graph(self):
+    def _draw_flow_graph(self):
         '''绘制流程图'''
-        flow_name = self.param.flow_name
+        flow_name = self._flow_param.flow_name
         dot = Digraph(comment=flow_name)
         dot.attr(label=flow_name, labelloc='t', fontsize='20')
 
         # Add nodes to the graph
-        for node in self.param.nodes:    
+        for node in self._flow_param.nodes:    
             dot.node(node.id, node.name)
         
-        graph = {node.id: [] for node in self.param.nodes}
+        graph = {node.id: [] for node in self._flow_param.nodes}
         # Add edges based on inputs
-        for node in self.param.nodes:
+        for node in self._flow_param.nodes:
             for input_node in node.inputs:
                 if input_node not in graph:
                     continue
                 dot.edge(input_node, node.id)
                 graph[input_node].append(node.id)
                
-        file = os.path.join(self.param.workspace_path, flow_name)
+        file = os.path.join(self._flow_param.workspace_path, flow_name)
 
         # Save and render the graph
         try:
@@ -55,7 +55,7 @@ class SequentialFlow(BaseFlow):
         return dot, graph
     
     
-    def topological_sort(self, graph):
+    def _topological_sort(self, graph):
         '''拓扑排序, 根据依赖关系，确定节点执行顺序'''
         in_degree = {node: 0 for node in graph}
         for node in graph:
@@ -83,8 +83,8 @@ class SequentialFlow(BaseFlow):
 
 
     async def run(self, context : Context, specific_node = [], flow_execute = True) -> Context:
-        context.flow_description[self.param.flow_id] = self.param.description   
-        for node_id in self.topological_order:
+        context.flow_description[self._flow_param.flow_id] = self._flow_param.description   
+        for node_id in self._topological_order:
             node = self.get_node(node_id)
             assert node is not None
             if self.should_node_run(node_id, specific_node, flow_execute):                

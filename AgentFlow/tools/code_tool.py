@@ -62,6 +62,55 @@ def get_call_graph(symbol:Annotated[str, "The name of the function or variable t
     call_graph = ast.get_call_graph(symbol, class_name)
     return call_graph.to_string(remove_leaf_nodes=True, requires_signature=False)
 
+
+
+def query_right_name(names:Annotated[List[str], "The names of the functions that needs to be queried."])-> dict:
+    '''
+    基于C++代码的抽象语法树，对列表中的函数名(可能不准确)进行查询， 获取准确的函数名。
+    例如： 
+        输入： names = ["SBInterpolatedKImage::shoot",
+                        "SBAiry::shoot",
+                        "SBExponential::shoot",
+                        "SBSersic::shoot"
+                        ]
+        返回：
+            right_names = query_right_name(names)
+            print(right_names)
+            {
+                "SBInterpolatedKImage::shoot": "SBInterpolatedKImage::shoot",
+                "SBAiry::shoot": "SBAiry::shoot",
+                "SBExponential::shoot": "SBExponential::SBExponentialimpl::shoot",
+                "SBSersic::shoot": "SBSersic::SBSersicimpl::shoot"
+            }
+    '''
+    ast = AST()
+
+    name_map = {}
+
+    for name in names:
+        function_name = name
+        class_name = None
+        if '::' in name:
+            items = name.split('::')
+            function_name = items[-1]
+            class_name =  items[-2]
+        
+        content = ast.find_definition(symbol = function_name, class_name = None)
+        functions = content[function_name]
+        if len(functions) == 0:
+            name_map[name] = f"{name}并不存在"
+        else:
+            for function in functions:
+                if class_name in function["symbol"]:
+                    if name in name_map:
+                        name_map[name].append(function["symbol"])
+                    name_map[name] = [function["symbol"]]
+                    
+                    
+    return name_map
+
+
+
 ############ 查询功能 #########
 
 def read_code_from_file(filename: str)->str:
@@ -367,7 +416,7 @@ diagrams:
     ret = subprocess.run(cmd, shell=True, capture_output=True, text=True)   
     json_file = os.path.join(build_path, diag_name + ".json")
     if not os.path.exists(json_file):
-        return ret.stdout + "\n请检查输入的函数名与文件名是否正确"
+        return ret.stdout + "\n请检查输入的函数名(function)与文件名(src_file)是否正确"
 
     # print(json_file)
     with open(json_file, "r") as f:

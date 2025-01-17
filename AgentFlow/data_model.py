@@ -13,6 +13,8 @@ class ModelEnum(str, Enum):
     GPT4O = "gpt-4o"
     O1MINI = "o1-mini"
     CLAUDE = "claude"
+    DOUBAO = "doubao"
+    MINIMAX = "minimax"
 
 
 class ModelCapabilities(BaseModel):
@@ -22,7 +24,7 @@ class ModelCapabilities(BaseModel):
 
 
 class ModelConfig(BaseModel):
-    model : ModelEnum
+    model : str
     api_key : str
     base_url : str
     model_capabilities : ModelCapabilities
