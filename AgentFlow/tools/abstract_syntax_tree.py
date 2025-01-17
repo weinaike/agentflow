@@ -149,8 +149,12 @@ class CallGraph:
             queue = queue[1:]
             node_name = CursorUtils.get_full_displayname(graph.node) if requires_signature else CursorUtils.get_full_name(graph.node)
             if node_name not in res.keys():
-                res[node_name] = [CursorUtils.get_full_displayname(subgraph.node) if requires_signature else \
+                depends  = [CursorUtils.get_full_displayname(subgraph.node) if requires_signature else \
                     CursorUtils.get_full_name(subgraph.node) for subgraph in graph.subgraphs]
+                if len(depends) > 0:
+                    depends = [f"`{node}`" for node in depends]    
+                    depends = ', '.join(depends)
+                    res[node_name] = "调用了如下函数/方法：%s" % depends
             queue.extend(graph.subgraphs)
         return res    
 
@@ -674,7 +678,7 @@ class AST:
                     callgraph.add_subgraph(subgraph)
                     queue.append(subgraph)
 
-        return root    
+        return json.dumps(root.to_dict(), ensure_ascii=False)
 
     def find_definition(self, symbol, class_name, type=None):
         method_or_func_defs = self.find_definition_by_name(name=symbol, scope=class_name, type=type)
@@ -775,7 +779,7 @@ class AST:
                 sorted_method_defs = sorted(method_defs, key=lambda method_def: method_def.extent.start.line)
                 code_snippets[file_name] = self.fetch_code_snippet_from_file(file_name, sorted_method_defs)  
 
-        return code_methods, code_snippets                
+        return self.format_code_snippets(code_snippets)
 
     def format_code_snippets(self, code_snippets):
         code = ""
@@ -874,10 +878,9 @@ if __name__ == "__main__":
     ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_dir, load=use_cache)
 
     callgraph = ast.get_call_graph(method, scope, filters=output_filters)
-    res = callgraph.to_dict()
-    print(json.dumps(res))
-    code_methods, code_snippets = ast.fetch_source_code(method, scope, type=None, filters=output_filters)
-    print(ast.format_code_snippets(code_snippets))
+    print(callgraph)
+    #code_snippets = ast.fetch_source_code(scope, method, type=None, filters=output_filters)
+    #print(code_snippets)
     print(ast.find_definition(method, scope))
     print(ast.find_declaration(method, scope))
 
