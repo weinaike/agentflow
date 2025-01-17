@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 class BaseFlow(ABC):
     def __init__(self, config: Union[Dict, flowDetailParam]):
-        self.param: flowDetailParam 
-        self.nodes: List[BaseNode] 
+        self._flow_param: flowDetailParam 
+        self._nodes: List[BaseNode] 
 
        
     @abstractmethod
@@ -32,11 +32,11 @@ class BaseFlow(ABC):
 
     @property
     def id (self) -> str:
-        return self.param.flow_id
+        return self._flow_param.flow_id
     
     
     def get_node(self, node_id: str) -> BaseNode:
-        for node in self.nodes:
+        for node in self._nodes:
             if node.id == node_id:
                 return node
         return None

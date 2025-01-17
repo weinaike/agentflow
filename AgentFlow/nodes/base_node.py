@@ -22,80 +22,62 @@ from ..prompt_template import BACKGROUND_TEMPLATE, MIDDLE_TEMPLATE, CONTEXT_TEMP
 
 class BaseNode(ABC) : 
     def __init__(self, config: Union[Dict, NodeParam]):
-        self.param : NodeParam 
+        self._node_param : NodeParam 
 
     def print_param(self):
-        logger.info(f"----------{self.param.id} {self.param.name} param start----------")
-        logger.info(json.dumps(self.param.model_dump(), indent=4, ensure_ascii=False))
-        logger.info(f"----------{self.param.id} {self.param.name} param over--------")
+        logger.info(f"----------{self._node_param.id} {self._node_param.name} param start----------")
+        logger.info(json.dumps(self._node_param.model_dump(), indent=4, ensure_ascii=False))
+        logger.info(f"----------{self._node_param.id} {self._node_param.name} param over--------")
 
     @property
     def id(self):
-        return self.param.id
-
-   
-    @abstractmethod
-    async def execute(self, context:Context) -> Response:
-        print("BaseNode execute")
-        pass
+        return self._node_param.id
 
     @abstractmethod
     async def run(self, context:Context) -> None:
         pass
 
     @abstractmethod
-    async def load_state(self) -> None:
-        pass
-
-    @abstractmethod
-    async def save_state(self) -> Dict:
-        pass
-
-    @abstractmethod
     async def get_NodeOutput(self) -> NodeOutput:
         pass
-
+         
     @abstractmethod
-    def gen_context(self, context:Context) -> str:
+    async def stop(self) -> None:
         pass
-
-    @abstractmethod
-    async def set_NodeOutput(self, content:str) -> None:
-        pass
-
 class ToolNode(BaseNode) :    
     def __init__(self, config: Union[Dict, ToolNodeParam]):
-        self.param : ToolNodeParam
+        self._node_param : ToolNodeParam
         if isinstance(config, dict):
-            self.param = ToolNodeParam(**config)
+            self._node_param = ToolNodeParam(**config)
         else:
-            self.param = config    
+            self._node_param = config    
         self.print_param()
 
     async def execute(self, context:Context) -> Response:
-        print("ToolNode execute")
+        NotImplementedError("AgentNode execute method must be implemented")
         
 
 class AgentNode(BaseNode) :  
     def __init__(self, config: Union[Dict, AgentNodeParam]):
-        self.param : AgentNodeParam
+        self._node_param : AgentNodeParam
         if isinstance(config, Dict):
-            self.param = AgentNodeParam(**config)
+            self._node_param = AgentNodeParam(**config)
         else:
-            self.param = config
+            self._node_param = config
         self.print_param()
         self.team: BaseGroupChat
-        self.state_file = os.path.join(self.param.backup_dir, f"{self.param.flow_id}_{self.param.id}_chat_state.json")
+        self.state_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_chat_state.json")
 
         self.temrminate_word = 'TERMINATE'
         self.cancellation_token = CancellationToken()
         self.termination_condition = TextMentionTermination(self.temrminate_word) | ExternalTermination()
 
         param = AgentParam(name = 'summary_agent', system_prompt = SUMMARY_SYSTEM_PROMPT)
-        self.summary_agent : AssistantAgent = self.create_agent(param, self.param.llm_config)
+        self.summary_agent : AssistantAgent = self.create_agent(param, self._node_param.llm_config)
     
+
     async def execute(self, context:Context) -> Response:
-        print("AgentNode execute")
+        NotImplementedError("AgentNode execute method must be implemented")
         
 
     def create_agent(self, agent_param: AgentParam, llm_config_file: str) -> AssistantAgent:
@@ -117,7 +99,8 @@ class AgentNode(BaseNode) :
                             #  model_context=BufferedChatCompletionContext(buffer_size=10),
                                )
         return agent
-    
+
+
     async def load_state(self) -> None:
         if os.path.exists(self.state_file):
             with open(self.state_file, "r") as f:
@@ -125,20 +108,22 @@ class AgentNode(BaseNode) :
                 await self.team.load_state(state["team"])
                 await self.summary_agent.load_state(state["summary"])
             
+         
     async def save_state(self) -> Dict:
         team_state = await self.team.save_state()
         summary_state = await self.summary_agent.save_state()
         state = {"team": team_state, "summary": summary_state}
         with open(self.state_file, "w") as f:
             json.dump(state, f, ensure_ascii=False, indent=4)
-
+        return state
     
     def get_NodeOutput(self) -> NodeOutput:
-        return self.param.output
+        return self._node_param.output
     
+
     def gen_context(self, context:Context) -> str:
-        flow_id = self.param.flow_id
-        inputs = self.param.inputs
+        flow_id = self._node_param.flow_id
+        inputs = self._node_param.inputs
 
         content = BACKGROUND_TEMPLATE.format(project_description = context.project_description, 
                                             flow_description = context.flow_description[flow_id])
@@ -160,12 +145,13 @@ class AgentNode(BaseNode) :
                                                 detail_content = detail)
 
         return content
+    
 
     async def set_NodeOutput(self, content:str) -> None:        
-        with open(self.param.output.address, "w") as f:
+        with open(self._node_param.output.address, "w") as f:
             content = content.replace(self.temrminate_word, '')
             f.write(content)
-        self.param.output.content = content
+        self._node_param.output.content = content
             
 
     async def run(self, context:Context) -> None:
@@ -173,7 +159,9 @@ class AgentNode(BaseNode) :
             response =  await self.execute(context)
             await self.set_NodeOutput(response.chat_message.content)
         except Exception as e:
-            logger.exception(f"Error in node {self.param.id}: {e}")            
+            logger.exception(f"Error in node {self._node_param.id}: {e}")            
             self.cancellation_token.cancel()
         await self.save_state()
 
+    async def stop(self) -> None:
+        self.cancellation_token.cancel()

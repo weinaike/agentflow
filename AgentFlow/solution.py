@@ -41,50 +41,50 @@ def load_config(config_file: str) -> SolutionParam:
 # Define the Solution class
 class Solution:
     def __init__(self, config_file: str):        
-        self.param = load_config(config_file)
+        self._souluton_param = load_config(config_file)
 
-        os.makedirs(self.param.workspace_path, exist_ok=True)
-        os.makedirs(self.param.backup_dir, exist_ok=True)
+        os.makedirs(self._souluton_param.workspace_path, exist_ok=True)
+        os.makedirs(self._souluton_param.backup_dir, exist_ok=True)
 
         self.flows : List[BaseFlow] = []
-        for flow in self.param.flows:                
+        for flow in self._souluton_param.flows:                
             with open(flow.config, 'r') as f:
                 flow_config = f.read()
             flow_config = toml.loads(flow_config)
             flow_config.update(flow.model_dump())
-            flow_config['workspace_path'] = os.path.join(self.param.workspace_path, flow.flow_id)
-            flow_config['llm_config'] = self.param.llm_config
-            flow_config['backup_dir'] = self.param.backup_dir
+            flow_config['workspace_path'] = os.path.join(self._souluton_param.workspace_path, flow.flow_id)
+            flow_config['llm_config'] = self._souluton_param.llm_config
+            flow_config['backup_dir'] = self._souluton_param.backup_dir
             flow_type = flow_config['flow_type'] 
             self.flows.append(FlowFactory.create_flow(flow_type, flow_config))  
         ## BaseMdeol 日志打印
         logger.info('-----------------Workflows-----------------')
-        logger.info(json.dumps(self.param.model_dump(), indent=4, ensure_ascii=False))
+        logger.info(json.dumps(self._souluton_param.model_dump(), indent=4, ensure_ascii=False))
         logger.info('-----------------Workflows-----------------')
 
-        if self.param.codebase:
-            if self.param.codebase.language == LanguageEnum.CPP:
+        if self._souluton_param.codebase:
+            if self._souluton_param.codebase.language == LanguageEnum.CPP:
 
-                src = self.param.codebase.source_path
+                src = self._souluton_param.codebase.source_path
                 
                 include = []
-                if isinstance(self.param.codebase.header_path, list):
-                    include = self.param.codebase.header_path
-                elif isinstance(self.param.codebase.header_path, str):
-                    include = [self.param.codebase.header_path]
+                if isinstance(self._souluton_param.codebase.header_path, list):
+                    include = self._souluton_param.codebase.header_path
+                elif isinstance(self._souluton_param.codebase.header_path, str):
+                    include = [self._souluton_param.codebase.header_path]
                 else:
                     include = []
                 namespaces = []
-                if isinstance(self.param.codebase.namespace, list):
-                    namespaces = self.param.codebase.namespace
-                elif isinstance(self.param.codebase.namespace, str):
-                    if self.param.codebase.namespace == '':
+                if isinstance(self._souluton_param.codebase.namespace, list):
+                    namespaces = self._souluton_param.codebase.namespace
+                elif isinstance(self._souluton_param.codebase.namespace, str):
+                    if self._souluton_param.codebase.namespace == '':
                         namespaces = []
                     else:
-                        namespaces = [self.param.codebase.namespace]
+                        namespaces = [self._souluton_param.codebase.namespace]
                 else:
                     namespaces=[]
-                cache_file = f'workspace/symbol_table_{self.param.project_id}.pkl'
+                cache_file = f'{self._souluton_param.backup_dir}/{self._souluton_param.project_id}'
                 ast = AST()
                 ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, cache_file=cache_file, load=True)
 
@@ -110,7 +110,7 @@ class Solution:
             isinstance(specific_flow, list) and len(specific_flow) > 1:
             logger.error("Only one flow can be specified for execution")
             return
-        context= Context(project_description=self.param.description)
+        context= Context(project_description=self._souluton_param.description)
         for flow in self.flows:            
             if specific_flow and flow.id not in specific_flow:
                 logger.info(f"skip {flow.id}")

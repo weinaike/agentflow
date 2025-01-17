@@ -15,11 +15,12 @@ def main():
     args = parser.parse_args()
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
-    print(args)
+    logging.info(args)
+    print(args, flush=True)
     config_file = args.config
     sp_flow = args.specific_flow
     sp_node = args.specific_node
-    print(sp_flow, sp_node)
+
     workflows = Solution(config_file)
     asyncio.run(workflows.run(specific_flow=sp_flow, specific_node=sp_node))
 

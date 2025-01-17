@@ -202,10 +202,10 @@ def run_python_code(code:Annotated[str, "The python code to run"],
 
 
 
-def get_dir_structure(path:Annotated[Union[str, List[str]], "The path to the directory"])->dict:
+def get_cpp_dir_structure(path:Annotated[Union[str, List[str]], "The path to the directory"])->dict:
     '''
     "
-    get_dir_structure: Get the directory structure of the given path
+    get_cpp_dir_structure: Get the directory structure of the given path. find all the .cpp, .cu, .h, .cuh, .c files
 
     Args:
         path (Annotated[Union[str, List[str]], '']): The path to the directory
@@ -215,21 +215,26 @@ def get_dir_structure(path:Annotated[Union[str, List[str]], "The path to the dir
 
     Example: 
         path = ['/home/wnk/code/galsim_cuda/']
-        print(get_dir_structure(path))
+        print(get_cpp_dir_structure(path))
     "
     '''
+    special_files = ['makefile', 'cmakelists.txt', 'readme.md']
+
     dir_structure = {}
     if isinstance(path, str):
         path = [path]
     
     for p in path:           
         for root, dirs, files in os.walk(p):
+
             root = root.replace(p, "")
             root = root.replace("\\", "/")
+            if root.startswith('build') or root.startswith('CMakeFiles') or root.startswith('cmake'):
+                continue
             if root == "":
                 root = p
             for file in files:
-                if file.endswith((".cpp", ".cu", ".h", ".cuh", ".c", ".txt")):
+                if file.endswith((".cpp", ".cu", ".h", ".cuh", ".c")) or file.lower() in special_files:
                     if root not in dir_structure:
                         dir_structure[root] = []
                     dir_structure[root].append(file)
@@ -240,7 +245,7 @@ def get_dir_structure_with_tree_cmd(path:Annotated[ Union[str, List[str]], "The 
                                     directories_only: Annotated[bool, "" ]= False) -> str:
     '''
     "
-    get_dir_structure: Get the directory structure of the given path
+    get_dir_structure_with_tree_cmd: Get the directory structure of the given path
 
     Args:
         path (Annotated[Union[str, List[str]], '']): The path to the directory
@@ -250,7 +255,7 @@ def get_dir_structure_with_tree_cmd(path:Annotated[ Union[str, List[str]], "The 
 
     Example: 
         path = ['/home/wnk/code/galsim_cuda/']
-        print(get_dir_structure(path))
+        print(get_dir_structure_with_tree_cmd(path))
     "
     '''    
     command = ['tree']
@@ -283,3 +288,7 @@ def file_backup(source: str, backup_dir: str) -> str:
     ret = f' File {source} is backed up to {destination}'
 
     return ret
+
+
+if __name__ == '__main__':
+    print(get_cpp_dir_structure('/home/wnk/code/GalSim/'))
