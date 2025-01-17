@@ -587,24 +587,36 @@ class AST:
             return defs            
 
         ##以下这一步的效率比较低
+        visited_usrs = set()
         for _, symbol_table in self.tu_symbol_tables.items():
-            defs.extend(symbol_table.find_definition_by_name(name=name, scope=scope, type=type))
-            if len(defs) != 0 and scope is not None:
-                return defs
+            this_defs = symbol_table.find_definition_by_name(name=name, scope=scope, type=type)
+            if len(this_defs) != 0 and scope is not None:
+                return this_defs
+
+            for this_def in this_defs:
+                if this_def.get_usr() not in visited_usrs:
+                    visited_usrs.add(this_def.get_usr())
+                    defs.append(this_def)
 
         return defs        
 
     def find_declaration_by_name(self, name, scope=None, type=None):
         #通过名字查找，结果有可能有多个
-        defs = []
+        decls = []
 
         ##以下这一步的效率比较低
+        visited_usrs = set()
         for _, symbol_table in self.tu_symbol_tables.items():
-            defs.extend(symbol_table.find_declaration_by_name(name=name, scope=scope, type=type))
-            if len(defs) != 0 and scope is not None:
-                return defs
+            this_decls = symbol_table.find_declaration_by_name(name=name, scope=scope, type=type)
+            if len(this_decls) != 0 and scope is not None:
+                return this_decls
 
-        return defs        
+            for this_decl in this_decls:
+                if this_decl.get_usr() not in visited_usrs:
+                    visited_usrs.add(this_decl.get_usr())    
+                    decls.append(this_decl)
+
+        return decls        
 
     def find_definition_by_cursor(self, cursor: Cursor, suggested_entry: str=None):
         if cursor.is_definition():
@@ -909,7 +921,7 @@ if __name__ == "__main__":
         }
     ]
 
-    config = configs[-2]
+    config = configs[-1]
 
     src = config["src"]
     include = config["include"]
