@@ -149,14 +149,58 @@ class CallGraph:
             queue = queue[1:]
             node_name = CursorUtils.get_full_displayname(graph.node) if requires_signature else CursorUtils.get_full_name(graph.node)
             if node_name not in res.keys():
-                depends  = [CursorUtils.get_full_displayname(subgraph.node) if requires_signature else \
+                res[node_name] = [CursorUtils.get_full_displayname(subgraph.node) if requires_signature else \
                     CursorUtils.get_full_name(subgraph.node) for subgraph in graph.subgraphs]
-                if len(depends) > 0:
-                    depends = [f"`{node}`" for node in depends]    
-                    depends = ', '.join(depends)
-                    res[node_name] = "调用了如下函数/方法：%s" % depends
             queue.extend(graph.subgraphs)
         return res    
+
+    def to_string(self, remove_leaf_nodes=True, requires_signature=False):
+        res = {}    
+        queue = [self]
+        while queue:
+            graph = queue[0]
+            queue = queue[1:]
+            node_name = CursorUtils.get_full_displayname(graph.node) if requires_signature else CursorUtils.get_full_name(graph.node)
+            if node_name not in res.keys():
+                depends  = [CursorUtils.get_full_displayname(subgraph.node) if requires_signature else \
+                    CursorUtils.get_full_name(subgraph.node) for subgraph in graph.subgraphs]
+                count = len(depends)
+                if count > 0 or not remove_leaf_nodes:
+                    depends = [f"`{node}`" for node in depends]    
+                    depends = ', '.join(depends)
+                    res[node_name] = "调用了如下函数/方法：%s" % depends if count > 0 else "没有调用其它函数/方法"
+            queue.extend(graph.subgraphs)
+        return json.dumps(res, ensure_ascii=False)    
+
+    def draw_callgraph(self):
+        groups_by_class = {}
+        groups_by_file = {}
+        queue = [self]
+        while queue:
+            graph = queue[0]
+            queue = queue[1:]
+            if CursorUtils.is_class_definition(graph.node.semantic_parent):
+                key = CursorUtils.get_full_name(graph.node.semantic_parent)
+                group = groups_by_class.get(key, None)
+                if group:
+                    group.append(graph.node)
+                else:
+                    groups_by_class[key] = [graph.node]
+            else:
+                key = graph.node.location.file.name        
+                group = groups_by_file.get(key, None)
+                if group:
+                    group.append(graph.node)
+                else:
+                    groups_by_file[key] = [graph.node]    
+            queue.extend(graph.subgraphs)        
+
+        print(f"{len(groups_by_class)}; {len(groups_by_file)}")    
+        for key, value in groups_by_class.items():
+            print(f"{key}: {len(value)}")
+        print("========================")
+        for key, value in groups_by_file.items():
+            print(f"{key}: {len(value)}")
 
 class TuSymbolTable:
     def __init__(self, tu: TranslationUnit, parsing_filters=[]):
@@ -544,8 +588,8 @@ class AST:
 
         ##以下这一步的效率比较低
         for _, symbol_table in self.tu_symbol_tables.items():
-            defs = symbol_table.find_definition_by_name(name=name, scope=scope, type=type)
-            if len(defs) != 0:
+            defs.extend(symbol_table.find_definition_by_name(name=name, scope=scope, type=type))
+            if len(defs) != 0 and scope is not None:
                 return defs
 
         return defs        
@@ -556,8 +600,8 @@ class AST:
 
         ##以下这一步的效率比较低
         for _, symbol_table in self.tu_symbol_tables.items():
-            defs = symbol_table.find_declaration_by_name(name=name, scope=scope, type=type)
-            if len(defs) != 0:
+            defs.extend(symbol_table.find_declaration_by_name(name=name, scope=scope, type=type))
+            if len(defs) != 0 and scope is not None:
                 return defs
 
         return defs        
@@ -678,7 +722,7 @@ class AST:
                     callgraph.add_subgraph(subgraph)
                     queue.append(subgraph)
 
-        return json.dumps(root.to_dict(), ensure_ascii=False)
+        return root    
 
     def find_definition(self, symbol, class_name, type=None):
         method_or_func_defs = self.find_definition_by_name(name=symbol, scope=class_name, type=type)
@@ -877,12 +921,13 @@ if __name__ == "__main__":
     ast = AST()
     ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_dir, load=use_cache)
 
-    callgraph = ast.get_call_graph(method, scope, filters=output_filters)
-    print(callgraph)
+    #callgraph = ast.get_call_graph(method, scope, filters=output_filters)
+    #print(callgraph.to_string(remove_leaf_nodes=False))
+    #callgraph.draw_callgraph()
     #code_snippets = ast.fetch_source_code(scope, method, type=None, filters=output_filters)
     #print(code_snippets)
-    print(ast.find_definition(method, scope))
-    print(ast.find_declaration(method, scope))
+    print(ast.find_definition(method, class_name=None))
+    #print(ast.find_declaration(method, scope))
 
 
 

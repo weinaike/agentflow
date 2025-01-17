@@ -59,7 +59,8 @@ def get_call_graph(symbol:Annotated[str, "The name of the function or variable t
     '''
     
     ast = AST()
-    return ast.get_call_graph(symbol, class_name)
+    call_graph = ast.get_call_graph(symbol, class_name)
+    return call_graph.to_string(remove_leaf_nodes=True, requires_signature=False)
 
 ############ 查询功能 #########
 
