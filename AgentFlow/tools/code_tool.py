@@ -33,6 +33,34 @@ def find_declaration(symbol:Annotated[str, "The name of the function or variable
     ast = AST()
     return ast.find_declaration(symbol, class_name)
 
+def fetch_source_code(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
+                     class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
+    '''
+    通过C++代码的抽象语法树，查询函数及其调用的相关代码。
+    例如：
+        若需要查询函数Bounds及其调用函数的相关代码, 符号为'Bounds'：
+            fetch_source_code("Bounds")
+        若需要查询galsim::SBVonKarman::SBVonKarmanImpl::shoot方法及其调用的相关代码，符号为'shoot', class_name为'galsim::SBVonKarman::SBVonKarmanImpl'
+            fetch_source_code("shoot", "galsim::SBVonKarman::SBVonKarmanImpl')    
+    '''
+    
+    ast = AST()
+    return ast.fetch_source_code(symbol, class_name)
+
+def get_call_graph(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
+                     class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
+    '''
+    通过C++代码的抽象语法树，查询函数的调用图。
+    例如：
+        若需要查询函数Bounds的声明, 符号为'Bounds'：
+            get_call_graph("Bounds")
+        若需要查询galsim::SBVonKarman::SBVonKarmanImpl::shoot方法的调用图，符号为'shoot', class_name为'galsim::SBVonKarman::SBVonKarmanImpl'
+            get_call_graph("shoot", "galsim::SBVonKarman::SBVonKarmanImpl')    
+    '''
+    
+    ast = AST()
+    return ast.get_call_graph(symbol, class_name)
+
 ############ 查询功能 #########
 
 def read_code_from_file(filename: str)->str:

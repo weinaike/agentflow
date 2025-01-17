@@ -8,6 +8,8 @@ tool_mapping = {
     "read_file_content": read_file_content,
     "find_definition": find_definition,
     "find_declaration": find_declaration,
+    "fetch_source_code": fetch_source_code,
+    "get_call_graph": get_call_graph,
     "read_plantuml_file": read_plantuml_file,
     "run_shell_code": run_shell_code,
     "run_python_code": run_python_code,
