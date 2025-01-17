@@ -742,6 +742,7 @@ class AST:
             info["file"] = method_or_func_def.location.file.name
             info["start_line"] = method_or_func_def.extent.start.line
             info["end_line"] = method_or_func_def.extent.end.line
+            info["symbol"] = CursorUtils.get_full_name(method_or_func_def) #method_or_func_def.spelling
             info["text"] = self.get_text(method_or_func_def)
             info["is_definition"] = method_or_func_def.is_definition()
             contents[key].append(info)
@@ -768,6 +769,7 @@ class AST:
             info["file"] = symbol_decl.location.file.name
             info["start_line"] = symbol_decl.extent.start.line
             info["end_line"] = symbol_decl.extent.end.line
+            info["symbol"] = CursorUtils.get_full_name(symbol_decl)#symbol_decl.spelling
             info["text"] = self.get_text(symbol_decl)
             info["is_definition"] = symbol_decl.is_definition()
             contents[key].append(info)
@@ -926,8 +928,8 @@ if __name__ == "__main__":
     #callgraph.draw_callgraph()
     #code_snippets = ast.fetch_source_code(scope, method, type=None, filters=output_filters)
     #print(code_snippets)
-    print(ast.find_definition(method, class_name=None))
-    #print(ast.find_declaration(method, scope))
+    #print(ast.find_definition(method, class_name=None))
+    print(json.dumps(ast.find_declaration(method, class_name=None)))
 
 
 
