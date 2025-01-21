@@ -7,9 +7,30 @@ description =  '''
 '''
 
 
+[[nodes]]
+id = "node1"
+name = "待CUDA迁移函数列表"
+inputs = ['flow2.node1']
+config = "node1_FunctionList.toml"
 
 [[nodes]]
-id = "node8"
-name = "任务规划"
-inputs = ['flow1.node2', 'flow2.node1']
-config = "node8_config_taskPlan.toml"
+id = "node2"
+name = "优先级排序" 
+inputs = ['node1']
+config = "node2_TaskPrioritySort.toml"
+
+
+[[nodes]]
+id = "node3"
+name = "任务价值评价"
+inputs = ['node2'] # Loop
+config = "node3_TaskEvaluation.toml"
+
+
+[[nodes]]
+id = "node4"
+name = "任务汇总"
+inputs = ['node2','node3']
+config = "node4_TaskDecompositionSummary.toml"
+
+

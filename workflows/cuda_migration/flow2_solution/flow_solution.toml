@@ -10,5 +10,5 @@ Galsim项目底层是以C++开发的，通过python接口提供给用户使用�
 [[nodes]]
 id = "node1"
 name = "迁移方案"
-inputs = ["flow1.node3", "flow1.node4"]
+inputs = ["flow1.node2", "flow1.node3", "flow1.node4"]
 config = "node1_Solution.toml"

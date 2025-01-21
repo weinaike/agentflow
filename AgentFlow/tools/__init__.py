@@ -9,6 +9,7 @@ tool_mapping = {
     "find_definition": find_definition,
     "find_declaration": find_declaration,
     "fetch_source_code": fetch_source_code,
+    "fetch_source_code_snippet": fetch_source_code_snippet,
     "get_call_graph": get_call_graph,
     "read_plantuml_file": read_plantuml_file,
     "run_shell_code": run_shell_code,
@@ -39,6 +40,7 @@ tool_mapping = {
     "extract_class_structure_from_uml": extract_class_structure_from_uml,
     "extract_Inheritance_classes_from_uml": extract_Inheritance_classes_from_uml,
     "query_right_name": query_right_name,
+    "query_important_functions": query_important_functions,
 }
 
 # __all__ = ["tool_mapping"]

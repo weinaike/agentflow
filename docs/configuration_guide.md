@@ -418,7 +418,7 @@ tool_mapping = {
     "read_plantuml_file": read_plantuml_file,
     "run_shell_code": run_shell_code,
     "run_python_code": run_python_code,
-    "get_dir_structure": get_dir_structure,
+    "get_cpp_dir_structure": get_cpp_dir_structure,
     "get_dir_structure_with_tree_cmd": get_dir_structure_with_tree_cmd,
     "get_derived_class_of_class": get_derived_class_of_class,
     "get_derived_class_of_function": get_derived_class_of_function,

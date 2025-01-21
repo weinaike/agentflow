@@ -1,0 +1,37 @@
+type = "Agent"
+task = '''分析所有待迁移函数与依赖函数，按依赖关系排序（被依赖模块靠前）'''
+
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+questions = [
+    '将这些函数按照类划分模块，分别列出',
+    '根据函数的依赖关系，对类/模块进行排序，被依赖模块靠前',
+]
+participants = ["assistant"]
+
+summary_prompt = '''
+汇总以上内容，按模块/类排序输出
+
+### 模块1
+- class1::function1
+- class1::function2
+- class1::function3
+
+### 模块2
+- class2::functionA
+- class2::functionB
+
+'''
+
+
+[[agents]]
+name = "assistant"
+tools = [] 
+system_prompt = '''
+角色：开发工程师
+'''
+
+
+
+
