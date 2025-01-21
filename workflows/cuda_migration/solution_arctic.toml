@@ -1,0 +1,48 @@
+project_name = "ArCTIc算法CUDA加速"
+project_id = "project_2"
+description = '''AlgoRithm for Charge Transfer Inefficiency (CTI) correction。
+Add or remove image trails due to charge transfer inefficiency in CCD detectors by modelling the trapping, releasing, and moving of charge along pixels.
+'''
+workspace_path = "workspace/arctic"
+llm_config = "docs/OAI_CONFIG_LIST.json"
+
+requirement = '''
+分析代码结构，理解CTI算法的实现，设计CUDA加速方案。
+'''
+requirement_flow = ['flow2']
+
+
+[codebase]
+language = "C++"
+project_path = "/home/wnk/code/arctic/"
+source_path = "/home/wnk/code/arctic/src/"
+header_path = "/home/wnk/code/arctic/include/"
+build_path = "/home/wnk/code/arctic/build/"
+namespace = ''
+
+
+[[flows]]
+flow_name = "架构理解"
+flow_id = "flow1"
+config = "workflows/cuda_migration/flow1_architect_understand/flow_architect_understand.toml"
+previous_flows = []
+
+
+[[flows]]
+flow_name = "迁移方案"
+flow_id = "flow2"
+config = "workflows/cuda_migration/flow2_solution/flow_solution.toml"
+previous_flows = ["flow1"]
+
+[[flows]]
+flow_name = "任务分解"
+flow_id = "flow3"
+config = "workflows/cuda_migration/flow3_task_decomposition/flow_task_decomposition.toml"
+previous_flows = ["flow2"]
+
+
+[[flows]]
+flow_name = "任务执行"
+flow_id = "flow4"
+config = "workflows/cuda_migration/flow4_task_execution/flow_task_execution.toml"
+previous_flows = ["flow3"]
