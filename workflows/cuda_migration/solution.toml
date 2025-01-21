@@ -13,7 +13,7 @@ llm_config = "docs/OAI_CONFIG_LIST.json"
 language = "C++"
 project_path = "/home/wnk/code/GalSim/"
 source_path = "/home/wnk/code/GalSim/src/"
-header_path = "/home/wnk/code/GalSim/include/galsim/"
+header_path = ["/home/wnk/code/GalSim/include/galsim/","/home/wnk/code/GalSim/include/"]
 build_path = "/home/wnk/code/GalSim/build/"
 namespace = "galsim"
 

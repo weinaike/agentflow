@@ -2,11 +2,14 @@
 import os
 import subprocess
 from typing_extensions import Annotated, List, Union
+from .utils import calculate_degrees
 import re
 from .file_edit import FileEditClass
 from .abstract_syntax_tree import AST
 import json
+import logging
 
+logger = logging.getLogger(__name__)
    
 def find_definition(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                     class_name:Annotated[str, "The class name to which the function or variable belongs."] = None) -> dict:
@@ -45,7 +48,39 @@ def fetch_source_code(symbol:Annotated[str, "The name of the function or variabl
     '''
     
     ast = AST()
-    return ast.fetch_source_code(symbol, class_name)
+
+    dir_list = [ast.directory]
+    dir_list.extend(ast.include)
+  
+    output_filters =  [
+        lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
+    ]
+
+
+    return ast.fetch_source_code(symbol, class_name, filters=output_filters)
+
+def fetch_source_code_snippet(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
+                     class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
+    '''
+    通过C++代码的抽象语法树，查询函数及其调用的相关代码。不会主动包含头文件。
+    例如：
+        若需要查询函数Bounds及其调用函数的相关代码, 符号为'Bounds'：
+            fetch_source_code("Bounds")
+        若需要查询galsim::SBVonKarman::SBVonKarmanImpl::shoot方法及其调用的相关代码，符号为'shoot', class_name为'galsim::SBVonKarman::SBVonKarmanImpl'
+            fetch_source_code("shoot", "galsim::SBVonKarman::SBVonKarmanImpl')    
+    '''
+    
+    ast = AST()
+
+    dir_list = [ast.directory]
+    dir_list.extend(ast.include)
+  
+    output_filters =  [
+        lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
+    ]
+
+
+    return ast.fetch_source_code(symbol, class_name, filters=output_filters, with_header=False)
 
 def get_call_graph(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                      class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
@@ -94,8 +129,11 @@ def query_right_name(names:Annotated[List[str], "The names of the functions that
             items = name.split('::')
             function_name = items[-1]
             class_name =  items[-2]
-        
-        content = ast.find_definition(symbol = function_name, class_name = None)
+        try:
+            content = ast.find_definition(symbol = function_name, class_name = None)
+        except Exception as e:
+            name_map[name] = f"{name}并不存在"
+            continue
         functions = content[function_name]
         if len(functions) == 0:
             name_map[name] = f"{name}并不存在"
@@ -109,6 +147,64 @@ def query_right_name(names:Annotated[List[str], "The names of the functions that
                     
     return name_map
 
+
+def query_important_functions(functions:Annotated[List[str], "The names of the functions that needs to be queried."])-> List[str]:
+    '''
+    该函数将分析输入函数的所有依赖函数，将这些依赖绘制为调用图，分析调用图中的关键节点，即：被多个函数调用的中间函数或者基础函数， 形成重要函数列表
+    例如：
+        输入： functions = [
+                    "galsim::PhotonArray::addTo",
+                    "galsim::PhotonArray::convolve",
+                    "galsim::SBProfile::shoot",
+                    "galsim::SBVonKarman::SBVonKarmanImpl::shoot",
+                    "galsim::SBConvolve::SBConvolveImpl::shoot",
+                    "galsim::SBAutoConvolve::SBAutoConvolveImpl::shoot",
+                    ]
+        返回：
+            important_functions = query_important_functions(functions)
+            print(important_functions)
+            [
+                "galsim::OneDimensionalDeviate::shoot",
+                "galsim::UniformDeviate::UniformDeviate",
+                "galsim::PhotonArray::size",
+                "galsim::PhotonArray::getTotalFlux",
+                "galsim::OneDimensionalDeviate::OneDimensionalDeviate",
+            ]
+    '''
+
+    ast = AST()
+
+    dir_list = [ast.directory]
+    dir_list.extend(ast.include)
+  
+    output_filters =  [
+        lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
+    ]
+
+    callgraphs = []
+    for function in functions:
+        method = function.split("::")[-1]
+        scope = "::".join(function.split("::")[:-1])
+        try:
+            callgraph = ast.get_call_graph(method, scope, filters=output_filters)
+        except Exception as e:
+            logger.error(f"获取{function}的调用图失败, {e}")
+            continue
+        callgraphs.append(callgraph)
+
+    merge_callgraph = {}
+    for callgraph in callgraphs:
+        merge_callgraph.update(callgraph.to_dict())
+    degree = calculate_degrees(merge_callgraph)
+    degree = dict(sorted(degree.items(), key=lambda x:  (x[1][0] + 1) * (x[1][1] - 1) , reverse=True))
+
+    important_functions = []
+    topK = 10
+    for i, key in enumerate(degree.keys()):
+        important_functions.append(key)
+        if i == topK:
+            break
+    return important_functions
 
 
 ############ 查询功能 #########

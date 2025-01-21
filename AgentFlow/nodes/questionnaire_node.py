@@ -85,15 +85,15 @@ class QuestionnaireNode(AgentNode):
         try:
             if os.path.exists(self.state_file):
                 with open(self.state_file, "r") as f:
-                    state = json.load(f)                
+                    state = json.load(f)                          
                     await self.team.load_state(state["team"])
                     await self.summary_agent.load_state(state["summary"])
-                    self.response = Response(ChatMessage(content=state["response"], source="assistant"))
+                    self.response = state["response"]
                     return True
             else:
                 return False
         except Exception as e:
-            logger.error(f"load state error: {e}")
+            logger.error(f"load state error: {e}")           
             return False    
             
     async def save_state(self) -> Dict:
