@@ -230,12 +230,14 @@ class RepositoryParam(BaseModel):
 class SolutionParam(BaseModel):
     project_name: str
     project_id: str
-    description: str
+    description: str    # 项目描述，针对整个项目的描述，具体的需求在requirement中描述
     workspace_path: str
     llm_config: str
     codebase: RepositoryParam
     flows: List[flowNodeParam]
     backup_dir: str = None # 数据备份/缓存目录
+    requirement: Optional[str] = None   # 项目需求描述，用于替换工作流描述中的{requirement}
+    requirement_flow: Optional[List[str]] = None # 需求对应的工作流ID
     
     def get_flow_param(self, flow_id: str) -> flowNodeParam:
         for flow in self.flows:
