@@ -329,6 +329,18 @@ class TuSymbolTable:
                 refs.append(token.cursor)
         return refs        
 
+    def find_context(self, line: int):
+        context = self.tu.cursor
+        range_start, range_end = context.extent.start.line, context.extent.end.line
+        assert range_start <= line and line <= range_end
+        for cursor in self.local_cursors:
+            if cursor.extent.start.line < line and line <= cursor.extent.end.line:
+                if cursor.extent.start.line > range_start and cursor.extent.end.line <= range_end:
+                    range_start = cursor.extent.start.line
+                    range_end = cursor.extent.end.line
+                    context = cursor
+        return context            
+
 @thread_safe_singleton
 class AST:    
 
@@ -419,15 +431,20 @@ class AST:
 
     def get_source_files(self, directory):
         source_files = []
-        for root, _, files in os.walk(directory):
-            for file in files:
-                if file.endswith(('.cpp', '.c', '.cu', '.cc', '.cxx')):
-                    source_files.append(os.path.abspath(os.path.join(root, file)))
+        if os.path.isfile(directory):
+            if directory.endswith(('.cpp', '.c', '.cc', '.cxx', '.cu')):
+                source_files = [directory]
+        else:
+            for root, _, files in os.walk(directory):
+                for file in files:
+                    if file.endswith(('.cpp', '.c', '.cu', '.cc', '.cxx')):
+                        source_files.append(os.path.abspath(os.path.join(root, file)))
                     
         return source_files
 
     def get_ast_files(self, file_names):
-        relpaths = [os.path.relpath(file_name, self.directory) for file_name in file_names]
+        directory = os.path.dirname(self.directory) if os.path.isfile(self.directory) else self.directory
+        relpaths = [os.path.relpath(file_name, directory) for file_name in file_names]
         ast_files = [os.path.join(self.cache_dir, relpath + ".ast") for relpath in relpaths]
         return ast_files
             
@@ -823,15 +840,15 @@ class AST:
                 else:
                     code_methods[file_name] = [method_def]
 
-                class_def = method_def.semantic_parent
-                if CursorUtils.is_class_definition(class_def):
-                    #如果是方法，把方法的类定义也加进来
-                    file_name = class_def.location.file.name
-                    if file_name in code_methods.keys():
-                        #TODO: 避免重复加入
-                        code_methods[file_name].append(class_def)
-                    else:
-                        code_methods[file_name] = [class_def]
+                #class_def = method_def.semantic_parent
+                #if CursorUtils.is_class_definition(class_def):
+                #    #如果是方法，把方法的类定义也加进来
+                #    file_name = class_def.location.file.name
+                #    if file_name in code_methods.keys():
+                #        #TODO: 避免重复加入
+                #        code_methods[file_name].append(class_def)
+                #    else:
+                #        code_methods[file_name] = [class_def]
 
             for file_name, method_defs in code_methods.items():
                 sorted_method_defs = sorted(method_defs, key=lambda method_def: method_def.extent.start.line)
