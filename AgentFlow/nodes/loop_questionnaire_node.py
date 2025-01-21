@@ -83,7 +83,7 @@ class LoopQuestionnaireNode(AgentNode):
             results = await asyncio.gather(*tasks_to_run)
 
         for result, task in zip(results, tasks):
-            summaries[f'task{task.id}'] = {"task": task.content, "output": result if result is not None else "Error in executing task"}
+            summaries[f'task{task.id}'] = {"task": f'{task.id}: {task.content}' , "output": result if result is not None else "Error in executing task"}
                     
         self._update_task(tasks)
         
@@ -136,11 +136,11 @@ class LoopQuestionnaireNode(AgentNode):
 
 
     async def _set_LoopNodeOutput(self, summaries:Dict[str, Dict[str, str]]) -> None:        
-        CONTENT_TEMPLATE = '''#### {task}\n{output}\n'''
+        CONTENT_TEMPLATE = '''## {task}\n{output}\n'''
 
         content = ''
         for key, val in summaries.items():
-            content += CONTENT_TEMPLATE.format(task = val['task'], output = val['output'])
+            content += CONTENT_TEMPLATE.format(task = val['task'], output = val['output'].replace(self.temrminate_word, ''))
 
         with open(self._node_param.output.address, "w") as f:
             f.write(content)

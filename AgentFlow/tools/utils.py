@@ -1,4 +1,6 @@
 import threading
+from graphviz import Digraph
+from collections import defaultdict
 
 def thread_safe_singleton(cls):
     """线程安全的单实例装饰器"""
@@ -14,3 +16,47 @@ def thread_safe_singleton(cls):
         return instances[cls]
 
     return get_instance
+
+
+def calculate_degrees(graph: dict[str, list[str]]) -> dict[str, tuple[int, int]]:
+    in_degree = defaultdict(int)
+    out_degree = defaultdict(int)
+
+    for node in graph:
+        in_degree[node] = len(graph[node])
+        for neighbor in graph[node]:
+            out_degree[neighbor] += 1
+
+    all_keys = set(in_degree.keys()).union(out_degree.keys())
+    degree = {}
+    for key in all_keys:
+        first = 0
+        second = 0
+        if key in in_degree:
+            first = in_degree[key]
+        if key in out_degree:
+            second = out_degree[key]
+        degree[key] = (first, second)
+    return degree
+
+
+
+def draw_flow_graph(graph):        
+    '''绘制流程图'''
+
+    flow_name = 'graph'
+    dot = Digraph(comment=flow_name)
+    dot.attr(label=flow_name, labelloc='t', fontsize='20')
+
+    # Add nodes to the graph
+    for node in graph.keys():    
+        dot.node(node.replace("::", "_"), node)
+    
+    # Add edges based on inputs
+    for k, vals in graph.items():
+        for val in vals:
+            dot.edge(val.replace("::", "_"), k.replace("::", "_"))
+
+    dot.render('graph', format='png', cleanup=True)
+
+    return dot

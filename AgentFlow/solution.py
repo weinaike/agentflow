@@ -86,7 +86,13 @@ class Solution:
                     namespaces=[]
                 cache_file = f'{self._souluton_param.backup_dir}/{self._souluton_param.project_id}'
                 ast = AST()
-                ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, cache_file=cache_file, load=True)
+                dir_list = [src]
+                if include:
+                    dir_list.extend(include)
+                output_filters =  [
+                    lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
+                ]
+                ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_file, load=True)
 
     def get_previous_flow_nodes(self, flow_nodes: List[str]) -> Dict[str, BaseNode]:
 

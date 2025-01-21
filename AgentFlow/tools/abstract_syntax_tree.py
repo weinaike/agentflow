@@ -820,7 +820,7 @@ class AST:
         text = ''.join(contents[start-1:end])       
         return text
         
-    def fetch_source_code(self, symbol, scope, type=None, filters=[]):
+    def fetch_source_code(self, symbol, scope, type=None, filters=[], with_header=True):
         #提取scope::method_or_func有关的代码
         assert all([callable(filter) for filter in filters]), "filters must be callable!"
         method_or_func_def = self.find_definition_by_name(name=symbol, scope=scope, type=type)
@@ -840,15 +840,16 @@ class AST:
                 else:
                     code_methods[file_name] = [method_def]
 
-                #class_def = method_def.semantic_parent
-                #if CursorUtils.is_class_definition(class_def):
-                #    #如果是方法，把方法的类定义也加进来
-                #    file_name = class_def.location.file.name
-                #    if file_name in code_methods.keys():
-                #        #TODO: 避免重复加入
-                #        code_methods[file_name].append(class_def)
-                #    else:
-                #        code_methods[file_name] = [class_def]
+                if with_header:
+                    class_def = method_def.semantic_parent
+                    if CursorUtils.is_class_definition(class_def):
+                        #如果是方法，把方法的类定义也加进来
+                        file_name = class_def.location.file.name
+                        if file_name in code_methods.keys():
+                            #TODO: 避免重复加入
+                            code_methods[file_name].append(class_def)
+                        else:
+                            code_methods[file_name] = [class_def]
 
             for file_name, method_defs in code_methods.items():
                 sorted_method_defs = sorted(method_defs, key=lambda method_def: method_def.extent.start.line)
