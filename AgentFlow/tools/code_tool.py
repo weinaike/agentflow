@@ -14,11 +14,13 @@ logger = logging.getLogger(__name__)
 def find_definition(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                     class_name:Annotated[str, "The class name to which the function or variable belongs."] = None) -> dict:
     """
-    通过C++代码的抽象语法树，查找函数或变量的定义。
-    例如：
-        若需要查询函数PhotonArray::addTo的定义, 符号为'addTo', 其所属类为'PhotonArray'：
-        因而调用方式为
-        find_definition("addTo", "PhotonArray")
+    以下示例演示了如何查找函数或变量的定义。
+        如果要查询galsim名字空间内的PhotonArray类的addTo的定义，symbol为'addTo', class_name为'galsim::PhotonArray'，即调用：
+            find_definition("addTo", "galsim::PhotonArray")
+        如果addTo只是在galsim名字空间内定义的，那么调用：
+            find_definition("addTo", "galsim")    
+        如果addTo是定义的一个全局函数，那么调用：
+            find_definition("addTo", "")    
     """
     ast = AST()
     return ast.find_definition(symbol, class_name)
@@ -26,13 +28,14 @@ def find_definition(symbol:Annotated[str, "The name of the function or variable 
 def find_declaration(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                      class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
     '''
-    通过C++代码的抽象语法树，查询函数或者变量的声明。如果查询声明未找到结果，可直接查询定义替代。
-    例如：
-        若需要查询函数Bounds的声明, 符号为'Bounds'：
-        因而调用方式为
-        find_declaration("Bounds")
+    以下示例演示了如何查找函数或变量的声明（如果查询声明未找到结果，可直接查询定义替代）。
+        如果要查询galsim名字空间内的PhotonArray类的addTo的声明，symbol为'addTo', class_name为'galsim::PhotonArray'，即调用：
+            find_declaration("addTo", "galsim::PhotonArray")
+        如果addTo只是在galsim名字空间内声明的，那么调用：
+            find_declaration("addTo", "galsim")    
+        如果addTo是声明的一个全局函数，那么调用：
+            find_declaration("addTo", "")    
     '''
-    
     ast = AST()
     return ast.find_declaration(symbol, class_name)
 
@@ -436,7 +439,7 @@ def file_edit_save(filename: Annotated[str, "the file to save"]) -> str:
     fe = FileEditClass()
     files, res_file = fe.preview_to_commit(filename)
     ast = AST()
-    ast.update_symbol_table(files)
+    ast.update_symbol_tables()
     if len(res_file) == 0:
         return f'{filename} save success 所有操作均已保存'
     else:
