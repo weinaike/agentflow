@@ -28,7 +28,7 @@ summary_prompt = '''
 
 [manager.loop]
 dependencies = ["node2"]
-mode = "Iteration"
+mode = 'Concurrent' #"Iteration"
 prompt = "围绕核心关键类列表分解任务， 逐个分析核心关键类，提取核心成员与方法，并梳理核心流程（一个类对应一个任务"
 
 
