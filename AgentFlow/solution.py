@@ -55,6 +55,9 @@ class Solution:
             flow_config['workspace_path'] = os.path.join(self._souluton_param.workspace_path, flow.flow_id)
             flow_config['llm_config'] = self._souluton_param.llm_config
             flow_config['backup_dir'] = self._souluton_param.backup_dir
+            if len(self._souluton_param.requirement_flow) > 0:
+                if flow.flow_id in self._souluton_param.requirement_flow:
+                    flow_config['description'] =  flow_config['description'].format(requirement = self._souluton_param.requirement) 
             flow_type = flow_config['flow_type'] 
             self.flows.append(FlowFactory.create_flow(flow_type, flow_config))  
         ## BaseMdeol 日志打印

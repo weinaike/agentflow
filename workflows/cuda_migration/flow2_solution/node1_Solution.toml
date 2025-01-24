@@ -1,6 +1,6 @@
 
 type = "Agent"
-task = '''Galsim是一个用于模拟天体光学成像的项目。 将亮度模型SBprofie通过光学仿真构建ImageView图像。Galsim项目底层是以C++开发的，通过python接口提供给用户使用。渲染仿真上存在瓶颈. 特别是光子射击方法，计算量大。为了提高性能，决定扩展Galsim功能， 使用CUDA加速光子射击(Photon shooting)方法。'''
+task = '''根据需求制定迁移方案'''
 [manager]
 max_turns = 10
 mode = 'Questionnaire'
