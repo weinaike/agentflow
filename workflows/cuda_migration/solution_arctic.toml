@@ -7,7 +7,7 @@ workspace_path = "workspace/arctic"
 llm_config = "docs/OAI_CONFIG_LIST.json"
 
 requirement = '''
-分析代码结构，理解CTI算法的实现，设计CUDA加速方案。
+ArCTIc算法采用c++实现，存在高计算量的部分，特别是TrapManagerInstantCapture::n_electrons_released， 通过CUDA加速提高算法的运行速度。
 '''
 requirement_flow = ['flow2']
 

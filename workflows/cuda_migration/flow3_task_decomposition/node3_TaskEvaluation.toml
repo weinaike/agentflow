@@ -13,7 +13,8 @@ questions = [
 participants = ["assistant"]
 
 summary_prompt = '''
-对该模块的主要函数的cuda迁移价值进行评价
+对该模块的主要函数的cuda迁移价值进行评价.
+（备注： 以下内容仅格式示例， 提供的数据必须实际存在的，不能主动假设）
 
 ### 模块
 - class1::function1：具有CUDA迁移价值，因为...

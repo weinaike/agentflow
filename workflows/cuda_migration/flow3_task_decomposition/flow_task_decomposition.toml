@@ -16,7 +16,7 @@ config = "node1_FunctionList.toml"
 [[nodes]]
 id = "node2"
 name = "优先级排序" 
-inputs = ['node1']
+inputs = ['flow2.node1','node1']
 config = "node2_TaskPrioritySort.toml"
 
 
