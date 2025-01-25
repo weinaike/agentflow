@@ -5,29 +5,38 @@ task = '''分析所有待迁移函数与依赖函数，按依赖关系排序（�
 max_turns = 5
 mode = 'Questionnaire'
 questions = [
-    '将这些函数按照类划分模块，分别列出',
-    '根据函数的依赖关系，对类/模块进行排序，被依赖模块靠前',
+    '查询待迁移函数于依赖函数所在类的依赖关系，分析这些类之间的依赖关系',
+    '按照类的依赖关系，对待迁移函数与依赖函数进行排序，被依赖类靠前',
 ]
 participants = ["assistant"]
 
 summary_prompt = '''
-汇总以上内容，按模块/类排序输出
+汇总以上内容，按模块/类排序输出, (如模块是被依赖的基础模块， 在模块表明)
 
-### 模块1
+### 基础模块 类 class1
 - class1::function1
 - class1::function2
 - class1::function3
 
-### 模块2
-- class2::functionA
-- class2::functionB
+### 基础模块 类 class2
+- class2::function1
+- class2::function2
+- class2::function3
+
+### 上层模块 类 class3
+- class3::functionA
+- class3::functionB
+
+### 上层模块 类 class4
+- class4::functionA
+- class4::functionB
 
 '''
 
 
 [[agents]]
 name = "assistant"
-tools = [] 
+tools = ['extract_inter_class_relationship_from_uml'] 
 system_prompt = '''
 角色：开发工程师
 '''

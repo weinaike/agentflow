@@ -1,5 +1,5 @@
 
-from typing_extensions import Annotated
+from typing_extensions import Annotated, List
 import yaml
 import os
 import subprocess
@@ -344,6 +344,59 @@ def extract_Inheritance_classes_from_uml(puml_file_name:Annotated[str, "UML类�
         outputs.append(f'{conn["source"]} {conn["relation"]} {conn["target"]}')
 
     return outputs
+
+
+
+
+def extract_inter_class_relationship_from_uml(puml_file_name:Annotated[str, "UML类图文件"],  class_list:Annotated[List[str], "类名列表"]) -> str:
+    """
+    extract_inter_class_relationship_from_uml 函数提取UML类图中的给定类之间的关系
+
+    Args:
+        puml_file_name (str): UML类图文件
+        class_list (List[str]): 类名列表
+    Returns:
+        str: 类之间的关系
+
+    example:
+        connect = extract_inter_class_relationship_from_uml(puml_file_name)
+    """
+
+    with open(puml_file_name, 'r') as file:
+        content = file.read()
+
+    connections = extract_connect(content)
+
+    _, ip_map = extract_classes(content)
+
+    # 提取类之间的关系
+    for conn in connections:
+        if conn['source'] in ip_map:
+            conn['source'] = ip_map[conn['source']]
+        if conn['target'] in ip_map:
+            conn['target'] = ip_map[conn['target']]        
+
+    # 拼接输出字符串
+    connect = '@startuml'
+    for conn in connections:
+        left = False
+        right = False
+        for class_name in class_list:
+            if '::' in class_name:
+                class_name = class_name.split('::')[-1]
+            if class_name in conn['source'] :
+                left = True
+                break
+        for class_name in class_list:
+            if '::' in class_name:
+                class_name = class_name.split('::')[-1]
+            if class_name in conn['target'] :
+                right = True
+                break
+        if left and right:
+            connect += f"{conn['source']} {conn['relation']} {conn['target']} {conn['label']}\n"
+    connect += '@enduml'
+    return connect
 
 
 if __name__ == '__main__':

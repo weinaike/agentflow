@@ -41,6 +41,7 @@ tool_mapping = {
     "extract_Inheritance_classes_from_uml": extract_Inheritance_classes_from_uml,
     "query_right_name": query_right_name,
     "query_important_functions": query_important_functions,
+    "extract_inter_class_relationship_from_uml": extract_inter_class_relationship_from_uml,
 }
 
 # __all__ = ["tool_mapping"]
