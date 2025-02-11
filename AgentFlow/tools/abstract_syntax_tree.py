@@ -5,6 +5,7 @@ import json
 import time
 import numpy as np
 from typing import Union, List
+from collections import deque
 try:
     from .utils import thread_safe_singleton
 except:
@@ -100,10 +101,9 @@ class CursorUtils:
             inner_classes = [c for c in node.get_children() if CursorUtils.is_class_definition(c)]
             return inner_classes
         all_inner_classes = []    
-        task_queue = [node]
+        task_queue = deque([node])
         while task_queue:
-            node = task_queue[0]
-            task_queue = task_queue[1:]
+            node = task_queue.popleft()
             inner_classes = _get_inner_class_recursively(node)
             all_inner_classes.extend(inner_classes)
             task_queue.extend(inner_classes)
@@ -143,10 +143,9 @@ class CallGraph:
 
     def to_dict(self, requires_signature=False):
         res = {}    
-        queue = [self]
+        queue = deque([self])
         while queue:
-            graph = queue[0]
-            queue = queue[1:]
+            graph = queue.popleft()
             node_name = CursorUtils.get_full_displayname(graph.node) if requires_signature else CursorUtils.get_full_name(graph.node)
             if node_name not in res.keys():
                 res[node_name] = [CursorUtils.get_full_displayname(subgraph.node) if requires_signature else \
@@ -156,10 +155,9 @@ class CallGraph:
 
     def to_string(self, remove_leaf_nodes=True, requires_signature=False):
         res = {}    
-        queue = [self]
+        queue = deque([self])
         while queue:
-            graph = queue[0]
-            queue = queue[1:]
+            graph = queue.popleft()
             node_name = CursorUtils.get_full_displayname(graph.node) if requires_signature else CursorUtils.get_full_name(graph.node)
             if node_name not in res.keys():
                 depends  = [CursorUtils.get_full_displayname(subgraph.node) if requires_signature else \
@@ -175,10 +173,9 @@ class CallGraph:
     def draw_callgraph(self):
         groups_by_class = {}
         groups_by_file = {}
-        queue = [self]
+        queue = deque([self])
         while queue:
-            graph = queue[0]
-            queue = queue[1:]
+            graph = queue.popleft()
             if CursorUtils.is_class_definition(graph.node.semantic_parent):
                 key = CursorUtils.get_full_name(graph.node.semantic_parent)
                 group = groups_by_class.get(key, None)
@@ -219,10 +216,9 @@ class TuSymbolTable:
         self.def_cursors, self.decl_cursors = dict(), dict()
         self.classes = dict()
         self.local_cursors = []
-        task_queue = [self.tu.cursor]
+        task_queue = deque([self.tu.cursor])
         while task_queue:
-            node = task_queue[0] 
-            task_queue = task_queue[1:]
+            node = task_queue.popleft()
 
             namespace_nodes = [child for child in node.get_children() if child.kind == CursorKind.NAMESPACE]
             task_queue.extend(namespace_nodes)
@@ -735,10 +731,9 @@ class AST:
         method_or_func_defs = self.find_definition_by_name(name=symbol, scope=class_name, type=type)
         assert len(method_or_func_defs) == 1
         root = CallGraph(method_or_func_defs[0], None)
-        queue = [root]
+        queue = deque([root])
         while queue:
-            callgraph = queue[0]
-            queue = queue[1:]
+            callgraph = queue.popleft()
             if callgraph.has_circle:
                 #如果在调用链上已经出现该节点，不再展开
                 continue
@@ -877,13 +872,12 @@ class AST:
     def find_dependence(self, method_defs, filters=[]):
         if isinstance(method_defs, Cursor):
             method_defs = [method_defs]
-        task_queue = [method_def for method_def in method_defs]
+        task_queue = deque([method_def for method_def in method_defs])
         visited_usrs = set([method_def.get_usr() for method_def in method_defs])
 
         all_deps: List[Cursor] = [] #记录method_defs依赖的方法/函数
         while task_queue:
-            method_def = task_queue[0]
-            task_queue = task_queue[1:]
+            method_def = task_queue.popleft()
             all_deps.append(method_def)
             call_expr_nodes = self._get_call_expr_nodes(method_def, filters, unique=False, sort=False)
             for call_expr_node in call_expr_nodes:
@@ -939,7 +933,7 @@ if __name__ == "__main__":
         }
     ]
 
-    config = configs[-1]
+    config = configs[0]
 
     src = config["src"]
     include = config["include"]
