@@ -67,5 +67,5 @@ class BaseFlow(ABC):
 
             except Exception as e:
                 print(f"Error in reading config file: {config_file}, {e}")
-                assert False
+                raise e
         return nodes

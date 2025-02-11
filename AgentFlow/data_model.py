@@ -15,6 +15,7 @@ class ModelEnum(str, Enum):
     CLAUDE = "claude"
     DOUBAO = "doubao"
     MINIMAX = "minimax"
+    DEEPSEEK = "deepseek"
 
 
 class ModelCapabilities(BaseModel):
