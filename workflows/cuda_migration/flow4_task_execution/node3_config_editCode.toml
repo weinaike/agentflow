@@ -1,6 +1,6 @@
 
 type = "Agent"
-task = '''将生成的CUDA迁移代码，依次写入的代码库中'''
+task = '''将生成的CUDA迁移代码，依次写入到代码库中'''
 
 
 
@@ -10,7 +10,7 @@ max_turns = 10
 mode = 'Questionnaire'
 participants = ["assistant"]
 questions = [
-    "将生成的CUDA迁移代码，依次写入的代码库中",
+    "将生成的CUDA迁移代码，依次写入到代码库中",
 ]
 
 
@@ -50,6 +50,6 @@ system_prompt =  '''
 
 职责：审查CUDA迁移代码编辑的完整性
 
-当所有需要迁移的代码都完成正确编辑，则回复"TERMINATE"，否则回复"continue"
+当所有需要迁移的代码都完成正确编辑，则回复"TERMINATE"，否则回复"CONTINUE"
 
 '''

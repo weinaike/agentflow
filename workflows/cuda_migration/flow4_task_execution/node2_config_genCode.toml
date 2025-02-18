@@ -1,7 +1,6 @@
 
 type = "Agent"
-task = "根据查询到的代码，生成CUDA迁移代码"
-model = "deepseek"
+task = "根据查询到的代码，生成CUDA迁移代码，不要出现伪代码"
 
 
 
@@ -10,7 +9,8 @@ summary_prompt = '''
 整合以上讨论CUDA迁移代码内容，输出任务目标所需的完整代码内容（若有缺省，进行补全）, 以便于后续编辑，要求如下：
 1. 不要输出查询、讨论等过程信息.
 2. 不同功能代码块独立输出，并且明确存入的文件与行地址. 
-3. 写入代码块要求完整，缺省内容需要补全
+3. 如果在代码中需要包含新增的头文件，需要明确包含时的相对路径，避免找不到包含的头文件。可以查看CMakeLists.txt中include_directories相关设置。
+4. 写入代码块要求完整，缺省内容需要补全
 
 '''
 max_turns = 5
@@ -24,6 +24,7 @@ questions = [
 [[agents]]
 name = "assistant"
 tools = ["find_definition", "find_declaration", "read_file_content", "get_cpp_dir_structure"]
+#model = "deepseek"
 system_prompt =  '''
 角色：软件工程师
 职责：
@@ -58,12 +59,10 @@ system_prompt =  '''
         //filename: src/cuda_kernels/PhotonArray_addTo.h
         #include <iostream>
         #include "PhotonArray.h"
-        #ifdef ENABLE_CUDA
         namespace galsim {
             template <typename T>
             double PhotonArray_addTo_cuda(ImageView<T> &target, double* _x, double* _y, double* _flux, size_t size);
         }
-        #endif
         ```
     2.2.2 接口函数实现
         将接口函数定义保存到与核函数相同的文件中， src/cuda_kernels/PhotonArray_addTo.cu, 同时需要添加模板实例化以及namespace， 
@@ -147,9 +146,10 @@ system_prompt =  '''
 
 汇总以上两步内容，要点如下：
 1. 充分利用代码仓库中已有的成员变量与函数，不要自行臆测
-2. 编码过程要注意namespace的使用，接口函数，头文件的namespace为galsim
-3. 明确指出代码所需保存的文件路径，cuda核函数和接口函数头文件和实现文件都保存至src/cuda_kernels/目录下
-4. 查询过程中，要关注类的继承关系以及虚函数的使用
+2. 编码过程要注意namespace的使用，接口函数，头文件的namespace尽可能与原有的namespace保持一致
+3. 明确指出代码所需保存的文件路径，cuda核函数和接口函数头文件和实现文件保存至src/cuda_kernels/目录下
+4. 检查cuda API的返回值。在src/cuda_kernels/cuda_check.h文件中定义了宏CUDA_CHECK_RETURN，用于检查该返回值
+5. 查询过程中，要关注类的继承关系以及虚函数的使用
 
 '''
 
@@ -165,7 +165,7 @@ system_prompt =  '''
 
 ## Constraints
 1. 要求代码的正确性和完整性。
-2. 要求新增cuda代码与原来的galsim c++代码兼容性。
+2. 要求新增cuda代码与原来的项目代码兼容性。
 3. 要求cuda核函数独立文件存储，使其能够独立编译
 4. 要求提供cuda核函数的c++接口函数，供目标函数调用
 

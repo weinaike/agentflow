@@ -46,7 +46,7 @@ def generate_cpp_uml(project_path:Annotated[str, "../path/to/project"], yml_file
         str: UML类图
 
     example:
-        uml_content = generate_cpp_uml("/home/wnk/code/project/", yml_file_content)
+        uml_content = generate_cpp_uml("/home/jiangbo/project/", yml_file_content)
     """
 
     build_path, puml_path = parse_yml_content(yml_file_content)
@@ -159,7 +159,7 @@ def generate_python_uml(project_path:Annotated[str, "../path/to/project"], backu
         str: UML类图
 
     example:
-        uml_content = generate_python_uml("/home/wnk/code/project/", "/home/wnk/code/workspace/backup")
+        uml_content = generate_python_uml("/home/jiangbo/project/", "/home/jiangbo/workspace/backup")
     """
 
     pyreverse = subprocess.run(['pyreverse','-A', '-o', 'puml', f'{project_path}'], cwd='.', text=True, capture_output=True)
@@ -400,7 +400,7 @@ def extract_inter_class_relationship_from_uml(puml_file_name:Annotated[str, "UML
 
 
 if __name__ == '__main__':
-    file = '/home/wnk/code/GalSim/build/docs/diagrams/main_class.puml'
+    file = '/home/jiangbo/GalSim/build/docs/diagrams/main_class.puml'
     content = extract_class_names_from_uml(file)
     # print(content)
     content = extract_connect_from_uml(file)

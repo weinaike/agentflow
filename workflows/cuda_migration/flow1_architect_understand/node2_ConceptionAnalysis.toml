@@ -38,9 +38,9 @@ system_prompt =  '''
 ```yaml
 # compilation_database_dir 编译路径使用绝对路径,即compile_commands.json所在路径
 # 对于cmake编译方法，CMakeList.txt下一级的build目录下， 对于mkae构建模式，一般与makefile同级
-compilation_database_dir: /home/wnk/code/project/build
+compilation_database_dir: /home/jiangbo/project/build
 # output_directory 类图输出使用绝对路径
-output_directory: /home/wnk/code/project/build/diagrams
+output_directory: /home/jiangbo/project/build/diagrams
 diagrams:
   # 类图名称， 根据需要调整
   main_class_diagram:
@@ -49,8 +49,8 @@ diagrams:
     glob:
       # 一个路径仅能够包含一个*通配符
       # glob字段可多行, 需保证包含所有.cpp源文件，不需要包含.h头文件与.cu核函数文件; 
-      - /home/wnk/code/project/src/*.cpp
-      - /home/wnk/code/project/src/math/*.cpp
+      - /home/jiangbo/project/src/*.cpp
+      - /home/jiangbo/project/src/math/*.cpp
     # 使用命名空间，有助于提升类图的可读性
     include:
       namespaces:

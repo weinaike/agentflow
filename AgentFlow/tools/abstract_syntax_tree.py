@@ -472,7 +472,12 @@ class AST:
         print(f"{source_file}: building ...")
         st = time.time()
 
-        if source_file in self.tu_symbol_tables.keys():
+        #//TODO: 增量编译有时会出现如下的错误：
+        # libclang: crash detected during reparsing
+        # malloc(): unaligned tcache chunk detected
+        #
+        # 因此，先暂时关闭增量编译
+        if source_file in self.tu_symbol_tables.keys() and False:
             symbol_table: TuSymbolTable = self.tu_symbol_tables[source_file]
             symbol_table.tu.reparse(None, options)
             symbol_table.extract_symbols()
@@ -901,7 +906,7 @@ if __name__ == "__main__":
             "src": "/home/jiangbo/GalSim/src",
             "include": ["/home/jiangbo/GalSim/include", "/home/jiangbo/GalSim/include/galsim", "/home/jiangbo/GalSim/src",  "/home/jiangbo/GalSim/src/cuda_kernels", "/home/jiangbo/GalSim/downloaded_eigen/eigen-3.4.0"],
             #"scope": "galsim::SBSpergel::SBSpergelImpl",
-            "scope": "galsim::SBVonKarman::SBVonKarmanImpl",
+            "scope": "galsim::SBConvolve::SBConvolveImpl",
             "method": "shoot",
             "namespaces": [],
             "cache_dir": "/home/jiangbo/agentflow/cached_ast_dir/galsim",
@@ -950,10 +955,10 @@ if __name__ == "__main__":
     #callgraph = ast.get_call_graph(method, scope, filters=output_filters)
     #print(callgraph.to_string(remove_leaf_nodes=False))
     #callgraph.draw_callgraph()
-    #code_snippets = ast.fetch_source_code(scope, method, type=None, filters=output_filters)
-    #print(code_snippets)
+    code_snippets = ast.fetch_source_code(method, scope, type=None, filters=output_filters)
+    print(code_snippets)
     #print(ast.find_definition(method, class_name=None))
-    print(json.dumps(ast.find_declaration(method, class_name=None)))
+    #print(json.dumps(ast.find_declaration(method, class_name=None)))
 
 
 
