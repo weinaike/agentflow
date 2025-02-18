@@ -25,4 +25,11 @@ def main():
     asyncio.run(workflows.run(specific_flow=sp_flow, specific_node=sp_node))
 
 if __name__ == "__main__":
+    import subprocess
+    command = "cd /home/jiangbo/GalSim && git clean -dxf include src && git checkout -- src/ && git checkout -- include"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    print(result.returncode)
+    print(result.stdout)
+    print(result.stderr)
+
     main()

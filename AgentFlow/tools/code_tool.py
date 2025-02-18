@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 def find_definition(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                     class_name:Annotated[str, "The class name to which the function or variable belongs."] = None) -> dict:
     """
+    该方法已过时，请使用fetch_source_code方法。
     以下示例演示了如何查找函数或变量的定义。
         如果要查询galsim名字空间内的PhotonArray类的addTo的定义，symbol为'addTo', class_name为'galsim::PhotonArray'，即调用：
             find_definition("addTo", "galsim::PhotonArray")
@@ -21,6 +22,8 @@ def find_definition(symbol:Annotated[str, "The name of the function or variable 
             find_definition("addTo", "galsim")    
         如果addTo是定义的一个全局函数，那么调用：
             find_definition("addTo", "")    
+        如果要查询galsim名字空间内的UniformDeviate类的声明，symbol为'', classs_name为'galsim::UniformDeviate'，即调用：
+            find_declaration("", "galsim::UniformDeviate")    
     """
     ast = AST()
     return ast.find_definition(symbol, class_name)
@@ -28,6 +31,7 @@ def find_definition(symbol:Annotated[str, "The name of the function or variable 
 def find_declaration(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                      class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
     '''
+    该方法已过时，请使用fetch_source_code方法。
     以下示例演示了如何查找函数或变量的声明（如果查询声明未找到结果，可直接查询定义替代）。
         如果要查询galsim名字空间内的PhotonArray类的addTo的声明，symbol为'addTo', class_name为'galsim::PhotonArray'，即调用：
             find_declaration("addTo", "galsim::PhotonArray")
@@ -35,6 +39,8 @@ def find_declaration(symbol:Annotated[str, "The name of the function or variable
             find_declaration("addTo", "galsim")    
         如果addTo是声明的一个全局函数，那么调用：
             find_declaration("addTo", "")    
+        如果要查询galsim名字空间内的UniformDeviate类的声明，symbol为'', classs_name为'galsim::UniformDeviate'，即调用：
+            find_declaration("", "galsim::UniformDeviate")    
     '''
     ast = AST()
     return ast.find_declaration(symbol, class_name)
@@ -42,8 +48,8 @@ def find_declaration(symbol:Annotated[str, "The name of the function or variable
 def fetch_source_code(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                      class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
     '''
-    通过C++代码的抽象语法树，查询函数及其调用的相关代码。
-    例如：
+    查询函数及其调用的相关代码。该方法相对于find_declaration/find_definition的优点是可以一次查询到全部相关的代码，减少查询次数。建议使用该方法查询代码。
+    该方法用法示例如下：
         若需要查询函数Bounds及其调用函数的相关代码, 符号为'Bounds'：
             fetch_source_code("Bounds")
         若需要查询galsim::SBVonKarman::SBVonKarmanImpl::shoot方法及其调用的相关代码，符号为'shoot', class_name为'galsim::SBVonKarman::SBVonKarmanImpl'
@@ -447,18 +453,18 @@ def file_edit_save(filename: Annotated[str, "the file to save"]) -> str:
     
 
 def function_dependency_query(function: Annotated[str, "PhotonArray::addTo"],
-                            src_file: Annotated[str, "/home/wnk/code/GalSim/src/PhotonArray.cpp"],
-                            project_path: Annotated[str, "/home/wnk/code/GalSim/"],
-                            src_path: Annotated[str, "/home/wnk/code/GalSim/src"],
+                            src_file: Annotated[str, "/home/jiangbo/GalSim/src/PhotonArray.cpp"],
+                            project_path: Annotated[str, "/home/jiangbo/GalSim/"],
+                            src_path: Annotated[str, "/home/jiangbo/GalSim/src"],
                             namespace: Annotated[str, "galsim"])->dict:                            
     '''
     function_dependency_query函数用于查询函数的依赖关系，包括主任务和子任务
 
     Args:
         function (Annotated[str, "PhotonArray::addTo"]): 函数名
-        src_file (Annotated[str, "/home/wnk/code/GalSim/src/PhotonArray.cpp"]): function所在文件。绝对路径
-        project_path (Annotated[str, "/home/wnk/code/GalSim/"]): 项目路径: 绝对路径
-        src_path (Annotated[str, "/home/wnk/code/GalSim/src"]): 源码路径: 绝对路径
+        src_file (Annotated[str, "/home/jiangbo/GalSim/src/PhotonArray.cpp"]): function所在文件。绝对路径
+        project_path (Annotated[str, "/home/jiangbo/GalSim/"]): 项目路径: 绝对路径
+        src_path (Annotated[str, "/home/jiangbo/GalSim/src"]): 源码路径: 绝对路径
         namespace (Annotated[str, "galsim"]): 命名空间
 
     Returns:
@@ -488,8 +494,8 @@ diagrams:
     path = project_path
     build_path = os.path.join(path, "build")
 
-    # src = '/home/wnk/code/GalSim/src'  # Change this to the path of your source code directory
-    # include = ['/home/wnk/code/GalSim/include/galsim/']  # Change this to the path of your include directory
+    # src = '/home/jiangbo/GalSim/src'  # Change this to the path of your source code directory
+    # include = ['/home/jiangbo/GalSim/include/galsim/']  # Change this to the path of your include directory
     # namespaces=['galsim']
     # cache_file = 'workspace/symbol_table.pkl'
 

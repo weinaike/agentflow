@@ -173,10 +173,10 @@ llm_config = "docs/OAI_CONFIG_LIST.json"  #"大语言模型相关的配置文件
 
 [codebase]
 language = "C++"                          		#"使用的编程语言（如：Python, C++等）" 
-project_path = "/home/wnk/code/GalSim/"      		#"项目的根目录路径" 
-source_path = "/home/wnk/code/GalSim/src/"      	#"源代码存放路径"
-header_path = "/home/wnk/code/GalSim/include/galsim/"   #"C/C++项目的头文件路径"
-build_path = "/home/wnk/code/GalSim/build/"        	#"构建工程输出的路径"
+project_path = "/home/jiangbo/GalSim/"      		#"项目的根目录路径" 
+source_path = "/home/jiangbo/GalSim/src/"      	#"源代码存放路径"
+header_path = "/home/jiangbo/GalSim/include/galsim/"   #"C/C++项目的头文件路径"
+build_path = "/home/jiangbo/GalSim/build/"        	#"构建工程输出的路径"
 namespace = "galsim"          				# "命名空间（通常用于组织代码）"
 
 [[flows]]

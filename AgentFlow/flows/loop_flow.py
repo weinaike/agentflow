@@ -21,7 +21,7 @@ from copy import deepcopy
 from typing import List, Dict, Union, Optional
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)
 
 
 class LoopFlow(BaseFlow):
@@ -43,6 +43,8 @@ class LoopFlow(BaseFlow):
         tasks = await self._format_tasks(context)
 
         for i, task in enumerate(tasks):
+            if i >= 1:
+                continue
             config = self._config_tranfer(self._config, f'task_{i}', task.content)
             
             seq_flow = SequentialFlow(config)

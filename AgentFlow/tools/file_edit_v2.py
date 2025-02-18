@@ -1,4 +1,5 @@
 import re
+import numpy as np
 import os
 from typing_extensions import Annotated, List, Union
 import difflib
@@ -277,7 +278,7 @@ example:
     )
     replace_code_block('file.cpp', 64, 69, ['Position& operator=(const Position<T>& rhs)', '{', '    int a = 0;', '    int b = 0;', '    if (&rhs == this) return *this;', '    else { x=rhs.x; y=rhs.y; return *this; }', '}'])
 '''
-    def replace_code_block(self, filename: Annotated[str, "the file to edit "], 
+    def replace_code_block_ToBeDeleted(self, filename: Annotated[str, "the file to edit "], 
                     start_line: Annotated[int, "the start line number to delete (1-indexed)"],
                     end_line: Annotated[int, "the end line number to delete (1-indexed)"],
                     new_code_block: Annotated[Union[str, List[str]], "the new code block to replace the old one"], 
@@ -321,6 +322,69 @@ example:
             return str(e)
         return 'success'
 
+    def replace_code_block(self, filename: Annotated[str, "the file to edit "], 
+                    start_line: Annotated[int, "the start line number to delete (1-indexed)"],
+                    end_line: Annotated[int, "the end line number to delete (1-indexed)"],
+                    new_code_block: Annotated[Union[str, List[str]], "the new code block to replace the old one"], 
+                    preview : bool = False)->str:
+        with open(filename) as f:
+            source_code = f.readlines()
+
+        master_symtable = self.ast.tu_symbol_tables.get(filename, None)    
+        if master_symtable is None:
+            _, master_symtable = self.ast.build_tu_symbol_table(filename, None)
+        replaced_cursor, replaced_cursor_indent = None, 0   
+        for cursor in master_symtable.local_cursors:
+            if cursor.extent.start.line == start_line and cursor.extent.end.line == end_line:
+                replaced_cursor = cursor
+                replaced_line = source_code[replaced_cursor.extent.start.line-1]
+                replaced_cursor_indent = len(replaced_line) - len(replaced_line.lstrip())
+                break
+        
+        #先只考虑是一个函数/方法的情况
+        assert CursorUtils.is_callable(replaced_cursor)
+
+        if isinstance(new_code_block, str):
+            new_code_block_lines = new_code_block.splitlines(True)
+        else:
+            new_code_block_lines = list(map(ensure_line, new_code_block))
+            new_code_block = "".join(new_code_block_lines)    
+        extra_symtable = self._extract_symbol_table_from_code_block(new_code_block)
+        extra_nodes = sorted(extra_symtable.local_cursors, key=lambda cursor: cursor.extent.end.line, reverse=True)
+        lines = []
+        for extra_node in extra_nodes:
+            start, end = extra_node.extent.start.line, extra_node.extent.end.line
+            if extra_node.kind == CursorKind.NAMESPACE:
+                start += 1 if new_code_block_lines[start-1].strip().endswith("{") else 2
+                end -= 1
+            assert start <= end    
+            lines.extend(range(start, end+1))
+        lines = np.unique(np.sort(lines))   
+        refined_new_code_block = [new_code_block_lines[i-1] for i in lines]
+        refined_indent = len(refined_new_code_block[0]) - len(refined_new_code_block[0].lstrip())
+        gap = refined_indent - replaced_cursor_indent
+        for i in range(len(refined_new_code_block)):
+            if gap > 0:
+                refined_new_code_block[i] = refined_new_code_block[i][gap:]
+            else:
+                refined_new_code_block[i] = " " * gap + refined_new_code_block[i]    
+
+        source_code = source_code[:start_line-1] + refined_new_code_block + source_code[end_line:]    
+
+        extra_start = extra_nodes[0].extent.start.line
+        include_stats = [stat.lstrip() for stat in new_code_block_lines[:extra_start] if stat.strip().startswith("#include")]
+        if include_stats:
+            #把包含的头文件加进来：
+            first_cursor = master_symtable.local_cursors[0]    
+            start = first_cursor.extent.start.line
+            source_code = source_code[:start-1] + include_stats + source_code[start-1:]
+
+        with open(filename, "w") as f:
+            f.writelines(source_code)    
+
+        return "success"    
+
+            
 
 
     find_function_range_description = '''
@@ -684,10 +748,25 @@ __global__ void convolveShuffleKernel(double* d_x, double* d_y, double* d_flux,
     def TESTCASE_insert_include_header_01():
         editor.insert_include_header("/home/jiangbo/GalSim/include/galsim/Table.h", "#include <iostream>\n")
 
+    def TESTCASE_replace_code_block_01():
+        code_block = \
+'''
+    #include "myfile.h"
+    namespace galsim {
+        void SBExponential::SBExponentialImpl::shoot(PhotonArray& photons, UniformDeviate ud) const
+        {
+            //new implementation
+            int x, y;
+            return 0;
+        }
+    }
+'''            
+        editor.replace_code_block("/home/jiangbo/GalSim/src/SBExponential.cpp", 563, 629, new_code_block=code_block) 
     #TESTCASE_insert_include_header_01()
-    TESTCASE_insert_code_block_07()
     #TESTCASE_insert_code_block_01()
     #TESTCASE_insert_code_block_02()
     #TESTCASE_insert_code_block_03()
     #TESTCASE_insert_code_block_04()
-    pass
+    #TESTCASE_insert_code_block_07()
+    
+    TESTCASE_replace_code_block_01()
