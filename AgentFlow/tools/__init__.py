@@ -25,7 +25,7 @@ tool_mapping = {
     "file_edit_delete_one_line": file_edit_delete_one_line,
     "file_edit_delete_code_block": file_edit_delete_code_block,
     "file_edit_replace_code_block": file_edit_replace_code_block,
-    "file_edit_update_function_defination": file_edit_update_function_defination,
+    "file_edit_update_function_definition": file_edit_update_function_definition,
     "file_edit_rollback": file_edit_rollback,
     "file_edit_save": file_edit_save,
     "save_code_to_new_file": save_code_to_new_file,

@@ -37,10 +37,17 @@ class LoopFlow(BaseFlow):
        
         llm_config = get_model_config(self._flow_param.llm_config)
         model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
+        #self.tasks_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_tasks.json")
+        self.tasks_file = os.path.join(self._config["backup_dir"], f"{self._flow_param.flow_id}_loop_tasks.json")
         self.planner = AssistantAgent(name='planner', model_client=model_client, system_message = FORMATE_SYSTEM_PROMPT)
 
     async def run(self, context, specific_node = [], flow_execute = True) -> Context:
-        tasks = await self._format_tasks(context)
+        if os.path.exists(self.tasks_file):
+            with open(self.tasks_file) as f:
+                tasks = [TaskItem(**obj) for obj in json.load(f)]
+        else:        
+            tasks = await self._format_tasks(context)
+            self._update_tasks(tasks)
 
         for i, task in enumerate(tasks):
             if i >= 1:
@@ -52,6 +59,10 @@ class LoopFlow(BaseFlow):
             context = await seq_flow.run(context, specific_node, flow_execute)
         
         return context
+     
+    def _update_tasks(self, tasks) -> None:
+        with open(self.tasks_file, 'w') as f:
+            json.dump([task.model_dump() for task in tasks], f, indent=4, ensure_ascii=False)
            
     def _config_tranfer(self, flow_config: Dict, loop_key:str, loop_val:str) -> Dict:
         config = deepcopy(flow_config)

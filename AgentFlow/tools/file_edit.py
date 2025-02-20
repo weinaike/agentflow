@@ -27,7 +27,7 @@ class FileEditClass:
             'delete_one_line': self.delete_one_line, 
             'delete_code_block': self.delete_code_block, 
             'replace_code_block': self.replace_code_block,
-            'update_function_defination': self.update_function_defination,
+            'update_function_definition': self.update_function_definition,
             }
         self.preview_func = dict()
         for func in self.preview_function_list.keys():
@@ -420,7 +420,7 @@ example:
         return start + 1, end + 1 # 1-indexed
 
 
-    update_function_defination_description = '''
+    update_function_definition_description = '''
 file edit: Function to update a function in a cpp/h file
 params:
     filename: the file to update the function
@@ -432,7 +432,7 @@ returns:
 
     
 example 1:
-    update_function_defination('path_to_file/file.cpp', 'Position& operator=(const Position<T>& rhs)', """
+    update_function_definition('path_to_file/file.cpp', 'Position& operator=(const Position<T>& rhs)', """
         Position& operator=(const Position<T>& rhs) 
             {
                 int a = 0;
@@ -443,7 +443,7 @@ example 1:
     )    
 '''
 
-    def update_function_defination(self, filename: Annotated[str, "the cpp/h file to update the cpp function"],
+    def update_function_definition(self, filename: Annotated[str, "the cpp/h file to update the cpp function"],
                         function_name: Annotated[str, "the cpp function name to update"],
                         new_code_block: Annotated[Union[str, List[str]], "the new code block to replace the old one"],
                         preview : bool = False)->str:
@@ -454,7 +454,7 @@ example 1:
 
         ret = self.replace_code_block(filename, start, end, new_code_block, preview)
         if preview :
-            self.preview_func['update_function_defination'].append({'filename':filename, 'function_name':function_name, 'new_code_block': new_code_block})
+            self.preview_func['update_function_definition'].append({'filename':filename, 'function_name':function_name, 'new_code_block': new_code_block})
             return ret    
         if ret != 'success':
             return ret
@@ -565,6 +565,6 @@ if __name__ == '__main__':
     print(fe.replace_code_block('file.cpp', 1, 3, new_code_block="void Nearest::shoot(PhotonArray& photons, UniformDeviate ud) const {\n#ifdef ENABLE_CUDA\n    Nearest_shoot_cuda(photons, ud);\n#else\n    const int N = photons.size();\n    dbg<<\"Nearest shoot: N = \"<<N<<std::endl;\n    dbg<<\"Target flux = 1.\\n\";\n    double fluxPerPhoton = 1./N;\n    for (int i=0; i<N; i++)  {\n        photons.setPhoton(i, ud()-0.5, ud()-0.5, fluxPerPhoton);\n    }\n    dbg<<\"Nearest Realized flux = \"<<photons.getTotalFlux()<<std::endl;\n#endif\n}", preview=True))
 #     print(fe.replace_code_block('file.cpp', 1, 3, ['Position& operator=(const Position<T>& rhs)', '{', '    int a = 0;', '    int b = 0;', '    if (&rhs == this) return *this;', '    else { x=rhs.x; y=rhs.y; return *this; }', '}'], preview=True))
     # print(fe.find_function_range('file.cpp', 'Position& operator=(const Position<T>& rhs)'))
-    # print(fe.update_function_defination('file.cpp','fluxRadius', ['Position& operator=(const Position<T>& rhs)\n', '{\n', '    int a = 0;\n', '    int b = 0;\n', '    if (&rhs == this) return *this;\n', '    else { x=rhs.x; y=rhs.y; return *this; }\n', '}\n'], preview=True))
+    # print(fe.update_function_definition('file.cpp','fluxRadius', ['Position& operator=(const Position<T>& rhs)\n', '{\n', '    int a = 0;\n', '    int b = 0;\n', '    if (&rhs == this) return *this;\n', '    else { x=rhs.x; y=rhs.y; return *this; }\n', '}\n'], preview=True))
     # print(fe.save_code_to_new_file('file.cpp', ['Position& operator=(const Position<T>& rhs)', '{', '    int a = 0;', '    int b = 0;', '    if (&rhs == this) return *this;', '    else { x=rhs.x; y=rhs.y; return *this; }', '}']))
     # print(fe.insert_code_block('file.cpp', 3, '#include <iostream>\n#include <iostream>\n#include <iostream>\n#include <iostream>\n', preview= True))
