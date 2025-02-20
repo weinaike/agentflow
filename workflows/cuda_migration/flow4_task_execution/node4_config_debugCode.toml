@@ -17,7 +17,7 @@ questions = [
 name = "assistant"
 tools = ["find_definition", "find_declaration","read_code_from_file", "read_function_from_file", "get_cpp_dir_structure", "read_file_content",
     "file_edit_delete_code_block", "file_edit_insert_include_header", "file_edit_replace_code_block", "save_code_to_new_file",
-    "file_edit_update_function_defination", "file_edit_insert_code_block",  "file_edit_rollback", "file_edit_save","run_shell_code", "run_cmake_and_make"]
+    "file_edit_update_function_definition", "file_edit_insert_code_block",  "file_edit_rollback", "file_edit_save","run_shell_code", "run_cmake_and_make"]
 system_prompt =  '''
 角色：软件工程师
 职责：负责调试程序，查找代码中的错误

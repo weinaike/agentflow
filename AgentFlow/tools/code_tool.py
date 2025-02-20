@@ -4,7 +4,7 @@ import subprocess
 from typing_extensions import Annotated, List, Union
 from .utils import calculate_degrees
 import re
-from .file_edit import FileEditClass
+from .file_edit_v2 import FileEditClass
 from .abstract_syntax_tree import AST
 import json
 import logging
@@ -405,7 +405,7 @@ def file_edit_replace_code_block(filename: Annotated[str, "the file to edit "],
     return fe.replace_code_block(filename, start_line, end_line, new_code_block, preview=True)
 
 
-def file_edit_update_function_defination(filename: Annotated[str, "the cpp/h file to update the cpp function"],
+def file_edit_update_function_definition(filename: Annotated[str, "the cpp/h file to update the cpp function"],
                     function_name: Annotated[str, "the cpp function name to update"],
                     new_code_block: Annotated[Union[str, List[str]], "the new code block to replace the old one"])->str:
     '''
@@ -420,7 +420,7 @@ def file_edit_update_function_defination(filename: Annotated[str, "the cpp/h fil
 
         
     example 1:
-        update_function_defination('path_to_file/file.cpp', 'Position& operator=(const Position<T>& rhs)', """
+        update_function_definition('path_to_file/file.cpp', 'Position& operator=(const Position<T>& rhs)', """
             Position& operator=(const Position<T>& rhs) 
                 {
                     int a = 0;
@@ -432,7 +432,7 @@ def file_edit_update_function_defination(filename: Annotated[str, "the cpp/h fil
     '''    
     
     fe = FileEditClass()
-    return fe.update_function_defination(filename, function_name, new_code_block,preview=True)
+    return fe.update_function_definition(filename, function_name, new_code_block,preview=True)
 
 def file_edit_rollback(filename: Annotated[str, "the file to save"]) -> str:
     '''回退一步（取消上一次编辑）'''
