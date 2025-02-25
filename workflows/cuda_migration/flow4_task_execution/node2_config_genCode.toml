@@ -11,6 +11,8 @@ summary_prompt = '''
 2. 不同功能代码块独立输出，并且明确存入的文件与行地址. 
 3. 如果在代码中需要包含新增的头文件，需要明确包含时的相对路径，避免找不到包含的头文件。可以查看CMakeLists.txt中include_directories相关设置。
 4. 写入代码块要求完整，缺省内容需要补全
+5. 请列出新增文件和修改文件中的完整代码，即原有代码和新增、修改的代码需要合并成，形成完整的文件内容。不要只列出其中的部分代码块。
+6. 
 
 '''
 max_turns = 5
@@ -144,13 +146,11 @@ system_prompt =  '''
         }
     }   
 
-汇总以上两步内容，要点如下：
+在编写代码时，需要注意如下几点：
 1. 充分利用代码仓库中已有的成员变量与函数，不要自行臆测
 2. 编码过程要注意namespace的使用，接口函数，头文件的namespace尽可能与原有的namespace保持一致
-3. 明确指出代码所需保存的文件路径，cuda核函数和接口函数头文件和实现文件保存至src/cuda_kernels/目录下
-4. 检查cuda API的返回值。在src/cuda_kernels/cuda_check.h文件中定义了宏CUDA_CHECK_RETURN，用于检查该返回值
-5. 查询过程中，要关注类的继承关系以及虚函数的使用
-
+3. 检查cuda API的返回值。在src/cuda_kernels/cuda_check.h文件中定义了宏CUDA_CHECK_RETURN，用于检查该返回值
+4. 明确代码所需保存的文件路径，cuda核函数和接口函数头文件和实现文件保存至src/cuda_kernels/目录下。
 '''
 
 

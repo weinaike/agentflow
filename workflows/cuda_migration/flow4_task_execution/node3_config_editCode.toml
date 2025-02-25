@@ -10,7 +10,7 @@ max_turns = 10
 mode = 'Questionnaire'
 participants = ["assistant"]
 questions = [
-    "将生成的CUDA迁移代码，依次写入到代码库中",
+    "将生成的CUDA迁移代码，依次写入到代码库中: 对于新创建的文件，直接调用file_edit_save_to_file工具，将代码写入到文件；对于修改的文件，首先通过read_file_content工具读取原有内容，然后你需要将修改内容合并到原有代码，再通过file_edit_save_to_file将代码写回到原文件。如果read_file_content提示文件不存在，表明该文件是新创建的，可通过file_edit_save_to_file直接将内容写入文件，而无需合并。",
 ]
 
 
@@ -18,9 +18,7 @@ questions = [
 
 [[agents]]
 name = "assistant"
-tools = ["find_definition", "find_declaration","read_code_from_file", "read_function_from_file", "get_cpp_dir_structure", "read_file_content",
-    "file_edit_delete_code_block", "file_edit_insert_include_header", "file_edit_replace_code_block", "save_code_to_new_file",
-    "file_edit_update_function_definition", "file_edit_insert_code_block",  "file_edit_rollback", "file_edit_save","run_shell_code"]
+tools = ["get_cpp_dir_structure", "read_file_content", "file_edit_save_to_file"]
 system_prompt =  '''
 角色：软件工程师
 职责：
@@ -31,12 +29,13 @@ system_prompt =  '''
 2. 在修改代码前，确保待修改的文件与代码段的具体位置的正确性。
 3. 写入代码必须完整，不能包含未实现的内容
 4. 写入代码与原仓库格式兼容
+5. 原有的注释、日志输出等尽可能地保持不变。
 5. 编辑完成后，记得保存，以免编辑丢失
 
 重要：
 对于编辑后的缺陷反馈，需要及时回复，以实现正确编辑。
-1. 如果编辑内容无缺陷，调用'tools.function.file_edit_save'保存编辑操作
-2. 如果编辑内容存在缺陷， 调用'tools.function.file_edit_rollback'回退编辑操作
+1. 如果编辑内容无缺陷，调用'tools.function.file_edit_save_to_file'保存编辑操作
+2. 如果编辑内容存在缺陷，提示代码未更新
 
 '''
 

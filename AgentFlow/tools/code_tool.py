@@ -451,6 +451,20 @@ def file_edit_save(filename: Annotated[str, "the file to save"]) -> str:
     else:
         return f'{filename} save success. \n尚有' + ' '.join(res_file) + ' 尚未保存\n请调用"tools.function.file_edit_save"函数, 保存该文件的编辑操作\n请EDIT_REVIEW'
     
+def file_edit_save_to_file(filename: Annotated[str, "the file to save"],
+        content: Annotated[str, "content to be written"]
+    ) -> str: 
+    '''将指定的内容写入文件中。若文件不存在，则创建该文件；若文件已经存在，则文件内容会被清除'''
+    try:
+        with open(filename, 'w') as f:
+            if isinstance(content, str):
+                f.write(content)
+            elif isinstance(content, list):
+                for line in content:
+                    f.write(line)    
+    except Exception as e:
+        return f'save file `{filename}` failed: {e}'
+    return f'save file `{filename}` success'                    
 
 def function_dependency_query(function: Annotated[str, "PhotonArray::addTo"],
                             src_file: Annotated[str, "/home/jiangbo/GalSim/src/PhotonArray.cpp"],

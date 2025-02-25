@@ -476,7 +476,7 @@ class AST:
         # libclang: crash detected during reparsing
         # malloc(): unaligned tcache chunk detected
         #
-        # 因此，先暂时关闭增量编译
+        # 因此，先暂时关闭增量编译。若要开启，去掉if语句中的`and False`
         if source_file in self.tu_symbol_tables.keys() and False:
             symbol_table: TuSymbolTable = self.tu_symbol_tables[source_file]
             symbol_table.tu.reparse(None, options)
@@ -487,7 +487,8 @@ class AST:
 
         build_success = True
         for diag in symbol_table.tu.diagnostics:
-            print(f"    {diag}")
+            if source_file.endswith((".cpp", ".cxx", ".cc")):
+                print(f"    {diag}")
             if diag.severity > Diagnostic.Warning: # Error or Fatal ...
                 build_success = False
         et = time.time()
@@ -510,7 +511,8 @@ class AST:
         tu: TranslationUnit = TranslationUnit.from_ast_file(ast_file)
         load_success = True
         for diag in tu.diagnostics:
-            print(f"    {diag}")
+            if source_file.endswith((".cpp", ".cxx", ".cc")):
+                print(f"    {diag}")
             if diag.severity > Diagnostic.Warning:
                 load_success = False
         if load_success:
