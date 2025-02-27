@@ -10,8 +10,9 @@ from autogen_agentchat.ui import Console
 from ..tools import extract_code_blocks
 from ..data_model import LoopFlowParam, Context, TaskItem, get_model_config
 from .sequential_flow import SequentialFlow
+from .repeat_flow import RepeatFlow
 from .base_flow import BaseFlow
-from ..prompt_template import FLOW_DESCRIPTION_TEMPLATE, FORMATE_SYSTEM_PROMPT, FORMATE_MODIFY
+from ..prompt_template import FLOW_DESCRIPTION_TEMPLATE, FORMAT_SYSTEM_PROMPT, FORMATE_MODIFY
 
 import re
 import os
@@ -39,7 +40,7 @@ class LoopFlow(BaseFlow):
         model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
         #self.tasks_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_tasks.json")
         self.tasks_file = os.path.join(self._config["backup_dir"], f"{self._flow_param.flow_id}_loop_tasks.json")
-        self.planner = AssistantAgent(name='planner', model_client=model_client, system_message = FORMATE_SYSTEM_PROMPT)
+        self.planner = AssistantAgent(name='planner', model_client=model_client, system_message = FORMAT_SYSTEM_PROMPT)
 
     async def run(self, context, specific_node = [], flow_execute = True) -> Context:
         if os.path.exists(self.tasks_file):
@@ -54,11 +55,13 @@ class LoopFlow(BaseFlow):
                 continue
             config = self._config_tranfer(self._config, f'task_{i}', task.content)
             
-            seq_flow = SequentialFlow(config)
+            # 此处的config包含了哪些信息，以第4个Flow为例，包含flow_task_execution.toml文件中的key，及上层传递过来的配置
+            max_repeat_count = config['loop'].get("max_repeat_count", 1)
+            flow = SequentialFlow(config) if max_repeat_count == 1 else RepeatFlow(config)
 
-            context = await seq_flow.run(context, specific_node, flow_execute)
+            context = await flow.run(context, specific_node, flow_execute)
         
-        return context
+        return context #只返回了最后一个task的context，是否合理？
      
     def _update_tasks(self, tasks) -> None:
         with open(self.tasks_file, 'w') as f:
