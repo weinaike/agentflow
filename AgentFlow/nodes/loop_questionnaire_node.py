@@ -18,7 +18,7 @@ import copy
 import asyncio
 logger = logging.getLogger(__name__)
 
-from ..prompt_template import FORMATE_SYSTEM_PROMPT, FORMATE_MODIFY
+from ..prompt_template import FORMAT_SYSTEM_PROMPT, FORMATE_MODIFY
 
 
 async def execute_task(task:TaskItem, context:Context, node_param:AgentNodeParam) -> str:   
@@ -58,7 +58,7 @@ class LoopQuestionnaireNode(AgentNode):
 
         self._loop_param = self._node_param.manager.loop
         
-        param = AgentParam(name = 'planner', system_prompt = FORMATE_SYSTEM_PROMPT)
+        param = AgentParam(name = 'planner', system_prompt = FORMAT_SYSTEM_PROMPT)
         self.planner : AssistantAgent = self.create_agent(param, self._node_param.llm_config)
         self.tasks_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_tasks.json")
         
