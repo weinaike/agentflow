@@ -56,7 +56,8 @@ class LoopFlow(BaseFlow):
             config = self._config_tranfer(self._config, f'task_{i}', task.content)
             
             # 此处的config包含了哪些信息，以第4个Flow为例，包含flow_task_execution.toml文件中的key，及上层传递过来的配置
-            max_repeat_count = config['loop'].get("max_repeat_count", 1)
+            iterative_dev = config.get("iterative_development", None) 
+            max_repeat_count = iterative_dev.get("max_repeat_count", 1) if iterative_dev else 1
             flow = SequentialFlow(config) if max_repeat_count == 1 else RepeatFlow(config)
 
             context = await flow.run(context, specific_node, flow_execute)
