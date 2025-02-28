@@ -9,6 +9,8 @@ description =  '''
 dependencies = ['flow3.node4']
 mode = "Iteration"
 prompt = "将任务分解，将需要迁移的模块，根据要求格式化输出，形成任务列表，便于后续遍历执行。每个子任务请详细描述任务内容"
+
+[iterative_development]
 max_repeat_count = 3
 
 

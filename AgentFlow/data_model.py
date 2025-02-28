@@ -190,12 +190,15 @@ class flowDetailParam(flowNodeParam):
 class SequentialFlowParam(flowDetailParam):
     pass
 
-class RepeatFlowParam(flowDetailParam):
-    max_repeat_count: int = 1
-
 ## Define the parameters for the loop flow
 class LoopFlowParam(flowDetailParam):
     loop: LoopDependParam  # Add attributes specific to loop flows
+
+class IterativeDevelopmentParam(BaseModel):
+    max_repeat_count: int
+
+class RepeatFlowParam(SequentialFlowParam):
+    iterative_development: IterativeDevelopmentParam
 
 ## Define the parameters for the condition flow
 class ConditionFlowParam(flowDetailParam):
