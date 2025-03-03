@@ -94,8 +94,11 @@ class RepeatFlow(BaseFlow):
         repeat_count = 0
         need_repeat = True
         llm_config = get_model_config(self._flow_param.llm_config)
-        while repeat_count < self._flow_param.max_repeat_count and need_repeat:
-            for node_id in self._topological_order:
+        while repeat_count < self._flow_param.iterative_development.max_repeat_count and need_repeat:
+            for node_idx, node_id in enumerate(self._topological_order):
+                # 首次迭代需要查询代码，此后可查过查询代码
+                if repeat_count != 0 and node_idx == 0:
+                    continue
                 node = self.get_node(node_id)
                 assert node is not None
                 if self.should_node_run(node_id, specific_node, flow_execute):                
@@ -105,6 +108,10 @@ class RepeatFlow(BaseFlow):
                    
                 context.node_output[f'{self.id}.{node_id}'] = node.get_NodeOutput()
             dialogue = context.get_node_content(self.id, self._topological_order[-1])
+            edit_node_id, build_node_id = self._topological_order[1], self._topological_order[-1]
+            edit_node = self.get_node(edit_node_id)
+            if build_node_id not in edit_node._node_param.inputs:
+                edit_node._node_param.inputs.append(build_node_id)
             
             repeat_count += 1
             model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
