@@ -1,6 +1,6 @@
 
 type = "Agent"
-task = '''编译代码，若存在错误，努力解决。'''
+task = '''编译代码'''
 
 [manager]
 summary_prompt = '''总结调试过程与结果。'''

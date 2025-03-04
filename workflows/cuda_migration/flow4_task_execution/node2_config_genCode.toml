@@ -23,7 +23,7 @@ max_turns = 5
 mode = 'Questionnaire'
 participants = ["assistant"]
 questions = [
-    "根据查询到的代码，生成CUDA迁移代码",
+    "根据提供的代码，以及在迭代开发中出现的错误（若有），生成正确的CUDA迁移代码。生成的代码文件中不要出现伪代码、未修改的代码片断必须输出",
 ]
 
 
