@@ -92,11 +92,11 @@ class RepeatFlow(BaseFlow):
     async def run(self, context : Context, specific_node = [], flow_execute = True) -> Context:
         context.flow_description[self._flow_param.flow_id] = self._flow_param.description   
         repeat_count = 0
-        need_repeat = True
+        success = False
         llm_config = get_model_config(self._flow_param.llm_config)
-        while repeat_count < self._flow_param.iterative_development.max_repeat_count and need_repeat:
+        while repeat_count < self._flow_param.iterative_development.max_repeat_count and not success:
             for node_idx, node_id in enumerate(self._topological_order):
-                # 首次迭代需要查询代码，此后可查过查询代码
+                # 首次迭代需要查询代码，此后可跳过查询代码
                 if repeat_count != 0 and node_idx == 0:
                     continue
                 node = self.get_node(node_id)
@@ -107,19 +107,19 @@ class RepeatFlow(BaseFlow):
                     logger.info(f"Skip node {self.id}.{node_id}")
                    
                 context.node_output[f'{self.id}.{node_id}'] = node.get_NodeOutput()
-            dialogue = context.get_node_content(self.id, self._topological_order[-1])
-            edit_node_id, build_node_id = self._topological_order[1], self._topological_order[-1]
-            edit_node = self.get_node(edit_node_id)
-            if build_node_id not in edit_node._node_param.inputs:
-                edit_node._node_param.inputs.append(build_node_id)
-            
+
+            if repeat_count == 0:
+                edit_node_id, build_node_id = self._topological_order[1], self._topological_order[-1]
+                edit_node = self.get_node(edit_node_id)
+                edit_node._node_param.inputs = [build_node_id]
             repeat_count += 1
+            
+            dialogue = context.get_node_content(self.id, self._topological_order[-1])
             model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
             assistant = AssistantAgent(name='manager', model_client=model_client, system_message = ITERATOR_SYSTEM_PROMPT) 
             msgs = [TextMessage(content=dialogue, source="user")]   
             response = await Console(assistant.on_messages_stream(messages=msgs, cancellation_token=CancellationToken()))
             if response.chat_message.content.find('SUCCESS') != -1:
-                need_repeat = False
-
+                success = True
 
         return context
