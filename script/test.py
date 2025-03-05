@@ -104,7 +104,7 @@ if __name__ == "__main__":
     "galsim::BaseDeviate::generate"
     ]
 
-    print(get_important_functions(functions))
+    print(query_important_functions(functions))
 
     callgraphs = []
     for function in functions:
