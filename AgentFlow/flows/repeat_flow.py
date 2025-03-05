@@ -15,6 +15,7 @@ import json
 import logging
 from graphviz import Digraph
 from collections import deque
+import subprocess
 logger = logging.getLogger(__name__)
 
 
@@ -32,8 +33,9 @@ class RepeatFlow(BaseFlow):
         logger.debug(f'---{self._flow_param.flow_id} {self._flow_param.flow_name} over---')
         dot, graph = self._draw_flow_graph()
         self._topological_order = self._topological_sort(graph)
+        self.process = None
 
-    def _draw_flow_graph(self):
+    def _draw_flow_graph(self, highlight_node_id = None):
         '''绘制流程图'''
         flow_name = self._flow_param.flow_name
         dot = Digraph(comment=flow_name)
@@ -41,7 +43,10 @@ class RepeatFlow(BaseFlow):
 
         # Add nodes to the graph
         for node in self._flow_param.nodes:    
-            dot.node(node.id, node.name)
+            if node.id == highlight_node_id:
+                dot.node(node.id, node.name, style='filled', color='lightblue')
+            else:
+                dot.node(node.id, node.name)
         
         graph = {node.id: [] for node in self._flow_param.nodes}
         # Add edges based on inputs
@@ -57,6 +62,8 @@ class RepeatFlow(BaseFlow):
         # Save and render the graph
         try:
             dot.render(file, format='png', cleanup=True)
+            if highlight_node_id is not None:
+                self.process = subprocess.Popen(["eog", f"{file}.png"])
         except Exception as e:
             logger.error(f"Error in rendering flow graph: {e}")
         return dot, graph
@@ -96,6 +103,7 @@ class RepeatFlow(BaseFlow):
         llm_config = get_model_config(self._flow_param.llm_config)
         while repeat_count < self._flow_param.iterative_development.max_repeat_count and not success:
             for node_idx, node_id in enumerate(self._topological_order):
+                self._draw_flow_graph(highlight_node_id=node_id)
                 # 首次迭代需要查询代码，此后可跳过查询代码
                 if repeat_count != 0 and node_idx == 0:
                     continue
@@ -107,6 +115,9 @@ class RepeatFlow(BaseFlow):
                     logger.info(f"Skip node {self.id}.{node_id}")
                    
                 context.node_output[f'{self.id}.{node_id}'] = node.get_NodeOutput()
+                if self.process :
+                    self.process.terminate()
+                    self.process = None
 
             if repeat_count == 0:
                 edit_node_id, build_node_id = self._topological_order[1], self._topological_order[-1]
