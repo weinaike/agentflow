@@ -411,10 +411,12 @@ class AST:
         self.cache_dir = cache_file
         os.makedirs(self.cache_dir, exist_ok=True)
         
+        print("正在解析源代码，请耐心等待……", flush=True)
         if load:
             self.load_symbol_tables()
         else:    
             self.build_symbol_tables()
+        print("解析源代码完成", flush=True)
 
     def get_header_files(self, directory):
         header_files = []
@@ -469,7 +471,7 @@ class AST:
 
 
     def build_tu_symbol_table(self, source_file, ast_file, options=TranslationUnit.PARSE_PRECOMPILED_PREAMBLE):
-        print(f"{source_file}: building ...")
+        #print(f"{source_file}: building ...")
         st = time.time()
 
         #//TODO: 增量编译有时会出现如下的错误：
@@ -488,11 +490,12 @@ class AST:
         build_success = True
         for diag in symbol_table.tu.diagnostics:
             if source_file.endswith((".cpp", ".cxx", ".cc")):
-                print(f"    {diag}")
+                #print(f"    {diag}")
+                pass
             if diag.severity > Diagnostic.Warning: # Error or Fatal ...
                 build_success = False
         et = time.time()
-        print(f"{source_file}: {'build successfully' if build_success else 'build failed'}. build cost: {et - st:6f}s\n")        
+        #print(f"{source_file}: {'build successfully' if build_success else 'build failed'}. build cost: {et - st:6f}s\n")        
 
         if ast_file:
             if build_success:
@@ -507,18 +510,19 @@ class AST:
         return build_success, symbol_table
 
     def load_tu_symbol_table(self, source_file, ast_file):
-        print(f"{source_file}: loading AST from {ast_file}")    
+        #print(f"{source_file}: loading AST from {ast_file}")    
         tu: TranslationUnit = TranslationUnit.from_ast_file(ast_file)
         load_success = True
         for diag in tu.diagnostics:
             if source_file.endswith((".cpp", ".cxx", ".cc")):
-                print(f"    {diag}")
+                #print(f"    {diag}")
+                pass
             if diag.severity > Diagnostic.Warning:
                 load_success = False
-        if load_success:
-            print(f"{source_file}: load AST successfully\n")        
-        else:
-            print(f"{source_file}: load AST failed\n")    
+        #if load_success:
+        #    print(f"{source_file}: load AST successfully\n")        
+        #else:
+        #    print(f"{source_file}: load AST failed\n")    
         symbol_table = TuSymbolTable(tu, self.parsing_filters)    
         return load_success, symbol_table
 
@@ -551,7 +555,7 @@ class AST:
                             need_rebuild = True
                             break
             if need_rebuild:
-                print(f"{source_file}: AST is obsolete or not existed")
+                #print(f"{source_file}: AST is obsolete or not existed")
                 status, symtable = self.build_tu_symbol_table(source_file, ast_file)
                 self.tu_symbol_tables[source_file] = symtable
                 self.tu_status[source_file] = status
@@ -581,7 +585,7 @@ class AST:
                             need_rebuild = True
                             break
             if need_rebuild:
-                print(f"{source_file}: AST is obsolete")
+                #print(f"{source_file}: AST is obsolete")
                 status, symtable = self.build_tu_symbol_table(source_file, ast_file)
                 self.tu_symbol_tables[source_file] = symtable
                 self.tu_status[source_file] = status
