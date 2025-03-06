@@ -103,10 +103,10 @@ class RepeatFlow(BaseFlow):
         llm_config = get_model_config(self._flow_param.llm_config)
         while repeat_count < self._flow_param.iterative_development.max_repeat_count and not success:
             for node_idx, node_id in enumerate(self._topological_order):
-                self._draw_flow_graph(highlight_node_id=node_id)
-                # 首次迭代需要查询代码，此后可跳过查询代码
                 if repeat_count != 0 and node_idx == 0:
                     continue
+                self._draw_flow_graph(highlight_node_id=node_id)
+                # 首次迭代需要查询代码，此后可跳过查询代码
                 node = self.get_node(node_id)
                 assert node is not None
                 if self.should_node_run(node_id, specific_node, flow_execute):                
