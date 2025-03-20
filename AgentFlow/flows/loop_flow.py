@@ -10,7 +10,7 @@ from autogen_agentchat.ui import Console
 from ..tools import extract_code_blocks
 from ..data_model import LoopFlowParam, Context, TaskItem, get_model_config
 from .sequential_flow import SequentialFlow
-from .repeat_flow import RepeatFlow
+from .auto_sched_flow import AutoSchedFlow
 from .base_flow import BaseFlow
 from ..prompt_template import FLOW_DESCRIPTION_TEMPLATE, FORMAT_SYSTEM_PROMPT, FORMATE_MODIFY
 
@@ -42,6 +42,9 @@ class LoopFlow(BaseFlow):
         self.tasks_file = os.path.join(self._config["backup_dir"], f"{self._flow_param.flow_id}_loop_tasks.json")
         self.planner = AssistantAgent(name='planner', model_client=model_client, system_message = FORMAT_SYSTEM_PROMPT)
 
+    def create_internal_flow(config):
+        raise NotImplementedError("override this method in the subclass please!")
+
     async def run(self, context, specific_node = [], flow_execute = True) -> Context:
         if os.path.exists(self.tasks_file):
             with open(self.tasks_file) as f:
@@ -55,14 +58,11 @@ class LoopFlow(BaseFlow):
                 continue
             config = self._config_tranfer(self._config, f'task_{i}', task.content)
             
-            # 此处的config包含了哪些信息，以第4个Flow为例，包含flow_task_execution.toml文件中的key，及上层传递过来的配置
-            iterative_dev = config.get("iterative_development", None) 
-            max_repeat_count = iterative_dev.get("max_repeat_count", 1) if iterative_dev else 1
-            flow = SequentialFlow(config) if max_repeat_count == 1 else RepeatFlow(config)
+            flow = self.create_internal_flow(config)
 
             context = await flow.run(context, specific_node, flow_execute)
         
-        return context #只返回了最后一个task的context，是否合理？
+        return context 
      
     def _update_tasks(self, tasks) -> None:
         with open(self.tasks_file, 'w') as f:
@@ -117,3 +117,11 @@ class LoopFlow(BaseFlow):
             raise ValueError("No task generated")
 
         return tasks    
+
+class SequentialLoopFlow(LoopFlow):
+    def create_internal_flow(self, config):
+        return SequentialFlow(config)
+
+class AutoSchedLoopFlow(LoopFlow):
+    def create_internal_flow(self, config):
+        return AutoSchedFlow(config)

@@ -166,8 +166,10 @@ class Context(BaseModel):
 ## Define the flow types
 class FlowTypeEnum(str, Enum):
     SEQUENTIAL = "SEQUENTIAL"
+    AUTOSCHED  = "AUTOSCHED"
     CONDITIONAL = "CONDITIONAL"
-    LOOP = "LOOP"
+    SEQUENTIALLOOP = "SEQUENTIALLOOP"
+    AUTOSCHEDLOOP = "AUTOSCHEDLOOP"
 
 
 ## Define the parameters for the flow node
@@ -194,11 +196,13 @@ class SequentialFlowParam(flowDetailParam):
 class LoopFlowParam(flowDetailParam):
     loop: LoopDependParam  # Add attributes specific to loop flows
 
-class IterativeDevelopmentParam(BaseModel):
-    max_repeat_count: int
+class AutoSchedParam(BaseModel):
+    max_sched_times: int
+    start_node_id: str
+    sched_prompt: str
 
-class RepeatFlowParam(SequentialFlowParam):
-    iterative_development: IterativeDevelopmentParam
+class AutoSchedFlowParam(SequentialFlowParam):
+    auto_sched: AutoSchedParam
 
 ## Define the parameters for the condition flow
 class ConditionFlowParam(flowDetailParam):
