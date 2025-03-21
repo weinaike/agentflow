@@ -22,9 +22,9 @@ sched_prompt = '''
 2. 节点id="node2"，负责生成任务相关的代码。无论成功或失败，next_to_run=node3, inputs=[node2]
 3. 节点id="node3", 负责将生成的代码写入git仓库。如果写入成功，next_to_run=node4, inputs=[node3]；如果写入失败，next_to_run=node2, inputs=[node3]
 4. 节点id="node4"，负责构建程序。如果构建成功，next_to_run=QUIT，inputs=[]；如果构建失败，next_to_run=node5，inputs=[]
-5. 节点id="node5"，负责回滚git仓库代码。无论成功或失败，next_to_run=node2，inputs=[node1]
+5. 节点id="node5"，负责回滚git仓库代码。无论成功或失败，next_to_run=node2，inputs=[node1, node4]
 
-你需要分析当前节点的执行状态并判断是成功或者失败后，输出下一个要执行的节点(next_to_run)，以及下一个执行节点的输入是什么(inputs)，输出为json格式:
+你负责分析当前节点的执行状态并判断是成功或者失败后，输出下一个要执行的节点(next_to_run)，以及下一个执行节点的输入是什么(inputs)，输出为json格式:
 ```json
 {"next_to_run": "<node_id>", "inputs": ["<node_id>", ..., "<node_id>"]}
 ```
@@ -53,3 +53,9 @@ id = "node4"
 name = "构建调试"
 inputs = ["node3"]
 config = "node4_config_debugCode.toml"
+
+[[nodes]]
+id = "node5"
+name = "回滚代码"
+inputs = ["node4"]
+config = "node5_config_RollbackCode.toml"

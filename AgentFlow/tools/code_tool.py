@@ -4,7 +4,7 @@ import subprocess
 from typing_extensions import Annotated, List, Union
 from .utils import calculate_degrees
 import re
-from .file_edit_v2 import FileEditClass
+from .file_edit import FileEditClass
 from .abstract_syntax_tree import AST
 import json
 import logging
@@ -454,7 +454,7 @@ def file_edit_save(filename: Annotated[str, "the file to save"]) -> str:
 def file_edit_save_to_file(filename: Annotated[str, "the file to save"],
         content: Annotated[str, "content to be written"]
     ) -> str: 
-    '''将指定的内容写入文件中。若文件不存在，则创建该文件；若文件已经存在，则文件内容会被清除'''
+    '''将指定的内容写入文件中。若文件不存在，则创建该文件；若文件已经存在，则原文件内容会被清除'''
     try:
         with open(filename, 'w') as f:
             if isinstance(content, str):
@@ -465,6 +465,12 @@ def file_edit_save_to_file(filename: Annotated[str, "the file to save"],
     except Exception as e:
         return f'save file `{filename}` failed: {e}'
     return f'save file `{filename}` success'                    
+
+def file_edit_rollback_files(filenames: Annotated[List[str], "files to be restored"])->str:
+    '''将指定列表filenames中的文件回滚或删除，使git仓库恢复到修改前的状态'''
+    fe = FileEditClass()
+    fe.file_edit_rollback_files(filenames)
+
 
 def function_dependency_query(function: Annotated[str, "PhotonArray::addTo"],
                             src_file: Annotated[str, "/home/jiangbo/GalSim/src/PhotonArray.cpp"],
