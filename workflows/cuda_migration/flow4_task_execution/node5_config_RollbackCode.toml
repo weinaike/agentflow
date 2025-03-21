@@ -1,0 +1,33 @@
+
+type = "Agent"
+task = '''回滚代码'''
+
+[manager]
+summary_prompt = '''总结回滚代码日志'''
+max_turns = 10
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "总结回滚代码的状态",
+]
+
+
+
+[[agents]]
+name = "assistant"
+tools = ["file_edit_rollback_files"]
+system_prompt =  '''
+角色：软件工程师
+职责：首先明确任务创建和修改了哪些文件；然后调用工具file_edit_rollback_files来回滚这些文件。
+'''
+
+
+[[agents]]
+name = "user"
+tools =  []
+system_prompt =  '''
+角色: 高级软件工程师
+
+职责：审查编译结果，当所有需要迁移的代码都完成正确编译，则回复"TERMINATE"，否则回复"continue"
+
+'''

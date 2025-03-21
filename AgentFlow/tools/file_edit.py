@@ -2,6 +2,7 @@ import re
 import os
 from typing_extensions import Annotated, List, Union
 import difflib
+import subprocess
 from .utils import thread_safe_singleton
 
 preview_promt = '''
@@ -554,8 +555,32 @@ returns:
 
         return content_with_line_numbers
 
+    def file_edit_rollback_files(self, filenames):
+        rollback_log = ""
+        for filename in filenames:
+            #判断git是否跟踪文件
+            dir, base = os.path.dirname(filename), os.path.basename(filename)
+            ls_cmd = f'cd {dir} && git ls-files --error-unmatch {base}'
+            result = subprocess.run(ls_cmd, shell=True, capture_output=True, text=True)
+            if result.returncode == 0:
+                #文件被跟踪
+                rollback_cmd = f'cd {dir} && git checkout -- {base}'
+                result = subprocess.run(rollback_cmd, shell=True, capture_output=True, text=True)
+                if result.returncode == 0:
+                    rollback_log += f"rollback file `{filename}` successfully\n"
+                else:
+                    rollback_log += f"rollback file `{filename}` failed: {result.stderr}\n"    
+            else:
+                #文件未被跟踪
+                rm_cmd = f'cd {dir} && git status && test -f {base} && test -w {base} && rm -f {base}'        
+                result = subprocess.run(rm_cmd, shell=True, capture_output=True, text=True)
+                if result.returncode == 0:
+                    rollback_log += f"delete file `{filename}` successfully\n"
+                else:
+                    rollback_log += f"delete file `{filename}` failed: {result.stderr}\n"    
 
-
+        return rollback_log        
+                
 if __name__ == '__main__':
     fe = FileEditClass()
     

@@ -65,7 +65,7 @@ class AutoSchedFlow(BaseFlow):
         next_to_run, inputs = "QUIT", []
         for _ in range(5):
             model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
-            assistant = AssistantAgent(name='manager', model_client=model_client, system_message = self._sched_prompt) 
+            assistant = AssistantAgent(name='scheduler', model_client=model_client, system_message = self._sched_prompt) 
             response = await Console(assistant.on_messages_stream(messages=msgs, cancellation_token=CancellationToken()))
             try:
                 json_str = extract_code_blocks(response.chat_message.content, "json")
