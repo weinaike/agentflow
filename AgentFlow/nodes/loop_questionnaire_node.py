@@ -23,7 +23,7 @@ from ..prompt_template import FORMATE_SYSTEM_PROMPT, FORMATE_MODIFY
 
 async def execute_task(task:TaskItem, context:Context, node_param:AgentNodeParam) -> str:   
     new_param = copy.deepcopy(node_param)
-    new_param.task = task.content
+    new_param.task = '### 任务分发至各节点依次执行, 当前节点需要执行的任务是：' + task.content
     new_param.id += f'task{task.id}'
     seq_node = QuestionnaireNode(new_param)
 
@@ -99,7 +99,7 @@ class LoopQuestionnaireNode(AgentNode):
         
     async def _format_tasks(self, context: Context) -> List[TaskItem]:
 
-        dependencies_content = self._node_param.task
+        dependencies_content = ''
 
         for flow_node_id in self._loop_param.dependencies:
             if '.' not in flow_node_id:
@@ -108,7 +108,7 @@ class LoopQuestionnaireNode(AgentNode):
             else:
                 flow_id, node_id = flow_node_id.split('.')
             dependencies_content += context.get_node_content(flow_id, node_id)
-
+        dependencies_content += self._loop_param.prompt
         msgs = [TextMessage(content = dependencies_content, source= 'user') ,
                 ]
         

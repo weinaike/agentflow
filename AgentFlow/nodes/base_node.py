@@ -6,7 +6,7 @@ from autogen_agentchat.teams import BaseGroupChat
 from autogen_core import CancellationToken
 from autogen_agentchat.base import TaskResult, Response
 
-from ..data_model import NodeParam, AgentNodeParam, ToolNodeParam, AgentParam, NodeOutput,Context, get_model_config
+from ..data_model import NodeParam, AgentNodeParam, ToolNodeParam, AgentParam, NodeOutput,Context, get_model_config, ModelEnum
 from ..tools import tool_mapping
 
 from typing import Union, Dict, List
@@ -67,6 +67,8 @@ class AgentNode(BaseNode) :
         self.print_param()
         self.team: BaseGroupChat = None
         self.state_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_chat_state.json")
+        self.use_check = self._node_param.manager.use_check
+        self.check_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_check.json")
 
         self.temrminate_word = 'TERMINATE'
         self.cancellation_token = CancellationToken()
@@ -74,6 +76,10 @@ class AgentNode(BaseNode) :
 
         param = AgentParam(name = 'summary_agent', system_prompt = SUMMARY_SYSTEM_PROMPT)
         self.summary_agent : AssistantAgent = self.create_agent(param, self._node_param.llm_config)
+
+        llm_config = get_model_config(config.llm_config, ModelEnum.GPT4O)
+        model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
+        self._model_client = model_client
     
 
     async def execute(self, context:Context) -> Response:
@@ -83,7 +89,9 @@ class AgentNode(BaseNode) :
     def create_agent(self, agent_param: AgentParam, llm_config_file: str) -> AssistantAgent:
         
         name = agent_param.name
-        tools = []
+        tools = None
+        if len(agent_param.tools) > 0:
+            tools = []
         for tool in agent_param.tools:
             tools.append(tool_mapping[tool])
         system_prompt = agent_param.system_prompt
@@ -96,6 +104,7 @@ class AgentNode(BaseNode) :
                                model_client=model_client, 
                                tools=tools, 
                                system_message=SYSTEM_TEMPLATE.format(system_prompt=system_prompt, keyword = self.temrminate_word),
+                            #    reflect_on_tool_use = True,
                             #  model_context=BufferedChatCompletionContext(buffer_size=10),
                                )
         return agent

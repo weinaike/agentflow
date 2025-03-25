@@ -3,6 +3,7 @@ from typing import Literal, Optional, Union, Dict, List
 from enum import Enum
 from .prompt_template import CONTEXT_TEMPLATE
 import json
+from autogen_agentchat.base import TaskResult
 
 
 
@@ -15,7 +16,8 @@ class ModelEnum(str, Enum):
     CLAUDE = "claude"
     DOUBAO = "doubao"
     MINIMAX = "minimax"
-    DEEPSEEK = "deepseek"
+    DEEPSEEKV3 = "deepseek-v3"
+    DEEPSEEKR1 = "deepseek-r1"
 
 
 class ModelCapabilities(BaseModel):
@@ -58,6 +60,7 @@ class TaskItem(BaseModel):
     id: int
     content: str
     status: Literal["todo", "done", "doing"] = "todo"
+    result: Optional[TaskResult] = None
 
 
 ############### node  ################
@@ -70,11 +73,11 @@ class NodeTypeEnum(str, Enum):
 
 # define the agent parameters
 class AgentParam(BaseModel):
-    name: str    
-    system_prompt: str
-    description: str = None
-    tools: list[str] = []   
-    model : ModelEnum = ModelEnum.DEFAULT
+    name: str = Field(..., description="Agent ID")
+    system_prompt: str  = Field(..., description="Agent System prompt")
+    description: str = Field(None, description="Agent description")
+    tools: list[str] = Field([], description="fucntion call for agent")
+    model : ModelEnum = Field(ModelEnum.DEFAULT, description="LLM for agent")
 
 # NodeOutput 用于描述节点的输出
 class NodeOutput(BaseModel):
@@ -107,10 +110,24 @@ class NodeParam(BaseModel):
     output: Optional[NodeOutput] = None
 
 
+
+
 class ToolNodeParam(NodeParam):
     type: Literal[NodeTypeEnum.TOOL]
     tools: list[str]
 
+# 节点输出检查项
+class CheckItem(BaseModel):
+    item_id: int = Field(..., description="the id of the check item")
+    item_content: str = Field(..., description="the content of the check item")
+
+class CheckList(BaseModel):
+    node_id: str = Field(..., description="the node id")
+    check_items: List[CheckItem] = Field([], description="the check items for the node")
+    summary_prompt: str = Field(..., description="该节点输出结果的总结模板提示词，要求覆盖所有的检查项，引导LLM节点输出，便于后续检查")
+
+class NodeCheckList(BaseModel):
+    nodes: List[CheckList] = Field([], description="all node check lists")
 
 # AgentNodeParam 与 ToolNodeParam 的区别在于 AgentNodeParam 需要配置 manager 和 agents
 class AgentModeEnum(str, Enum):
@@ -128,6 +145,8 @@ class ManagerParam(BaseModel):
     questions: list[str]
     participants: list[str]   # 代理名称, 顺序即为轮询顺序
     loop: Optional[LoopDependParam] = Field(None, description="Loop flow only")
+    use_check: Optional[bool] = Field(False, description="Whether to use the check agent")
+    check_items: Optional[List[CheckItem]] = Field(None, description="Check items for the node")
 
 # AgentNodeParam 用于描述 Agent工作节点的完整参数
 class AgentNodeParam(NodeParam):
@@ -235,7 +254,7 @@ class SolutionParam(BaseModel):
     workspace_path: str
     llm_config: str
     codebase: RepositoryParam
-    flows: List[flowNodeParam]
+    flows: List[flowNodeParam] = []
     backup_dir: str = None # 数据备份/缓存目录
     requirement: Optional[str] = None   # 项目需求描述，用于替换工作流描述中的{requirement}
     requirement_flow: Optional[List[str]] = None # 需求对应的工作流ID
@@ -245,3 +264,16 @@ class SolutionParam(BaseModel):
             if flow.flow_id == flow_id:
                 return flow
         return None
+    
+
+class CheckTypeEnum(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+
+class CheckResult(BaseModel):
+    result: CheckTypeEnum 
+    reason: str  = Field(..., description="the reason for the result, if failed, give the reason and the suggestion")
+    abstract: str = Field(..., description="总结任务处理过程的重要信息形成过程摘要")
+    todo: List[str] = Field([], description="改进代办事项")
+
+

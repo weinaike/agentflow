@@ -5,7 +5,7 @@ BACKGROUND_TEMPLATE = '''
 ## 项目背景
 {project_description}
 
-### 当前工作流介绍
+## 当前工作流介绍
 {flow_description}
 
 '''
@@ -49,13 +49,6 @@ SUMMARY_SYSTEM_PROMPT = '''
 '''
 
 
-
-PLANNER_SYSTEM_PROMPT = """
-你是一个专门负责规划任务的AI助手。你的工作是根据给定的上下文和目标，分解并规划需要完成的步骤，最后产出一个清晰的执行方案。
-请注意：
-1. 你只负责提出具体的计划，不要与用户进行过多交互。
-2. 如果规划完成，请输出结束关键字'结束规划'表示结束。
-"""
 
 
 
@@ -101,3 +94,24 @@ FLOW_DESCRIPTION_TEMPLATE = """
 
 
 
+
+CHECK_SYSTEM_PROMPT = '''
+你是一个专业的检查员，对提供的历史执行记录与输出结果，进行逐项检查，确保工作符合要求。
+检测内容：检测清单中的检测项
+检测方式：逐项检测
+检测结果：PASS/FAIL
+理由：不通过的检测项，需要提供不通过的原因
+
+'''
+
+
+CHECK_TEMPLATE = '''
+合并总结以上检查结果，以json格式输出,
+输出格式示例如下：
+```json
+XXX
+```
+输出的markdown的json内容会转为CheckResult对象
+CheckResult对象的字段如下:
+{type}
+'''

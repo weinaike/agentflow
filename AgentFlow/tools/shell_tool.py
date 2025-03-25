@@ -32,7 +32,11 @@ def run_shell_code(code:Annotated[str, "The shell code to run"],
 
     if result.stderr:
         return result.stderr
-    return result.stdout
+    # 文本输出长度控制
+    if len(result.stdout) > 30000:
+        return '内容过长，仅显示最后10000个字符\n' + result.stdout[-30000:] 
+    else:
+        return result.stdout
 
 
 
@@ -270,6 +274,37 @@ def get_dir_structure_with_tree_cmd(path:Annotated[ Union[str, List[str]], "The 
 
     if result.stderr:
         return result.stderr
+    return result.stdout
+
+
+def show_dir_content(path:Annotated[ Union[str, List[str]], "The path to the directory"]) -> str:
+    '''
+    "
+    show_dir_content: Get the directory structure of the given path
+
+    Args:
+        path (Annotated[Union[str, List[str]], '']): The path to the directory
+
+    Returns:
+        dict: The directory structure of the given path
+
+    Example: 
+        path = ['/home/wnk/code/galsim_cuda/']
+        print(show_dir_content(path))
+    "
+    '''    
+    command = ['tree']
+    command.append('-L')
+    command.append('1')
+    if isinstance(path, list):
+        command.extend(path)
+    else:
+        command.append(path)
+
+    result = subprocess.run(command, text=True, capture_output=True)
+
+    if result.stderr:
+        return result.stderr + "\n请安装工具后重试"
     return result.stdout
 
 

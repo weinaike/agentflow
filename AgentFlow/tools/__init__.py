@@ -42,6 +42,14 @@ tool_mapping = {
     "query_right_name": query_right_name,
     "query_important_functions": query_important_functions,
     "extract_inter_class_relationship_from_uml": extract_inter_class_relationship_from_uml,
+    "show_dir_content": show_dir_content,
 }
+
+
+def tools_description()->str:
+    description = []
+    for tool_name, tool_func in tool_mapping.items():
+        description.append(f"{tool_name}: {tool_func.__doc__}")
+    return '\n'.join(description)
 
 # __all__ = ["tool_mapping"]

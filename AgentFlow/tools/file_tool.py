@@ -6,6 +6,11 @@ def read_file_content(file_path:Annotated[str, "The path to the file"])->str:
     """读取yaml, json, txt等文本文件内容"""
     with open(file_path, 'r') as f:
         content = f.read()
+
+    # 内容长度控制
+    if len(content) > 30000:
+        content = content[:30000] + '...\n内容过长，已截断显示'
+
     return content
 
 

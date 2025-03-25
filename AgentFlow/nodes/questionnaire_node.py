@@ -5,17 +5,20 @@ from autogen_agentchat.base import TaskResult, Response
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.ui import Console
 from autogen_agentchat.messages import ChatMessage, TextMessage
+from autogen_core.models import CreateResult,UserMessage
 
 from .base_node import AgentNode
-from ..data_model import AgentNodeParam, Context
-
+from ..data_model import AgentNodeParam, Context, CheckResult, AgentParam, ModelEnum
+from ..tools.utils import get_json_content
+import re
 from typing import Union, Dict,List
 import logging
 import json
 import os
+import copy
 logger = logging.getLogger(__name__)
 
-from ..prompt_template import TASK_TEMPLATE
+from ..prompt_template import TASK_TEMPLATE,CHECK_SYSTEM_PROMPT,CHECK_TEMPLATE
 
 class QuestionnaireNode(AgentNode):
     def __init__(self, config: Union[Dict, AgentNodeParam]):
@@ -44,8 +47,50 @@ class QuestionnaireNode(AgentNode):
                                         termination_condition = self.termination_condition,
                                         max_turns=self._node_param.manager.max_turns,
                                         ) 
-        
+        if self.use_check:
+            check_param = AgentParam(name = 'checker', system_prompt = CHECK_SYSTEM_PROMPT, model = ModelEnum.DEEPSEEKR1)
+            self.check_agent = self.create_agent(check_param, self._node_param.llm_config)
+            self.check_team = RoundRobinGroupChat(participants = [self.check_agent], 
+                                            termination_condition = self.termination_condition,
+                                            max_turns=self._node_param.manager.max_turns,
+                                            ) 
         self.response:str = None
+        
+
+    async def _gen_check_result(self, history: List[ChatMessage]) -> CheckResult:
+
+        content = f"### 当前节点工作目标：\n{self._node_param.task}\n"
+        content += f"### 当前节点工作总结输出：\n{history[-1].content}\n"
+        content += f"现在需要完成以下任务：首先总结当前节点工作过程的重要内容，形成过程摘要。"
+        content += f"\n然后需要根据检查清单，逐项检测当前节点工作是否符合要求。当前节点的检查清单如下：\n"
+        for item in self._node_param.manager.check_items:    
+            content += f"检测项{item.item_id}: {item.item_content}\n"
+        content += f"最后，总结检查结果，对于不符合要求的地方，给出改进方案（代办事项）。"
+        msgs: List[ChatMessage] = []
+        msgs.extend(history)
+        msgs.append(TextMessage(content=content, source="user"))
+        print(f"\n*************{self._node_param.flow_id}.{self._node_param.id} :check*************\n", flush=True)
+        res = await Console(self.check_agent.on_messages_stream(messages=msgs, 
+                                                        cancellation_token=self.cancellation_token),
+                                                        output_stats=True)
+        
+        check_result :CheckResult = None
+
+        content = CHECK_TEMPLATE.format(type=CheckResult.model_json_schema().__str__())        
+        msgs = [UserMessage(content=res.chat_message.content,source='user'), UserMessage(content=content, source="user")]    
+
+        for i in range(3):
+            ret:CreateResult = await self._model_client.create(messages= msgs)   
+            try: 
+                check_result = CheckResult(**get_json_content(ret.content))   
+                
+                break
+            except Exception as e:
+                logger.error(f"Error in parsing json: {e}")
+                msgs.append(UserMessage(content=f"Error in parsing json: {e}, 请根据格式要求重新输出", source="user"))
+        await self.check_agent.on_reset(self.cancellation_token)
+        return check_result
+
 
     async def execute(self, context:Context) -> Response:
         content = self.gen_context(context)
@@ -61,22 +106,58 @@ class QuestionnaireNode(AgentNode):
                 this_task = TASK_TEMPLATE.format(task=self._node_param.task, question=question)
             result:TaskResult = await Console(self.team.run_stream(
                                                     task=this_task, 
-                                                    cancellation_token = self.cancellation_token)
-                                                , output_stats=True)
-            results.append(result)
+                                                    cancellation_token = self.cancellation_token), 
+                                                output_stats=True)
+            results.append(copy.deepcopy(result)) 
+            
+        summary : Response = None
 
-        msgs : List[ChatMessage] = []
-        for result in results:
-            for msg in result.messages:
-                if msg.type in ['TextMessage', 'ToolCallSummaryMessage']:
-                    msgs.append(msg)
+        for i in range(3):
+            msgs : List[ChatMessage] = []
+            for result in results:
+                for msg in result.messages:
+                    if msg.type in ['TextMessage', 'ToolCallSummaryMessage']:
+                        msgs.append(msg)
 
-        msgs.append(TextMessage(content=self._node_param.manager.summary_prompt, source="user"))
-        summary : Response = await Console(self.summary_agent.on_messages_stream(
-                                                messages=msgs, 
-                                                cancellation_token=self.cancellation_token)
-                                            )
-        
+            msgs.append(TextMessage(content=self._node_param.manager.summary_prompt, source="user"))
+            res : Response = await self.summary_agent.on_messages(messages=msgs, cancellation_token=self.cancellation_token)
+            
+            summary = copy.deepcopy(res)
+            print(f"\n*************{self._node_param.flow_id}.{self._node_param.id} : {i} summary *************\n{summary.chat_message.content}", flush=True)
+            await self.summary_agent.on_reset(self.cancellation_token)
+            msgs.append(summary.chat_message)            
+            if self.use_check:
+                check_result : CheckResult = await self._gen_check_result(msgs)
+                
+                with open(self.check_file, "a") as f:
+                    f.write(check_result.model_dump_json()+"\n")
+
+                if (check_result.result == "PASS"):
+                    break
+                else:
+                    await self.team.reset()
+                    for i, todo in enumerate(check_result.todo):
+                        this_task = ''
+                        if i == 0:
+                            this_task += f"## 当前节点工作目标：\n{self._node_param.task}\n"
+                            this_task += f"## 已执行的过程摘要：\n{check_result.abstract}\n"
+                            this_task += f"## 已取得结果：\n{summary.chat_message.content}\n"
+                            this_task += f"## 检查项验证结果：\n{check_result.result}\n"
+                            this_task += f"## 检查不通过原因：\n{check_result.reason}\n"
+                            this_task += f"为达成任务目标，执行了以下代办事项：\n{todo}\n"
+                        else:
+                            this_task += f"为达成任务目标，还需执行了以下代办事项：\n{todo}\n"
+                        
+                        result:TaskResult = await Console(self.team.run_stream(
+                                                            task=this_task, 
+                                                            cancellation_token = self.cancellation_token),
+                                                        output_stats=True)
+                        results.append(copy.deepcopy(result))
+            else:
+                break
+            
+
+                
         self.response = summary.chat_message.content
         return summary
 
