@@ -8,6 +8,7 @@ import json
 import logging
 from graphviz import Digraph
 from collections import deque
+import asyncio
 logger = logging.getLogger(__name__)
 
 
@@ -21,7 +22,7 @@ class SequentialFlow(BaseFlow):
         self._nodes : List[BaseNode] = []
         logger.debug(f'---{self._flow_param.flow_id} {self._flow_param.flow_name} start---')
         logger.debug(json.dumps(self._flow_param.model_dump(), indent=4, ensure_ascii=False))
-        self._nodes = self.create_node(self._flow_param)
+        self._nodes = asyncio.run( self.create_node(self._flow_param))
         logger.debug(f'---{self._flow_param.flow_id} {self._flow_param.flow_name} over---')
         dot, graph = self._draw_flow_graph()
         self._topological_order = self._topological_sort(graph)
