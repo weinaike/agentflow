@@ -79,11 +79,10 @@ class QuestionnaireNode(AgentNode):
         content = CHECK_TEMPLATE.format(type=CheckResult.model_json_schema().__str__())        
         msgs = [UserMessage(content=res.chat_message.content,source='user'), UserMessage(content=content, source="user")]    
 
-        for i in range(3):
+        while True:
             ret:CreateResult = await self._model_client.create(messages= msgs)   
             try: 
-                check_result = CheckResult(**get_json_content(ret.content))   
-                
+                check_result = CheckResult(**get_json_content(ret.content))  
                 break
             except Exception as e:
                 logger.error(f"Error in parsing json: {e}")
@@ -112,7 +111,9 @@ class QuestionnaireNode(AgentNode):
             
         summary : Response = None
 
-        for i in range(3):
+
+        max_iter = 3
+        for i in range(max_iter):
             msgs : List[ChatMessage] = []
             for result in results:
                 for msg in result.messages:
@@ -132,13 +133,13 @@ class QuestionnaireNode(AgentNode):
                 with open(self.check_file, "a") as f:
                     f.write(check_result.model_dump_json()+"\n")
 
-                if (check_result.result == "PASS"):
+                if (check_result.result == "PASS") or i == max_iter - 1 :
                     break
                 else:
                     await self.team.reset()
-                    for i, todo in enumerate(check_result.todo):
+                    for j, todo in enumerate(check_result.todo):
                         this_task = ''
-                        if i == 0:
+                        if j == 0:
                             this_task += f"## 当前节点工作目标：\n{self._node_param.task}\n"
                             this_task += f"## 已执行的过程摘要：\n{check_result.abstract}\n"
                             this_task += f"## 已取得结果：\n{summary.chat_message.content}\n"
