@@ -3,13 +3,13 @@ from ..nodes import NodeFactory, BaseNode
 
 
 import os
+from graphviz import Digraph
+import subprocess
 import toml
 import logging
 from abc import ABC, abstractmethod
 from typing import  Dict, Union, List, Optional
 logger = logging.getLogger(__name__)
-
-
 
 class BaseFlow(ABC):
     def __init__(self, config: Union[Dict, flowDetailParam]):
@@ -69,3 +69,36 @@ class BaseFlow(ABC):
                 print(f"Error in reading config file: {config_file}, {e}")
                 raise e
         return nodes
+
+    def _draw_flow_graph(self, highlight_node_id = None):
+        '''绘制流程图'''
+        flow_name = self._flow_param.flow_name
+        dot = Digraph(comment=flow_name)
+        dot.attr(label=flow_name, labelloc='t', fontsize='20')
+
+        # Add nodes to the graph
+        for node in self._flow_param.nodes:    
+            if node.id == highlight_node_id:
+                dot.node(node.id, node.name, style='filled', color='lightblue')
+            else:
+                dot.node(node.id, node.name)
+        
+        graph = {node.id: [] for node in self._flow_param.nodes}
+        # Add edges based on inputs
+        for node in self._flow_param.nodes:
+            for input_node in node.inputs:
+                if input_node not in graph:
+                    continue
+                dot.edge(input_node, node.id)
+                graph[input_node].append(node.id)
+               
+        file = os.path.join(self._flow_param.workspace_path, flow_name)
+
+        # Save and render the graph
+        try:
+            dot.render(file, format='png', cleanup=True)
+            if highlight_node_id is not None:
+                self.process = subprocess.Popen(["eog", f"{file}.png"])
+        except Exception as e:
+            logger.error(f"Error in rendering flow graph: {e}")
+        return dot, graph

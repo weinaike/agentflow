@@ -36,14 +36,18 @@ class AutoSchedFlow(BaseFlow):
         self._sched_prompt  = self._flow_param.auto_sched.sched_prompt
         self._max_sched_times = self._flow_param.auto_sched.max_sched_times
 
-        #_, graph = self._draw_flow_graph()      
+        _, graph = self._draw_flow_graph()      
 
     async def run(self, context: Context, specific_node=[], flow_execute=True) -> Context:
         context.flow_description[self._flow_param.flow_id] = self._flow_param.description  
         node_id = self._start_node_id
         node = self.get_node(node_id)
         for i in range(self._max_sched_times):
+            self._draw_flow_graph(highlight_node_id=node_id)
             await node.run(context)
+            if self.process:
+                self.process.terminate()
+                self.process = None
             output = node.get_NodeOutput()
             context.node_output[f'{self.id}.{node_id}'] = output
 
@@ -53,6 +57,8 @@ class AutoSchedFlow(BaseFlow):
                 break
             node = self.get_node(node_id)
             node._node_param.inputs = inputs
+            #static_node = [node for node in self._flow_param.nodes if node.id == node_id][0]
+            #static_node.inputs = inputs
 
         return context    
 
