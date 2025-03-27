@@ -52,7 +52,7 @@ def get_derived_class_of_function(func:Annotated[str, "function"], src_path:Anno
             str: 查询到的信息
 
         Example:
-            ret = get_derived_class_of_function("shoot", "/home/wnk/code/project/src")
+            ret = get_derived_class_of_function("shoot", "/home/jiangbo/project/src")
 
             ret = """
         src/SBVonKarman.cpp:    void VonKarmanInfo::shoot(PhotonArray& photons, UniformDeviate ud) const
@@ -84,12 +84,12 @@ def get_derived_class_of_class(class_name:Annotated[str, "class name"], inc_path
         str: 查询到的信息
 
     Example:
-        ret = get_derived_class_of_class("SBProfile", "/home/wnk/code/GalSim/include/galsim/")
+        ret = get_derived_class_of_class("SBProfile", "/home/jiangbo/GalSim/include/galsim/")
 
         ret = """
-    /home/wnk/code/GalSim/include/galsim/SBMoffatImpl.h:    class SBMoffat::SBMoffatImpl : public SBProfileImpl
-    /home/wnk/code/GalSim/include/galsim/SBInclinedExponentialImpl.h:    class SBInclinedExponential::SBInclinedExponentialImpl : public SBProfileImpl
-    /home/wnk/code/GalSim/include/galsim/SBTransformImpl.h:    class SBTransform::SBTransformImpl : public SBProfileImpl
+    /home/jiangbo/GalSim/include/galsim/SBMoffatImpl.h:    class SBMoffat::SBMoffatImpl : public SBProfileImpl
+    /home/jiangbo/GalSim/include/galsim/SBInclinedExponentialImpl.h:    class SBInclinedExponential::SBInclinedExponentialImpl : public SBProfileImpl
+    /home/jiangbo/GalSim/include/galsim/SBTransformImpl.h:    class SBTransform::SBTransformImpl : public SBProfileImpl
     “”“
     '''    
     
@@ -115,12 +115,12 @@ def run_cmake_and_make(path:Annotated[str, "The path to the bulid directory"])->
         str: The output of the cmake and make command
 
     Example:
-        path = "/home/wnk/code/galsim_cuda/build"
+        path = "/home/jiangbo/galsim_cuda/build"
         print(run_cmake_and_make(path))
         # Output: 
         # -- Configuring done
         # -- Generating done
-        # -- Build files have been written to: /home/wnk/code/galsim_cuda/build
+        # -- Build files have been written to: /home/jiangbo/galsim_cuda/build
         # Scanning dependencies of target galsim_cuda
         # [ 50%] Building CXX object CMakeFiles/galsim_cuda.dir/galsim_cuda.cpp.o
         # [100%] Linking CXX shared library libgalsim_cuda.so
@@ -132,7 +132,7 @@ def run_cmake_and_make(path:Annotated[str, "The path to the bulid directory"])->
     cmake_result = subprocess.run(['cmake', '..', '-DENABLE_CUDA=ON'], cwd=path, text=True, capture_output=True)
     if cmake_result.stderr:
         return cmake_result.stderr
-    make_result = subprocess.run(['make', '-j12'], cwd=path, text=True, capture_output=True)
+    make_result = subprocess.run(['make', 'DEFINES="-DENABLE_CUDA"', '-j12'], cwd=path, text=True, capture_output=True)
     if make_result.stderr:
         return make_result.stderr
     
@@ -158,7 +158,7 @@ def run_make(path:Annotated[str, "The path to the bulid directory"])->str:
     cmake_result = subprocess.run(['cmake', '..', '-DENABLE_CUDA=ON'], cwd=path, text=True, capture_output=True)
     if cmake_result.stderr:
         return cmake_result.stderr    
-    make_result = subprocess.run(['make'], cwd=path, text=True, capture_output=True)
+    make_result = subprocess.run(['make', 'DEFINES="-DENABLE_CUDA"', '-j12'], cwd=path, text=True, capture_output=True)
     if make_result.stderr:
         return make_result.stderr
     make_build_result = subprocess.run(['make', 'install'], cwd=path, text=True, capture_output=True)
@@ -218,7 +218,7 @@ def get_cpp_dir_structure(path:Annotated[Union[str, List[str]], "The path to the
         dict: The directory structure of the given path
 
     Example: 
-        path = ['/home/wnk/code/galsim_cuda/']
+        path = ['/home/jiangbo/galsim_cuda/']
         print(get_cpp_dir_structure(path))
     "
     '''
@@ -258,7 +258,7 @@ def get_dir_structure_with_tree_cmd(path:Annotated[ Union[str, List[str]], "The 
         dict: The directory structure of the given path
 
     Example: 
-        path = ['/home/wnk/code/galsim_cuda/']
+        path = ['/home/jiangbo/galsim_cuda/']
         print(get_dir_structure_with_tree_cmd(path))
     "
     '''    
@@ -326,4 +326,4 @@ def file_backup(source: str, backup_dir: str) -> str:
 
 
 if __name__ == '__main__':
-    print(get_cpp_dir_structure('/home/wnk/code/GalSim/'))
+    print(get_cpp_dir_structure('/home/jiangbo/GalSim/'))

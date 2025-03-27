@@ -1,47 +1,36 @@
 
 type = "Agent"
-task = '''编译代码，若存在错误，努力解决。'''
+task = '''编译代码'''
 
 [manager]
-summary_prompt = '''总结调试过程与结果。'''
+summary_prompt = '''总结调试过程与结果。要求以json的格式输出：当构建成功时，将"status"的值设为"本次构建成功"，当构建失败时，将"status"的值设为"本次构建失败"； "details"的值详细描述总结的相关信息。具体格式如下：
+```json
+{
+    "status": "本次构建成功|本次构建失败",
+    "details": "针对错误1的总结; 针对错误2的总结;...; 针对错误n的总结" 
+}
+```
+'''
 max_turns = 10
 mode = 'Questionnaire'
 participants = ["assistant"]
 questions = [
-    "编译代码，若存在错误，努力解决。",
+    "编译代码，对编译结果进行总结。",
 ]
 
 
 
 [[agents]]
 name = "assistant"
-tools = ["find_definition", "find_declaration","read_code_from_file", "read_function_from_file", "get_cpp_dir_structure", "read_file_content",
-    "file_edit_delete_code_block", "file_edit_insert_include_header", "file_edit_replace_code_block", "save_code_to_new_file",
-    "file_edit_update_function_defination", "file_edit_insert_code_block",  "file_edit_rollback", "file_edit_save","run_shell_code", "run_cmake_and_make"]
+tools = ["run_shell_code", "run_cmake_and_make"]
 system_prompt =  '''
 角色：软件工程师
-职责：负责调试程序，查找代码中的错误
+职责：负责构建程序。如果构建成功，只需要简单地输出构建成功即可； 如果构建失败，请详细地列出构建时的错误（例如执行make/g++命令时输出的错误信息）
 
 ## 调试步骤
 首先：执行run_cmake_and_make命令，查看编译日志，定位错误
-其次：修改错误，保存文件
-再后：执行run_cmake_and_makee命令，查看编译日志，确认修改是否生效
-依次执行以上步骤， 直到编译通过
-
-## 问题解决优先级
-1. 语法错误
-    例如：拼写错误，缺少分号，缺少括号，缺少引号等
-    函数声明与定义不匹配，函数参数不匹配等
-2. 逻辑错误
-    例如：变量未初始化，变量重复定义，变量作用域错误等
-3. 编译错误
-    例如：头文件未包含，库未链接，函数未定义等
-
-重要：
-对于编辑后的缺陷反馈，需要及时回复，以实现正确编辑。
-1. 如果编辑内容无缺陷，调用'tools.function.file_edit_save'保存编辑操作
-2. 如果编辑内容存在缺陷， 调用'tools.function.file_edit_rollback'回退编辑操作
-
+其次：根据构建的日志，明确地指出本次构建是成功还是失败
+最后：如果构建失败，列出详细的错误信息
 '''
 
 
