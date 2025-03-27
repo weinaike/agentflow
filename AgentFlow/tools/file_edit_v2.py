@@ -1,4 +1,5 @@
 import re
+import numpy as np
 import os
 from typing_extensions import Annotated, List, Union
 import difflib
@@ -281,46 +282,82 @@ example:
                     start_line: Annotated[int, "the start line number to delete (1-indexed)"],
                     end_line: Annotated[int, "the end line number to delete (1-indexed)"],
                     new_code_block: Annotated[Union[str, List[str]], "the new code block to replace the old one"], 
-                    preview : bool = False)->str:
+                    preview : bool = False,
+                    force_build: bool = False)->str:
         try:
-            # If the new code block is a string, split it into lines
+            with open(filename) as f:
+                source_code = f.readlines()
+
+            master_symtable = self.ast.tu_symbol_tables.get(filename, None)    
+            if master_symtable is None:
+                _, master_symtable = self.ast.build_tu_symbol_table(filename, None)
+            replaced_cursor, replaced_cursor_indent = None, 0   
+            for cursor in master_symtable.local_cursors:
+                if cursor.extent.start.line == start_line and cursor.extent.end.line == end_line:
+                    replaced_cursor = cursor
+                    replaced_line = source_code[replaced_cursor.extent.start.line-1]
+                    replaced_cursor_indent = len(replaced_line) - len(replaced_line.lstrip())
+                    break
+        
+            #先只考虑是一个函数/方法的情况
+            assert CursorUtils.is_callable(replaced_cursor)
+
             if isinstance(new_code_block, str):
-                new_code_block = (new_code_block + '\n').splitlines(keepends=True) 
+                new_code_block_lines = new_code_block.splitlines(True)
+                if len(new_code_block_lines) != end_line - start_line + 1:
+                    empty_lines = end_line - start_line + 1 - len(new_code_block_lines)
+                    for _ in range(empty_lines):
+                        new_code_block_lines.extend(["\n"])
             else:
-                for i in range(len(new_code_block)):
-                    new_code_block[i] = ensure_line(new_code_block[i])
-            
-            with open(filename, 'r', encoding='utf-8') as file:
-                lines = file.readlines()
-            
-            # Determine the indentation level of the start line
-            indent_level = 0
-            if start_line <= len(lines):
-                indent_level = len(lines[start_line - 1]) - len(lines[start_line - 1].lstrip())
-            
-            # Create the indented new code block
-            indented_new_code_block = [' ' * indent_level + new_line for new_line in new_code_block]
+                new_code_block_lines = list(map(ensure_line, new_code_block))
+                new_code_block = "".join(new_code_block_lines)    
+            extra_symtable = self._extract_symbol_table_from_code_block(new_code_block)
+            extra_nodes = sorted(extra_symtable.local_cursors, key=lambda cursor: cursor.extent.end.line, reverse=True)
+            if len(extra_nodes) == 0:
+                extra_nodes = [extra_symtable.tu.cursor]
+            lines = []
+            for extra_node in extra_nodes:
+                start, end = extra_node.extent.start.line, extra_node.extent.end.line
+                if extra_node.kind == CursorKind.NAMESPACE:
+                    #TODO:
+                    start += 1 if new_code_block_lines[start-1].strip().endswith("{") else 2
+                    end -= 1
+                assert start <= end    
+                lines.extend(range(start, end+1))
+            lines = np.unique(np.sort(lines))   
+            refined_new_code_block = [new_code_block_lines[i-1] for i in lines]
+            refined_indent = len(refined_new_code_block[0]) - len(refined_new_code_block[0].lstrip())
+            gap = refined_indent - replaced_cursor_indent
+            for i in range(len(refined_new_code_block)):
+                if gap > 0:
+                    refined_new_code_block[i] = refined_new_code_block[i][gap:]
+                else:
+                    refined_new_code_block[i] = " " * gap + refined_new_code_block[i]    
 
+            source_code = source_code[:start_line-1] + refined_new_code_block + source_code[end_line:]    
 
-            if preview:
-                self.preview_func['replace_code_block'].append({'filename':filename, 'start_line':start_line, 'end_line':end_line, 'new_code_block': new_code_block})
-                diff = difflib.unified_diff(lines, lines[:start_line-1] + indented_new_code_block + lines[end_line:], n = self.n)
-                return filename+'\n' +''.join(diff) + preview_promt
+            extra_start = extra_nodes[0].extent.start.line
+            include_stats = [stat.lstrip() for stat in new_code_block_lines[:extra_start] if stat.strip().startswith("#include")]
+            if include_stats:
+                #把包含的头文件加进来：
+                first_cursor = master_symtable.local_cursors[0]    
+                start = first_cursor.extent.start.line
+                source_code = source_code[:start-1] + include_stats + source_code[start-1:]
 
-            
-            with open(filename, 'w', encoding='utf-8') as file:
-                for i, line in enumerate(lines):
-                    if i+1 < start_line or i+1 > end_line:
-                        file.write(line)
-                    elif i+1 == start_line:
-                        for new_line in indented_new_code_block:
-                            file.write(new_line)
-                    else:
-                        pass
+            with open(filename, "w") as f:
+                f.writelines(source_code)    
+
+            if force_build:
+                self.ast.update_symbol_tables()    
+
         except Exception as e:
-            return str(e)
-        return 'success'
+            print(e)
+            raise e
+            #return str(e)
+        
+        return "success"    
 
+            
 
 
     find_function_range_description = '''
@@ -684,10 +721,25 @@ __global__ void convolveShuffleKernel(double* d_x, double* d_y, double* d_flux,
     def TESTCASE_insert_include_header_01():
         editor.insert_include_header("/home/jiangbo/GalSim/include/galsim/Table.h", "#include <iostream>\n")
 
+    def TESTCASE_replace_code_block_01():
+        code_block = \
+'''
+    #include "myfile.h"
+    namespace galsim {
+        void SBExponential::SBExponentialImpl::shoot(PhotonArray& photons, UniformDeviate ud) const
+        {
+            //new implementation
+            int x, y;
+            return 0;
+        }
+    }
+'''            
+        editor.replace_code_block("/home/jiangbo/GalSim/src/SBExponential.cpp", 563, 629, new_code_block=code_block) 
     #TESTCASE_insert_include_header_01()
-    TESTCASE_insert_code_block_07()
     #TESTCASE_insert_code_block_01()
     #TESTCASE_insert_code_block_02()
     #TESTCASE_insert_code_block_03()
     #TESTCASE_insert_code_block_04()
-    pass
+    #TESTCASE_insert_code_block_07()
+    
+    TESTCASE_replace_code_block_01()

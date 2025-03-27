@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 def find_definition(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                     class_name:Annotated[str, "The class name to which the function or variable belongs."] = None) -> dict:
     """
+    该方法已过时，请使用fetch_source_code方法。
     以下示例演示了如何查找函数或变量的定义。
         如果要查询galsim名字空间内的PhotonArray类的addTo的定义，symbol为'addTo', class_name为'galsim::PhotonArray'，即调用：
             find_definition("addTo", "galsim::PhotonArray")
@@ -21,6 +22,8 @@ def find_definition(symbol:Annotated[str, "The name of the function or variable 
             find_definition("addTo", "galsim")    
         如果addTo是定义的一个全局函数，那么调用：
             find_definition("addTo", "")    
+        如果要查询galsim名字空间内的UniformDeviate类的声明，symbol为'', classs_name为'galsim::UniformDeviate'，即调用：
+            find_declaration("", "galsim::UniformDeviate")    
     """
     ast = AST()
     return ast.find_definition(symbol, class_name)
@@ -28,6 +31,7 @@ def find_definition(symbol:Annotated[str, "The name of the function or variable 
 def find_declaration(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                      class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
     '''
+    该方法已过时，请使用fetch_source_code方法。
     以下示例演示了如何查找函数或变量的声明（如果查询声明未找到结果，可直接查询定义替代）。
         如果要查询galsim名字空间内的PhotonArray类的addTo的声明，symbol为'addTo', class_name为'galsim::PhotonArray'，即调用：
             find_declaration("addTo", "galsim::PhotonArray")
@@ -35,6 +39,8 @@ def find_declaration(symbol:Annotated[str, "The name of the function or variable
             find_declaration("addTo", "galsim")    
         如果addTo是声明的一个全局函数，那么调用：
             find_declaration("addTo", "")    
+        如果要查询galsim名字空间内的UniformDeviate类的声明，symbol为'', classs_name为'galsim::UniformDeviate'，即调用：
+            find_declaration("", "galsim::UniformDeviate")    
     '''
     ast = AST()
     return ast.find_declaration(symbol, class_name)
@@ -42,8 +48,8 @@ def find_declaration(symbol:Annotated[str, "The name of the function or variable
 def fetch_source_code(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                      class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
     '''
-    通过C++代码的抽象语法树，查询函数及其调用的相关代码。
-    例如：
+    查询函数及其调用的相关代码。该方法相对于find_declaration/find_definition的优点是可以一次查询到全部相关的代码，减少查询次数。建议使用该方法查询代码。
+    该方法用法示例如下：
         若需要查询函数Bounds及其调用函数的相关代码, 符号为'Bounds'：
             fetch_source_code("Bounds")
         若需要查询galsim::SBVonKarman::SBVonKarmanImpl::shoot方法及其调用的相关代码，符号为'shoot', class_name为'galsim::SBVonKarman::SBVonKarmanImpl'
@@ -399,7 +405,7 @@ def file_edit_replace_code_block(filename: Annotated[str, "the file to edit "],
     return fe.replace_code_block(filename, start_line, end_line, new_code_block, preview=True)
 
 
-def file_edit_update_function_defination(filename: Annotated[str, "the cpp/h file to update the cpp function"],
+def file_edit_update_function_definition(filename: Annotated[str, "the cpp/h file to update the cpp function"],
                     function_name: Annotated[str, "the cpp function name to update"],
                     new_code_block: Annotated[Union[str, List[str]], "the new code block to replace the old one"])->str:
     '''
@@ -414,7 +420,7 @@ def file_edit_update_function_defination(filename: Annotated[str, "the cpp/h fil
 
         
     example 1:
-        update_function_defination('path_to_file/file.cpp', 'Position& operator=(const Position<T>& rhs)', """
+        update_function_definition('path_to_file/file.cpp', 'Position& operator=(const Position<T>& rhs)', """
             Position& operator=(const Position<T>& rhs) 
                 {
                     int a = 0;
@@ -426,7 +432,7 @@ def file_edit_update_function_defination(filename: Annotated[str, "the cpp/h fil
     '''    
     
     fe = FileEditClass()
-    return fe.update_function_defination(filename, function_name, new_code_block,preview=True)
+    return fe.update_function_definition(filename, function_name, new_code_block,preview=True)
 
 def file_edit_rollback(filename: Annotated[str, "the file to save"]) -> str:
     '''回退一步（取消上一次编辑）'''
@@ -445,20 +451,40 @@ def file_edit_save(filename: Annotated[str, "the file to save"]) -> str:
     else:
         return f'{filename} save success. \n尚有' + ' '.join(res_file) + ' 尚未保存\n请调用"tools.function.file_edit_save"函数, 保存该文件的编辑操作\n请EDIT_REVIEW'
     
+def file_edit_save_to_file(filename: Annotated[str, "the file to save"],
+        content: Annotated[str, "content to be written"]
+    ) -> str: 
+    '''将指定的内容写入文件中。若文件不存在，则创建该文件；若文件已经存在，则原文件内容会被清除'''
+    try:
+        with open(filename, 'w') as f:
+            if isinstance(content, str):
+                f.write(content)
+            elif isinstance(content, list):
+                for line in content:
+                    f.write(line)    
+    except Exception as e:
+        return f'save file `{filename}` failed: {e}'
+    return f'save file `{filename}` success'                    
+
+def file_edit_rollback_files(filenames: Annotated[List[str], "files to be restored"])->str:
+    '''将指定列表filenames中的文件回滚或删除，使git仓库恢复到修改前的状态'''
+    fe = FileEditClass()
+    return fe.file_edit_rollback_files(filenames)
+
 
 def function_dependency_query(function: Annotated[str, "PhotonArray::addTo"],
-                            src_file: Annotated[str, "/home/wnk/code/GalSim/src/PhotonArray.cpp"],
-                            project_path: Annotated[str, "/home/wnk/code/GalSim/"],
-                            src_path: Annotated[str, "/home/wnk/code/GalSim/src"],
+                            src_file: Annotated[str, "/home/jiangbo/GalSim/src/PhotonArray.cpp"],
+                            project_path: Annotated[str, "/home/jiangbo/GalSim/"],
+                            src_path: Annotated[str, "/home/jiangbo/GalSim/src"],
                             namespace: Annotated[str, "galsim"])->dict:                            
     '''
     function_dependency_query函数用于查询函数的依赖关系，包括主任务和子任务
 
     Args:
         function (Annotated[str, "PhotonArray::addTo"]): 函数名
-        src_file (Annotated[str, "/home/wnk/code/GalSim/src/PhotonArray.cpp"]): function所在文件。绝对路径
-        project_path (Annotated[str, "/home/wnk/code/GalSim/"]): 项目路径: 绝对路径
-        src_path (Annotated[str, "/home/wnk/code/GalSim/src"]): 源码路径: 绝对路径
+        src_file (Annotated[str, "/home/jiangbo/GalSim/src/PhotonArray.cpp"]): function所在文件。绝对路径
+        project_path (Annotated[str, "/home/jiangbo/GalSim/"]): 项目路径: 绝对路径
+        src_path (Annotated[str, "/home/jiangbo/GalSim/src"]): 源码路径: 绝对路径
         namespace (Annotated[str, "galsim"]): 命名空间
 
     Returns:
@@ -488,8 +514,8 @@ diagrams:
     path = project_path
     build_path = os.path.join(path, "build")
 
-    # src = '/home/wnk/code/GalSim/src'  # Change this to the path of your source code directory
-    # include = ['/home/wnk/code/GalSim/include/galsim/']  # Change this to the path of your include directory
+    # src = '/home/jiangbo/GalSim/src'  # Change this to the path of your source code directory
+    # include = ['/home/jiangbo/GalSim/include/galsim/']  # Change this to the path of your include directory
     # namespaces=['galsim']
     # cache_file = 'workspace/symbol_table.pkl'
 

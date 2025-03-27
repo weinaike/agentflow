@@ -59,6 +59,7 @@ class ToolNode(BaseNode) :
 
 class AgentNode(BaseNode) :  
     def __init__(self, config: Union[Dict, AgentNodeParam]):
+        self.first_iteration = True
         self._node_param : AgentNodeParam
         if isinstance(config, Dict):
             self._node_param = AgentNodeParam(**config)
@@ -139,8 +140,11 @@ class AgentNode(BaseNode) :
         flow_id = self._node_param.flow_id
         inputs = self._node_param.inputs
 
-        content = BACKGROUND_TEMPLATE.format(project_description = context.project_description, 
-                                            flow_description = context.flow_description[flow_id])
+        content = ""
+        if self.first_iteration:
+            self.first_iteration = False #只在首次迭代开发时才提供BACKGROUND
+            content = BACKGROUND_TEMPLATE.format(project_description = context.project_description, 
+                                                flow_description = context.flow_description[flow_id])
         
         has_context = False
         for input in inputs:

@@ -10,8 +10,9 @@ from autogen_agentchat.ui import Console
 from ..tools import extract_code_blocks
 from ..data_model import LoopFlowParam, Context, TaskItem, get_model_config
 from .sequential_flow import SequentialFlow
+from .auto_sched_flow import AutoSchedFlow
 from .base_flow import BaseFlow
-from ..prompt_template import FLOW_DESCRIPTION_TEMPLATE, FORMATE_SYSTEM_PROMPT, FORMATE_MODIFY
+from ..prompt_template import FLOW_DESCRIPTION_TEMPLATE, FORMAT_SYSTEM_PROMPT, FORMATE_MODIFY
 
 import re
 import os
@@ -21,7 +22,7 @@ from copy import deepcopy
 from typing import List, Dict, Union, Optional
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)
 
 
 class LoopFlow(BaseFlow):
@@ -37,19 +38,35 @@ class LoopFlow(BaseFlow):
        
         llm_config = get_model_config(self._flow_param.llm_config)
         model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
-        self.planner = AssistantAgent(name='planner', model_client=model_client, system_message = FORMATE_SYSTEM_PROMPT)
+        #self.tasks_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_tasks.json")
+        self.tasks_file = os.path.join(self._config["backup_dir"], f"{self._flow_param.flow_id}_loop_tasks.json")
+        self.planner = AssistantAgent(name='planner', model_client=model_client, system_message = FORMAT_SYSTEM_PROMPT)
+
+    def create_internal_flow(config):
+        raise NotImplementedError("override this method in the subclass please!")
 
     async def run(self, context, specific_node = [], flow_execute = True) -> Context:
-        tasks = await self._format_tasks(context)
+        if os.path.exists(self.tasks_file):
+            with open(self.tasks_file) as f:
+                tasks = [TaskItem(**obj) for obj in json.load(f)]
+        else:        
+            tasks = await self._format_tasks(context)
+            self._update_tasks(tasks)
 
         for i, task in enumerate(tasks):
+            if i >= 1:
+                continue
             config = self._config_tranfer(self._config, f'task_{i}', task.content)
             
-            seq_flow = SequentialFlow(config)
+            flow = self.create_internal_flow(config)
 
-            context = await seq_flow.run(context, specific_node, flow_execute)
+            context = await flow.run(context, specific_node, flow_execute)
         
-        return context
+        return context 
+     
+    def _update_tasks(self, tasks) -> None:
+        with open(self.tasks_file, 'w') as f:
+            json.dump([task.model_dump() for task in tasks], f, indent=4, ensure_ascii=False)
            
     def _config_tranfer(self, flow_config: Dict, loop_key:str, loop_val:str) -> Dict:
         config = deepcopy(flow_config)
@@ -100,3 +117,11 @@ class LoopFlow(BaseFlow):
             raise ValueError("No task generated")
 
         return tasks    
+
+class SequentialLoopFlow(LoopFlow):
+    def create_internal_flow(self, config):
+        return SequentialFlow(config)
+
+class AutoSchedLoopFlow(LoopFlow):
+    def create_internal_flow(self, config):
+        return AutoSchedFlow(config)

@@ -12,16 +12,16 @@ if __name__ == "__main__":
 
     configs = [ 
         {
-            "src": "/home/wnk/code/GalSim/src",
-            "include": ["/home/wnk/code/GalSim/include", "/home/wnk/code/GalSim/include/galsim", "/home/wnk/code/GalSim/src",  "/home/wnk/code/GalSim/src/cuda_kernels", "/home/wnk/code/GalSim/downloaded_eigen/eigen-3.4.0"],
+            "src": "/home/jiangbo/GalSim/src",
+            "include": ["/home/jiangbo/GalSim/include", "/home/jiangbo/GalSim/include/galsim", "/home/jiangbo/GalSim/src",  "/home/jiangbo/GalSim/src/cuda_kernels", "/home/jiangbo/GalSim/downloaded_eigen/eigen-3.4.0"],
             #"scope": "galsim::SBSpergel::SBSpergelImpl",
             "scope": "galsim::SBVonKarman::SBVonKarmanImpl",
             "method": "shoot",
             "namespaces": [],
-            "cache_dir": "/home/wnk/code/agentflow/workspace/galsim/cache_dir",
+            "cache_dir": "/home/jiangbo/agentflow/workspace/galsim/cache_dir",
             "use_cache": True,
             "output_filters": [
-                lambda cursor: not cursor.location.file.name.startswith("/home/wnk/code/GalSim/"),
+                lambda cursor: not cursor.location.file.name.startswith("/home/jiangbo/GalSim/"),
                 #lambda cursor: not CursorUtils.get_namespace(cursor) == "galsim"
             ]
         }

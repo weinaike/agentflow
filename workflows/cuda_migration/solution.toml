@@ -6,7 +6,7 @@ description = '''Galsim是一个用于模拟天体光学成像的项目。将亮
 2. Real-space Direct rendering
 3. Photon shooting
 '''
-workspace_path = "workspace/galsim"
+workspace_path = "workspace/galsim3/"
 llm_config = "docs/OAI_CONFIG_LIST.json"
 requirement = '''
 Galsim是一个用于模拟天体光学成像的项目。 将亮度模型SBprofie通过光学仿真构建ImageView图像。
@@ -17,10 +17,10 @@ requirement_flow = ['flow2']
 
 [codebase]
 language = "C++"
-project_path = "/home/wnk/code/GalSim/"
-source_path = "/home/wnk/code/GalSim/src/"
-header_path = ["/home/wnk/code/GalSim/include/galsim/","/home/wnk/code/GalSim/include/"]
-build_path = "/home/wnk/code/GalSim/build/"
+project_path = "/home/jiangbo/GalSim/"
+source_path = "/home/jiangbo/GalSim/src/"
+header_path = ["/home/jiangbo/GalSim/include/galsim/","/home/jiangbo/GalSim/include/", "/home/jiangbo/GalSim/src", "/home/jiangbo/GalSim/src/cuda_kernels"]
+build_path = "/home/jiangbo/GalSim/build/"
 namespace = "galsim"
 
 

@@ -6,7 +6,6 @@ from typing import List, Dict, Union
 import os
 import json
 import logging
-from graphviz import Digraph
 from collections import deque
 import asyncio
 logger = logging.getLogger(__name__)
@@ -26,34 +25,7 @@ class SequentialFlow(BaseFlow):
         logger.debug(f'---{self._flow_param.flow_id} {self._flow_param.flow_name} over---')
         dot, graph = self._draw_flow_graph()
         self._topological_order = self._topological_sort(graph)
-
-    def _draw_flow_graph(self):
-        '''绘制流程图'''
-        flow_name = self._flow_param.flow_name
-        dot = Digraph(comment=flow_name)
-        dot.attr(label=flow_name, labelloc='t', fontsize='20')
-
-        # Add nodes to the graph
-        for node in self._flow_param.nodes:    
-            dot.node(node.id, node.name)
-        
-        graph = {node.id: [] for node in self._flow_param.nodes}
-        # Add edges based on inputs
-        for node in self._flow_param.nodes:
-            for input_node in node.inputs:
-                if input_node not in graph:
-                    continue
-                dot.edge(input_node, node.id)
-                graph[input_node].append(node.id)
-               
-        file = os.path.join(self._flow_param.workspace_path, flow_name)
-
-        # Save and render the graph
-        try:
-            dot.render(file, format='png', cleanup=True)
-        except Exception as e:
-            logger.error(f"Error in rendering flow graph: {e}")
-        return dot, graph
+        self.process = None
     
     
     def _topological_sort(self, graph):
@@ -86,6 +58,7 @@ class SequentialFlow(BaseFlow):
     async def run(self, context : Context, specific_node = [], flow_execute = True) -> Context:
         context.flow_description[self._flow_param.flow_id] = self._flow_param.description   
         for node_id in self._topological_order:
+            self._draw_flow_graph(highlight_node_id=node_id)
             node = self.get_node(node_id)
             assert node is not None
             if self.should_node_run(node_id, specific_node, flow_execute):                
@@ -94,5 +67,9 @@ class SequentialFlow(BaseFlow):
                 logger.info(f"Skip node {self.id}.{node_id}")
                
             context.node_output[f'{self.id}.{node_id}'] = node.get_NodeOutput()
+            if self.process :
+                self.process.terminate()
+                self.process = None
+
 
         return context

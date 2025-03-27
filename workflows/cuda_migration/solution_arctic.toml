@@ -14,10 +14,10 @@ requirement_flow = ['flow2']
 
 [codebase]
 language = "C++"
-project_path = "/home/wnk/code/arctic/"
-source_path = "/home/wnk/code/arctic/src/"
-header_path = "/home/wnk/code/arctic/include/"
-build_path = "/home/wnk/code/arctic/build/"
+project_path = "/home/jiangbo/arctic/"
+source_path = "/home/jiangbo/arctic/src/"
+header_path = "/home/jiangbo/arctic/include/"
+build_path = "/home/jiangbo/arctic/build/"
 namespace = ''
 
 
