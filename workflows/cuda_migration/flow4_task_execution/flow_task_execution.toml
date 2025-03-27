@@ -14,7 +14,7 @@ prompt = '''
 '''
 
 [auto_sched]
-max_sched_times = 15
+max_sched_times = 25
 start_node_id = "node1"
 sched_prompt = '''
 任务由多个节点协作完成。各节点职责和调度规则如下：
@@ -39,7 +39,7 @@ config = "node1_config_QueryCode.toml"
 [[nodes]]
 id = "node2"
 name = "代码生成"
-inputs = ["node1"]
+inputs = ["node1", "node5"]
 config = "node2_config_genCode.toml"
 
 [[nodes]]

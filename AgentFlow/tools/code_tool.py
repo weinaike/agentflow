@@ -469,7 +469,7 @@ def file_edit_save_to_file(filename: Annotated[str, "the file to save"],
 def file_edit_rollback_files(filenames: Annotated[List[str], "files to be restored"])->str:
     '''将指定列表filenames中的文件回滚或删除，使git仓库恢复到修改前的状态'''
     fe = FileEditClass()
-    fe.file_edit_rollback_files(filenames)
+    return fe.file_edit_rollback_files(filenames)
 
 
 def function_dependency_query(function: Annotated[str, "PhotonArray::addTo"],
