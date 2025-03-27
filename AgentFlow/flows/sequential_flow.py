@@ -21,13 +21,14 @@ class SequentialFlow(BaseFlow):
         self._nodes : List[BaseNode] = []
         logger.debug(f'---{self._flow_param.flow_id} {self._flow_param.flow_name} start---')
         logger.debug(json.dumps(self._flow_param.model_dump(), indent=4, ensure_ascii=False))
-        self._nodes = asyncio.run( self.create_node(self._flow_param))
+    
+    async def before_run(self, context: Context, specific_node: list[str] = []):
+        self._nodes = await self.create_node(self._flow_param)
         logger.debug(f'---{self._flow_param.flow_id} {self._flow_param.flow_name} over---')
         dot, graph = self._draw_flow_graph()
         self._topological_order = self._topological_sort(graph)
         self.process = None
-    
-    
+
     def _topological_sort(self, graph):
         '''拓扑排序, 根据依赖关系，确定节点执行顺序'''
         in_degree = {node: 0 for node in graph}
@@ -56,6 +57,8 @@ class SequentialFlow(BaseFlow):
 
 
     async def run(self, context : Context, specific_node = [], flow_execute = True) -> Context:
+        await self.before_run(context, specific_node)
+
         context.flow_description[self._flow_param.flow_id] = self._flow_param.description   
         for node_id in self._topological_order:
             self._draw_flow_graph(highlight_node_id=node_id)
@@ -71,5 +74,6 @@ class SequentialFlow(BaseFlow):
                 self.process.terminate()
                 self.process = None
 
+        await self.after_run(context)
 
         return context

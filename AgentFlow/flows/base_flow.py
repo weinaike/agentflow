@@ -23,6 +23,11 @@ class BaseFlow(ABC):
         self._flow_param: flowDetailParam 
         self._nodes: List[BaseNode] 
 
+    async def before_run(self, context: Context, specific_node: list[str] = []):
+        pass
+
+    async def after_run(self, context: Context):
+        pass 
        
     @abstractmethod
     async def run(self, context: Context, specific_node: list[str] = [], flow_execute : bool = True) -> Context:

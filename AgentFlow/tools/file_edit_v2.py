@@ -560,7 +560,7 @@ returns:
 if __name__ == '__main__':
     # discard modifications:
     import subprocess
-    #command = "cd /home/jiangbo/GalSim && git clean -dxf include src && git checkout -- src/ && git checkout -- include"
+    #command = "cd /home/wnk/code/GalSim && git clean -dxf include src && git checkout -- src/ && git checkout -- include"
     #result = subprocess.run(command, shell=True, capture_output=True, text=True)
     #print(result.returncode)
     #print(result.stdout)
@@ -568,8 +568,8 @@ if __name__ == '__main__':
 
     configs = [ 
         {
-            "src": "/home/jiangbo/GalSim/src",
-            "include": ["/home/jiangbo/GalSim/include", "/home/jiangbo/GalSim/include/galsim", "/home/jiangbo/GalSim/src", "/home/jiangbo/GalSim/downloaded_eigen/eigen-3.4.0"],
+            "src": "/home/wnk/code/GalSim/src",
+            "include": ["/home/wnk/code/GalSim/include", "/home/wnk/code/GalSim/include/galsim", "/home/wnk/code/GalSim/src", "/home/wnk/code/GalSim/downloaded_eigen/eigen-3.4.0"],
             #"scope": "galsim::SBSpergel::SBSpergelImpl",
             "scope": "galsim::SBVonKarman::SBVonKarmanImpl",
             "method": "shoot",
@@ -577,7 +577,7 @@ if __name__ == '__main__':
             "cache_dir": "/home/jiangbo/AutoCoder/cached_ast_dir/galsim",
             "use_cache": False,
             "output_filters": [
-                lambda cursor: not cursor.location.file.name.startswith("/home/jiangbo/GalSim"),
+                lambda cursor: not cursor.location.file.name.startswith("/home/wnk/code/GalSim"),
                 lambda cursor: not CursorUtils.get_namespace(cursor) == "galsim"
             ]
         }
@@ -629,7 +629,7 @@ if __name__ == '__main__':
         }
     }
     '''
-        editor.insert_code_block("/home/jiangbo/GalSim/src/Table.cpp", 1228, code_block)
+        editor.insert_code_block("/home/wnk/code/GalSim/src/Table.cpp", 1228, code_block)
 
     def TESTCASE_insert_code_block_01():
         code_block = \
@@ -646,7 +646,7 @@ if __name__ == '__main__':
     '''
         void PhotonArray_convolve_cuda(double* d_x, double* d_y, double* d_flux);
     '''
-        editor.insert_code_block("/home/jiangbo/GalSim/src/cuda_kernels/CuPhotonArray.h", 27, code_block)
+        editor.insert_code_block("/home/wnk/code/GalSim/src/cuda_kernels/CuPhotonArray.h", 27, code_block)
 
     def TESTCASE_insert_code_block_02():
         code_block = \
@@ -656,7 +656,7 @@ if __name__ == '__main__':
 
         }
     '''
-        editor.insert_code_block("/home/jiangbo/GalSim/src/cuda_kernels/CuPhotonArray.cu", 66, code_block)
+        editor.insert_code_block("/home/wnk/code/GalSim/src/cuda_kernels/CuPhotonArray.cu", 66, code_block)
 
     def TESTCASE_insert_code_block_03():
         code_block = \
@@ -668,7 +668,7 @@ if __name__ == '__main__':
         }
         }
     '''
-        editor.insert_code_block("/home/jiangbo/GalSim/src/cuda_kernels/CuPhotonArray.cu", 66, code_block)
+        editor.insert_code_block("/home/wnk/code/GalSim/src/cuda_kernels/CuPhotonArray.cu", 66, code_block)
 
     def TESTCASE_insert_code_block_04():
         code_block = \
@@ -680,7 +680,7 @@ if __name__ == '__main__':
         }
         }
     '''
-        editor.insert_code_block("/home/jiangbo/GalSim/src/cuda_kernels/CuPhotonArray.cu", 53, code_block)
+        editor.insert_code_block("/home/wnk/code/GalSim/src/cuda_kernels/CuPhotonArray.cu", 53, code_block)
 
     def TESTCASE_insert_code_block_05():
         code_block = \
@@ -693,7 +693,7 @@ __global__ void convolveShuffleKernel(double* d_x, double* d_y, double* d_flux,
                                       int N, long seed);
 }
 '''
-        editor.insert_code_block("/home/jiangbo/GalSim/src/cuda_kernels/PhotonArray_convolve.cu", 5, code_block)
+        editor.insert_code_block("/home/wnk/code/GalSim/src/cuda_kernels/PhotonArray_convolve.cu", 5, code_block)
 
     def TESTCASE_insert_code_block_06():
         code_block = \
@@ -706,7 +706,7 @@ __global__ void convolveShuffleKernel(double* d_x, double* d_y, double* d_flux,
                                       int N, long seed);
 }
 '''
-        editor.insert_code_block("/home/jiangbo/GalSim/src/cuda_kernels/PhotonArray_convolve.cu", 10, code_block)
+        editor.insert_code_block("/home/wnk/code/GalSim/src/cuda_kernels/PhotonArray_convolve.cu", 10, code_block)
 
     def TESTCASE_insert_code_block_07():
         code_block = \
@@ -716,10 +716,10 @@ __global__ void convolveShuffleKernel(double* d_x, double* d_y, double* d_flux,
     pow(x, y);
     x = mypow(y);
 '''
-        editor.insert_code_block("/home/jiangbo/GalSim/src/cuda_kernels/PhotonArray_convolve.cu", 19, code_block)
+        editor.insert_code_block("/home/wnk/code/GalSim/src/cuda_kernels/PhotonArray_convolve.cu", 19, code_block)
 
     def TESTCASE_insert_include_header_01():
-        editor.insert_include_header("/home/jiangbo/GalSim/include/galsim/Table.h", "#include <iostream>\n")
+        editor.insert_include_header("/home/wnk/code/GalSim/include/galsim/Table.h", "#include <iostream>\n")
 
     def TESTCASE_replace_code_block_01():
         code_block = \
@@ -734,7 +734,7 @@ __global__ void convolveShuffleKernel(double* d_x, double* d_y, double* d_flux,
         }
     }
 '''            
-        editor.replace_code_block("/home/jiangbo/GalSim/src/SBExponential.cpp", 563, 629, new_code_block=code_block) 
+        editor.replace_code_block("/home/wnk/code/GalSim/src/SBExponential.cpp", 563, 629, new_code_block=code_block) 
     #TESTCASE_insert_include_header_01()
     #TESTCASE_insert_code_block_01()
     #TESTCASE_insert_code_block_02()
