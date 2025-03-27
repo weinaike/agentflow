@@ -84,12 +84,12 @@ def get_derived_class_of_class(class_name:Annotated[str, "class name"], inc_path
         str: 查询到的信息
 
     Example:
-        ret = get_derived_class_of_class("SBProfile", "/home/jiangbo/GalSim/include/galsim/")
+        ret = get_derived_class_of_class("SBProfile", "/home/wnk/code/GalSim/include/galsim/")
 
         ret = """
-    /home/jiangbo/GalSim/include/galsim/SBMoffatImpl.h:    class SBMoffat::SBMoffatImpl : public SBProfileImpl
-    /home/jiangbo/GalSim/include/galsim/SBInclinedExponentialImpl.h:    class SBInclinedExponential::SBInclinedExponentialImpl : public SBProfileImpl
-    /home/jiangbo/GalSim/include/galsim/SBTransformImpl.h:    class SBTransform::SBTransformImpl : public SBProfileImpl
+    /home/wnk/code/GalSim/include/galsim/SBMoffatImpl.h:    class SBMoffat::SBMoffatImpl : public SBProfileImpl
+    /home/wnk/code/GalSim/include/galsim/SBInclinedExponentialImpl.h:    class SBInclinedExponential::SBInclinedExponentialImpl : public SBProfileImpl
+    /home/wnk/code/GalSim/include/galsim/SBTransformImpl.h:    class SBTransform::SBTransformImpl : public SBProfileImpl
     “”“
     '''    
     
@@ -326,4 +326,4 @@ def file_backup(source: str, backup_dir: str) -> str:
 
 
 if __name__ == '__main__':
-    print(get_cpp_dir_structure('/home/jiangbo/GalSim/'))
+    print(get_cpp_dir_structure('/home/wnk/code/GalSim/'))
