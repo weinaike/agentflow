@@ -3,7 +3,14 @@ type = "Agent"
 task = '''编译代码'''
 
 [manager]
-summary_prompt = '''总结调试过程与结果。'''
+summary_prompt = '''总结调试过程与结果。要求以json的格式输出：当构建成功时，将"status"的值设为"本次构建成功"，当构建失败时，将"status"的值设为"本次构建失败"； "details"的值详细描述总结的相关信息。具体格式如下：
+```json
+{
+    "status": "本次构建成功|本次构建失败",
+    "details": "针对错误1的总结; 针对错误2的总结;...; 针对错误n的总结" 
+}
+```
+'''
 max_turns = 10
 mode = 'Questionnaire'
 participants = ["assistant"]
