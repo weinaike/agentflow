@@ -473,18 +473,18 @@ def file_edit_rollback_files(filenames: Annotated[List[str], "files to be restor
 
 
 def function_dependency_query(function: Annotated[str, "PhotonArray::addTo"],
-                            src_file: Annotated[str, "/home/wnk/code/GalSim/src/PhotonArray.cpp"],
-                            project_path: Annotated[str, "/home/wnk/code/GalSim/"],
-                            src_path: Annotated[str, "/home/wnk/code/GalSim/src"],
+                            src_file: Annotated[str, "/home/jiangbo/GalSim/src/PhotonArray.cpp"],
+                            project_path: Annotated[str, "/home/jiangbo/GalSim/"],
+                            src_path: Annotated[str, "/home/jiangbo/GalSim/src"],
                             namespace: Annotated[str, "galsim"])->dict:                            
     '''
     function_dependency_query函数用于查询函数的依赖关系，包括主任务和子任务
 
     Args:
         function (Annotated[str, "PhotonArray::addTo"]): 函数名
-        src_file (Annotated[str, "/home/wnk/code/GalSim/src/PhotonArray.cpp"]): function所在文件。绝对路径
-        project_path (Annotated[str, "/home/wnk/code/GalSim/"]): 项目路径: 绝对路径
-        src_path (Annotated[str, "/home/wnk/code/GalSim/src"]): 源码路径: 绝对路径
+        src_file (Annotated[str, "/home/jiangbo/GalSim/src/PhotonArray.cpp"]): function所在文件。绝对路径
+        project_path (Annotated[str, "/home/jiangbo/GalSim/"]): 项目路径: 绝对路径
+        src_path (Annotated[str, "/home/jiangbo/GalSim/src"]): 源码路径: 绝对路径
         namespace (Annotated[str, "galsim"]): 命名空间
 
     Returns:
@@ -514,8 +514,8 @@ diagrams:
     path = project_path
     build_path = os.path.join(path, "build")
 
-    # src = '/home/wnk/code/GalSim/src'  # Change this to the path of your source code directory
-    # include = ['/home/wnk/code/GalSim/include/galsim/']  # Change this to the path of your include directory
+    # src = '/home/jiangbo/GalSim/src'  # Change this to the path of your source code directory
+    # include = ['/home/jiangbo/GalSim/include/galsim/']  # Change this to the path of your include directory
     # namespaces=['galsim']
     # cache_file = 'workspace/symbol_table.pkl'
 

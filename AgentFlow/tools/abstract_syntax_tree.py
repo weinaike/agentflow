@@ -830,7 +830,9 @@ class AST:
         #提取scope::method_or_func有关的代码
         assert all([callable(filter) for filter in filters]), "filters must be callable!"
         method_or_func_def = self.find_definition_by_name(name=symbol, scope=scope, type=type)
-        assert len(method_or_func_def) != 0
+        if len(method_or_func_def) == 0:
+            symbol = '::'.join([scope, symbol]) if scope else symbol
+            return f"Can't find the specified symbol {symbol}"
         method_deps = []
         code_snippets = {}
         code_methods = {}
@@ -903,14 +905,14 @@ class AST:
         return all_deps
 
 if __name__ == "__main__":
-    #src = '/home/wnk/code/GalSim/tmp/no_tpl'  # Change this to the path of your source code directory
-    #include = ['/home/wnk/code/GalSim/tmp/no_tpl']  # Change this to the path of your include directory
+    #src = '/home/jiangbo/GalSim/tmp/no_tpl'  # Change this to the path of your source code directory
+    #include = ['/home/jiangbo/GalSim/tmp/no_tpl']  # Change this to the path of your include directory
     #test_clang_includes()
 
     configs = [ 
         {
-            "src": "/home/wnk/code/GalSim/src",
-            "include": ["/home/wnk/code/GalSim/include", "/home/wnk/code/GalSim/include/galsim", "/home/wnk/code/GalSim/src",  "/home/wnk/code/GalSim/src/cuda_kernels", "/home/wnk/code/GalSim/downloaded_eigen/eigen-3.4.0"],
+            "src": "/home/jiangbo/GalSim/src",
+            "include": ["/home/jiangbo/GalSim/include", "/home/jiangbo/GalSim/include/galsim", "/home/jiangbo/GalSim/src",  "/home/jiangbo/GalSim/src/cuda_kernels", "/home/jiangbo/GalSim/downloaded_eigen/eigen-3.4.0"],
             #"scope": "galsim::SBSpergel::SBSpergelImpl",
             "scope": "galsim::SBConvolve::SBConvolveImpl",
             "method": "shoot",
@@ -918,7 +920,7 @@ if __name__ == "__main__":
             "cache_dir": "/home/jiangbo/agentflow/cached_ast_dir/galsim",
             "use_cache": False,
             "output_filters": [
-                lambda cursor: not cursor.location.file.name.startswith("/home/wnk/code/GalSim"),
+                lambda cursor: not cursor.location.file.name.startswith("/home/jiangbo/GalSim"),
                 #lambda cursor: not CursorUtils.get_namespace(cursor) == "galsim"
             ]
         }

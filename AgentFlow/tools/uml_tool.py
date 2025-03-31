@@ -400,7 +400,7 @@ def extract_inter_class_relationship_from_uml(puml_file_name:Annotated[str, "UML
 
 
 if __name__ == '__main__':
-    file = '/home/wnk/code/GalSim/build/docs/diagrams/main_class.puml'
+    file = '/home/jiangbo/GalSim/build/docs/diagrams/main_class.puml'
     content = extract_class_names_from_uml(file)
     # print(content)
     content = extract_connect_from_uml(file)

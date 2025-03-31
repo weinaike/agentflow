@@ -26,7 +26,7 @@ def main():
 
 if __name__ == "__main__":
     import subprocess
-    command = "cd /home/wnk/code/GalSim && git clean -dxf include src && git checkout -- src/ && git checkout -- include"
+    command = "cd /home/jiangbo/GalSim && git clean -dxf include src && git checkout -- src/ && git checkout -- include"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     #print(result.returncode)
     #print(result.stdout)

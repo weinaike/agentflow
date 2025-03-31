@@ -559,6 +559,11 @@ returns:
         rollback_log = ""
         for filename in filenames:
             #判断git是否跟踪文件
+            if not os.path.exists(filename):
+                rollback_log += f"rollback file `{filename}` error: file not found\n"
+                continue
+            if not os.path.isfile(filename):
+                rollback_log += f"rollback file `${filename}` error: not a regular file\n"
             dir, base = os.path.dirname(filename), os.path.basename(filename)
             ls_cmd = f'cd {dir} && git ls-files --error-unmatch {base}'
             result = subprocess.run(ls_cmd, shell=True, capture_output=True, text=True)
