@@ -830,7 +830,8 @@ class AST:
         #提取scope::method_or_func有关的代码
         assert all([callable(filter) for filter in filters]), "filters must be callable!"
         method_or_func_def = self.find_definition_by_name(name=symbol, scope=scope, type=type)
-        assert len(method_or_func_def) != 0
+        if len(method_or_func_def) == 0:
+            return f'fetch_source_code failed: code not found with symbol={symbol}, scope={scope}'
         method_deps = []
         code_snippets = {}
         code_methods = {}
