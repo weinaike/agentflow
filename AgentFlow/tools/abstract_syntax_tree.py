@@ -303,7 +303,8 @@ class TuSymbolTable:
         defs = []
         for def_cursor in self.def_cursors.values():
             if def_cursor.spelling == name:
-                if scope is None or CursorUtils.get_scope(def_cursor) == scope:
+                cursor_scope = CursorUtils.get_scope(def_cursor)
+                if scope is None or cursor_scope[-len(scope):] == scope:
                     if type is None or def_cursor.type.spelling == type:
                         defs.append(def_cursor)
         return defs                
@@ -312,7 +313,8 @@ class TuSymbolTable:
         decls = []
         for decl_cursor in self.decl_cursors.values():
             if decl_cursor.spelling == name:
-                if scope is None or CursorUtils.get_scope(decl_cursor) == scope:
+                cursor_scope = CursorUtils.get_scope(decl_cursor)
+                if scope is None or cursor_scope[-len(scope):] == scope:
                     if type is None or decl_cursor.type.spelling == type:
                         decls.append(decl_cursor)
         return decls
@@ -602,7 +604,8 @@ class AST:
             target_class: Cursor = None
             for _, symbol_table in self.tu_symbol_tables.items():
                 for class_node in symbol_table.classes.values():
-                    if CursorUtils.get_full_name(class_node) == scope:
+                    full_name = CursorUtils.get_full_name(class_node)
+                    if full_name[-len(scope):] == scope:
                         target_class = class_node
                         break
                 if target_class:
@@ -914,7 +917,7 @@ if __name__ == "__main__":
             "src": "/home/jiangbo/GalSim/src",
             "include": ["/home/jiangbo/GalSim/include", "/home/jiangbo/GalSim/include/galsim", "/home/jiangbo/GalSim/src",  "/home/jiangbo/GalSim/src/cuda_kernels", "/home/jiangbo/GalSim/downloaded_eigen/eigen-3.4.0"],
             #"scope": "galsim::SBSpergel::SBSpergelImpl",
-            "scope": "galsim::SBConvolve::SBConvolveImpl",
+            "scope": "SBConvolveImpl",
             "method": "shoot",
             "namespaces": [],
             "cache_dir": "/home/jiangbo/agentflow/cached_ast_dir/galsim",
@@ -963,10 +966,10 @@ if __name__ == "__main__":
     #callgraph = ast.get_call_graph(method, scope, filters=output_filters)
     #print(callgraph.to_string(remove_leaf_nodes=False))
     #callgraph.draw_callgraph()
-    code_snippets = ast.fetch_source_code(method, scope, type=None, filters=output_filters)
-    print(code_snippets)
-    #print(ast.find_definition(method, class_name=None))
-    #print(json.dumps(ast.find_declaration(method, class_name=None)))
+    #code_snippets = ast.fetch_source_code(method, scope, type=None, filters=output_filters)
+    #print(code_snippets)
+    print(ast.find_definition(method, class_name=scope))
+    print(json.dumps(ast.find_declaration(method, class_name=scope)))
 
 
 
