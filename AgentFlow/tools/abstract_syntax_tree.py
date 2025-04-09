@@ -303,7 +303,8 @@ class TuSymbolTable:
         defs = []
         for def_cursor in self.def_cursors.values():
             if def_cursor.spelling == name:
-                if scope is None or CursorUtils.get_scope(def_cursor) == scope:
+                cursor_scope = CursorUtils.get_scope(def_cursor)
+                if scope is None or cursor_scope[-len(scope):] == scope:
                     if type is None or def_cursor.type.spelling == type:
                         defs.append(def_cursor)
         return defs                
@@ -312,7 +313,8 @@ class TuSymbolTable:
         decls = []
         for decl_cursor in self.decl_cursors.values():
             if decl_cursor.spelling == name:
-                if scope is None or CursorUtils.get_scope(decl_cursor) == scope:
+                cursor_scope = CursorUtils.get_scope(decl_cursor)
+                if scope is None or cursor_scope[-len(scope):] == scope:
                     if type is None or decl_cursor.type.spelling == type:
                         decls.append(decl_cursor)
         return decls
@@ -602,7 +604,8 @@ class AST:
             target_class: Cursor = None
             for _, symbol_table in self.tu_symbol_tables.items():
                 for class_node in symbol_table.classes.values():
-                    if CursorUtils.get_full_name(class_node) == scope:
+                    full_name = CursorUtils.get_full_name(class_node)
+                    if full_name[-len(scope):] == scope:
                         target_class = class_node
                         break
                 if target_class:
@@ -831,7 +834,8 @@ class AST:
         assert all([callable(filter) for filter in filters]), "filters must be callable!"
         method_or_func_def = self.find_definition_by_name(name=symbol, scope=scope, type=type)
         if len(method_or_func_def) == 0:
-            return f'fetch_source_code failed: code not found with symbol={symbol}, scope={scope}'
+            symbol = '::'.join([scope, symbol]) if scope else symbol
+            return f"Can't find the specified symbol {symbol}"
         method_deps = []
         code_snippets = {}
         code_methods = {}
@@ -904,22 +908,22 @@ class AST:
         return all_deps
 
 if __name__ == "__main__":
-    #src = '/home/wnk/code/GalSim/tmp/no_tpl'  # Change this to the path of your source code directory
-    #include = ['/home/wnk/code/GalSim/tmp/no_tpl']  # Change this to the path of your include directory
+    #src = '/home/jiangbo/GalSim/tmp/no_tpl'  # Change this to the path of your source code directory
+    #include = ['/home/jiangbo/GalSim/tmp/no_tpl']  # Change this to the path of your include directory
     #test_clang_includes()
 
     configs = [ 
         {
-            "src": "/home/wnk/code/GalSim/src",
-            "include": ["/home/wnk/code/GalSim/include", "/home/wnk/code/GalSim/include/galsim", "/home/wnk/code/GalSim/src",  "/home/wnk/code/GalSim/src/cuda_kernels", "/home/wnk/code/GalSim/downloaded_eigen/eigen-3.4.0"],
+            "src": "/home/jiangbo/GalSim/src",
+            "include": ["/home/jiangbo/GalSim/include", "/home/jiangbo/GalSim/include/galsim", "/home/jiangbo/GalSim/src",  "/home/jiangbo/GalSim/src/cuda_kernels", "/home/jiangbo/GalSim/downloaded_eigen/eigen-3.4.0"],
             #"scope": "galsim::SBSpergel::SBSpergelImpl",
-            "scope": "galsim::SBConvolve::SBConvolveImpl",
+            "scope": "SBConvolveImpl",
             "method": "shoot",
             "namespaces": [],
             "cache_dir": "/home/jiangbo/agentflow/cached_ast_dir/galsim",
             "use_cache": False,
             "output_filters": [
-                lambda cursor: not cursor.location.file.name.startswith("/home/wnk/code/GalSim"),
+                lambda cursor: not cursor.location.file.name.startswith("/home/jiangbo/GalSim"),
                 #lambda cursor: not CursorUtils.get_namespace(cursor) == "galsim"
             ]
         }
@@ -962,10 +966,10 @@ if __name__ == "__main__":
     #callgraph = ast.get_call_graph(method, scope, filters=output_filters)
     #print(callgraph.to_string(remove_leaf_nodes=False))
     #callgraph.draw_callgraph()
-    code_snippets = ast.fetch_source_code(method, scope, type=None, filters=output_filters)
-    print(code_snippets)
-    #print(ast.find_definition(method, class_name=None))
-    #print(json.dumps(ast.find_declaration(method, class_name=None)))
+    #code_snippets = ast.fetch_source_code(method, scope, type=None, filters=output_filters)
+    #print(code_snippets)
+    print(ast.find_definition(method, class_name=scope))
+    print(json.dumps(ast.find_declaration(method, class_name=scope)))
 
 
 
