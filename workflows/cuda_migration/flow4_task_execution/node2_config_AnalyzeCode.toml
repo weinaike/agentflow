@@ -1,0 +1,36 @@
+
+type = "Agent"
+task = "查询代码"
+
+[manager]
+summary_prompt = '''
+只需要提取出最终的结论即可，即<namespace>::<class>::<method>是否需要进行CUDA迁移，以及具体的原因是什么。
+'''
+max_turns = 5
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "分析指定的函数本身是否需要进行CUDA迁移以实现加速"
+]
+
+
+[[agents]]
+name = "assistant"
+tools = []
+system_prompt =  '''
+角色：软件工程师
+职责：
+1. 分析指定的函数本身是否需要进行CUDA迁移以实现加速
+2. 你的输出格式为：<namespace>::<class>::<method>不需要（或者需要，这里根据实际的分析情况作出结论）进行CUDA迁移，原因是……（列出具体的原因，比如该函数调用的其它耗时函数已经进行了迁移，而本函数自身不并耗时，或者本函数内的代码很耗时且具备很好的并行性，进行CUDA迁移能够提高代码的性能）"
+'''
+
+
+[[agents]]
+name = "user"
+system_prompt =  '''
+角色: 高级软件工程师
+职责: 
+1. 代码查询完整，信息已足够CUDA迁移，输出 TERMINATE 结束任务
+2. 代码查询不完整，需要继续查询，输出 CONTINUE 继续任务
+
+'''
