@@ -60,7 +60,7 @@ class Solution:
                     flow_config['description'] =  flow_config['description'].format(requirement = self._souluton_param.requirement) 
             flow_type = flow_config['flow_type'] 
             self.flows.append(FlowFactory.create_flow(flow_type, flow_config))  
-        ## BaseMdeol 日志打印
+        ## BaseModel 日志打印
         logger.info('-----------------Workflows-----------------')
         logger.info(json.dumps(self._souluton_param.model_dump(), indent=4, ensure_ascii=False))
         logger.info('-----------------Workflows-----------------')

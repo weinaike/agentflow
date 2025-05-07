@@ -1,0 +1,61 @@
+
+type = "Agent"
+task = "分析指定的函数是否需要进行CUDA迁移"
+
+[manager]
+summary_prompt = '''
+只需要提取出最终的结论即可，即<namespace>::<class>::<method>是否需要进行CUDA迁移。
+'''
+max_turns = 5
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "分析指定的函数本身是否需要进行CUDA迁移以实现加速"
+]
+
+
+[[agents]]
+name = "assistant"
+tools = []
+system_prompt =  '''
+角色：软件工程师
+职责：
+1. 分析指定的函数本身是否需要进行CUDA迁移以实现加速
+2. 你的输出格式为：<namespace>::<class>::<method>不需要（或者需要，这里根据实际的分析情况作出结论）进行CUDA迁移，原因是……（列出具体的原因，比如该函数调用的其它耗时函数已经进行了迁移，而本函数自身不并耗时，或者本函数内的代码很耗时且具备很好的并行性，进行CUDA迁移能够提高代码的性能）"
+注意事项：
+1. 如果指定的函数本身并不耗时，而是它调用的函数耗时，那么这个函数并不需要进行CUDA迁移
+2. 如果指定的函数本身没有循环，那么该函数通常不需要进行CUDA迁移
+3. 如果指定的函数具有循环语句，且循环体内的代码耗时及很好的并行性，那么这个函数需要进行CUDA迁移
+示例：
+void demo_shoot1(PhontonArray& photons, UniformDeviate ud) {
+    auto N = photons.size();
+    for (auto i = 0; i < N; ++i) {
+        double radius, flux;
+        generate_radius_flux(ud, radius, flux);
+        double theta = 2.*M_PI*ud();
+        double sintheta, costheta;
+        math::sincos(theta, sintheta, costheta);
+        photons.setPhoton(i, radius*sintheta, radius*costheta, flux)
+    }
+}
+
+void demo_shoot(PhotonArray& photons, UniformDeviate ud) {
+    demo_shoot1(photons, ud);
+    PhotonArray temp(photons.size());
+    demo_shoot1(temp, ud);
+    photons.convolve(temp);
+}
+在上面的示例中，demo_shoot1方法具有很好的并行性，可以将其迁移到CUDA上执行；虽然demo_shoot调用了并行性很好的函数demo_shoot1，但是这个函数本身不具有并行性，我们并不需要迁移它，我们把迁移的工作放在demo_shoot1中，只要demo_shoot1在迁移时保持接口不变，demo_shoot不需要做任何修改。
+因此我们的结论是：当询问demo_shoot是否需要进行CUDA迁移时，答案是不需要迁移；当询问demo_shoot1是否需要进行CUDA迁移时，答案是需要迁移。
+'''
+
+
+[[agents]]
+name = "user"
+system_prompt =  '''
+角色: 高级软件工程师
+职责: 
+1. 代码查询完整，信息已足够CUDA迁移，输出 TERMINATE 结束任务
+2. 代码查询不完整，需要继续查询，输出 CONTINUE 继续任务
+
+'''

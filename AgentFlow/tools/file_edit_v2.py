@@ -560,7 +560,7 @@ returns:
 if __name__ == '__main__':
     # discard modifications:
     import subprocess
-    #command = "cd /home/wnk/code/GalSim && git clean -dxf include src && git checkout -- src/ && git checkout -- include"
+    #command = "cd /home/jiangbo/GalSim && git clean -dxf include src && git checkout -- src/ && git checkout -- include"
     #result = subprocess.run(command, shell=True, capture_output=True, text=True)
     #print(result.returncode)
     #print(result.stdout)
@@ -577,7 +577,7 @@ if __name__ == '__main__':
             "cache_dir": "/home/jiangbo/AutoCoder/cached_ast_dir/galsim",
             "use_cache": False,
             "output_filters": [
-                lambda cursor: not cursor.location.file.name.startswith("/home/wnk/code/GalSim"),
+                lambda cursor: not cursor.location.file.name.startswith("/home/jiangbo/GalSim"),
                 lambda cursor: not CursorUtils.get_namespace(cursor) == "galsim"
             ]
         }
