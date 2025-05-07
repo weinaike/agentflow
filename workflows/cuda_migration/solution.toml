@@ -6,7 +6,7 @@ description = '''Galsim是一个用于模拟天体光学成像的项目。将亮
 2. Real-space Direct rendering
 3. Photon shooting
 '''
-workspace_path = "workspace/galsim7/"
+workspace_path = "workspace/galsim11/"
 llm_config = "docs/OAI_CONFIG_LIST.json"
 requirement = '''
 Galsim是一个用于模拟天体光学成像的项目。 将亮度模型SBprofie通过光学仿真构建ImageView图像。

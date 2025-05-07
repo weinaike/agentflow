@@ -10,7 +10,7 @@ from autogen_agentchat.base import TaskResult
 ############### llm_config  ################
 
 class ModelEnum(str, Enum):
-    DEFAULT = "gpt-4o"
+    DEFAULT = "gpt-4o-mini"
     GPT4O = "gpt-4o"
     O1MINI = "o1-mini"
     CLAUDE = "claude"
