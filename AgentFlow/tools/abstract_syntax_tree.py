@@ -6,6 +6,7 @@ import time
 import numpy as np
 from typing import Union, List
 from collections import deque
+from transformers import AutoTokenizer
 try:
     from .utils import thread_safe_singleton
 except:
@@ -829,6 +830,77 @@ class AST:
         text = ''.join(contents[start-1:end])       
         return text
         
+    def fetch_method_context(self, symbol, scope, type=None, filters=[]):
+        method_defs = self.find_definition_by_name(name=symbol, scope=scope, type=type)
+        if len(method_defs) == 0:
+            symbol = '::'.join([scope, symbol]) if scope else symbol
+            return f"Can't find the specified symbol {symbol}"
+        all_context = [method_def for method_def in method_defs]    
+        visited_usrs = set([method_def.get_usr() for method_def in method_defs])
+        for method_def in method_defs:
+            semantic_parent = method_def.semantic_parent
+            if CursorUtils.is_class_definition(semantic_parent) and semantic_parent.get_usr() not in visited_usrs:
+                visited_usrs.add(semantic_parent.get_usr())
+                all_context.append(semantic_parent)
+
+        for method_def in method_defs:
+            call_expr_nodes = self._get_call_expr_nodes(method_def, filters, True, False)
+            for call_expr_node in call_expr_nodes:
+                referenced = call_expr_node.referenced
+                semantic_parent = referenced.semantic_parent
+                if CursorUtils.is_class_definition(semantic_parent) and semantic_parent.get_usr() not in visited_usrs:
+                    visited_usrs.add(semantic_parent.get_usr())
+                    all_context.append(semantic_parent)
+
+        code_snippets = {}
+        code_methods = {}
+        for method_def in all_context:
+            file_name = method_def.location.file.name
+            if file_name in code_methods.keys():
+                code_methods[file_name].append(method_def)
+            else:
+                code_methods[file_name] = [method_def]
+
+        for file_name, method_defs in code_methods.items():
+            sorted_method_defs = sorted(method_defs, key=lambda method_def: method_def.extent.start.line)
+            code_snippets[file_name] = self.fetch_code_snippet_from_file(file_name, sorted_method_defs)  
+
+        return self.format_code_snippets(code_snippets)    
+        
+    def fetch_source_code_v2(self, symbol, scope, type=None):
+        #提取scope::method_or_func有关的代码
+        method_deps = self.find_definition_by_name(name=symbol, scope=scope, type=type)
+        if len(method_deps) == 0:
+            symbol = '::'.join([scope, symbol]) if scope else symbol
+            return f"Can't find the specified symbol {symbol}"
+        code_snippets = {}
+        code_methods = {}
+
+        if method_deps:
+            #对method_refs按照文件名归类，确定文件的哪些行被引用到
+            for method_def in method_deps:
+                file_name = method_def.location.file.name
+                if file_name in code_methods.keys():
+                    code_methods[file_name].append(method_def)
+                else:
+                    code_methods[file_name] = [method_def]
+
+                class_def = method_def.semantic_parent
+                if CursorUtils.is_class_definition(class_def):
+                    #如果是方法，把方法的类定义也加进来
+                    file_name = class_def.location.file.name
+                    if file_name in code_methods.keys():
+                        #TODO: 避免重复加入
+                        code_methods[file_name].append(class_def)
+                    else:
+                        code_methods[file_name] = [class_def]
+
+            for file_name, method_defs in code_methods.items():
+                sorted_method_defs = sorted(method_defs, key=lambda method_def: method_def.extent.start.line)
+                code_snippets[file_name] = self.fetch_code_snippet_from_file(file_name, sorted_method_defs)  
+
+        return self.format_code_snippets(code_snippets)
+        
     def fetch_source_code(self, symbol, scope, type=None, filters=[], with_header=True):
         #提取scope::method_or_func有关的代码
         assert all([callable(filter) for filter in filters]), "filters must be callable!"
@@ -963,13 +1035,61 @@ if __name__ == "__main__":
     ast = AST()
     ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_dir, load=use_cache)
 
+    tokenizer = AutoTokenizer.from_pretrained("/home/jiangbo/models")
+    scope_methods = [
+        "galsim::PhotonArray::setFrom",
+        "galsim::PhotonArray::getTotalFlux",
+        "galsim::PhotonArray::scaleXY",
+        "galsim::PhotonArray::scaleFlux",
+        "galsim::PhotonArray::assignAt",
+        "galsim::PhotonArray::convolve",
+        "galsim::PhotonArray::convolveShuffle",
+        "galsim::PhotonArray::addTo",
+
+        "galsim::Nearest::shoot",
+        "galsim::Delta::shoot",
+        "galsim::Linear::shoot",
+        "galsim::SBBox::SBBoxImpl::shoot",
+        "galsim::SBTopHat::SBTopHatImpl::shoot",
+        "galsim::SBDeltaFunction::SBDeltaFunctionImpl::shoot",
+        "galsim::SBGaussian::SBGaussianImpl::shoot",
+        "galsim::SBMoffat::SBMoffatImpl::shoot",
+        "galsim::SBTransform::SBTransformImpl::shoot",
+
+        "galsim::SBAiry::SBAiryImpl::shoot",
+        "galsim::SBExponential::SBExponentialImpl::shoot",
+        "galsim::SBKolmogorov::SBKolmogorovImpl::shoot",
+        "galsim::SBSpergel::SBSpergelImpl::shoot",
+        "galsim::SBSersic::SBSersicImpl::shoot",
+        "galsim::SBSecondKick::SBSecondKickImpl::shoot",
+        "galsim::SBVonKarman::SBVonKarmanImpl::shoot",
+        "galsim::SBInterpolatedImage::SBInterpolatedImageImpl::shoot",
+
+        "galsim::OneDimensionalDeviate::shoot",
+
+        "galsim::SBAutoConvolve::SBAutoConvolveImpl::shoot",
+        "galsim::SBAutoCorrelate::SBAutoCorrelateImpl::shoot",
+        "galsim::SBConvolve::SBConvolveImpl::shoot",
+        "galsim::SBAdd::SBAddImpl::shoot",
+    ]
+
+    for scope_method in scope_methods:
+        scope_method = scope_method.split("::")
+        scope = "::".join(scope_method[:-1])
+        method = scope_method[-1]
+
+        code_snippets = ast.fetch_source_code(method, scope, type=None, filters=output_filters, with_header=True)
+        tokens = tokenizer.encode(code_snippets)
+        print(f"{'::'.join(scope_method)} {len(code_snippets.splitlines())} {len(tokens)}")
+
+
     #callgraph = ast.get_call_graph(method, scope, filters=output_filters)
     #print(callgraph.to_string(remove_leaf_nodes=False))
     #callgraph.draw_callgraph()
     #code_snippets = ast.fetch_source_code(method, scope, type=None, filters=output_filters)
     #print(code_snippets)
-    print(ast.find_definition(method, class_name=scope))
-    print(json.dumps(ast.find_declaration(method, class_name=scope)))
+    #print(ast.find_definition(method, class_name=scope))
+    #print(json.dumps(ast.find_declaration(method, class_name=scope)))
 
 
 

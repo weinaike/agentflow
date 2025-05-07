@@ -21,7 +21,7 @@ sched_prompt = '''
 1. 节点id="node1"，负责查询任务相关的代码。如果查询成功，next_to_run=node2, inputs=[node1]；如果查询失败，next_to_run=node1，inputs=[]
 2. 节点id="node2"，负责分析指定的函数是否需要进行CUDA迁移。如果需要迁移，next_to_run=node3, inputs=[node1]；如果不需要迁移，next_to_run=QUIT, inputs=[]
 3. 节点id="node3"，负责生成任务相关的代码。无论成功或失败，next_to_run=node4, inputs=[node3]
-4. 节点id="node4", 负责将生成的代码写入git仓库。如果写入成功，next_to_run=node5, inputs=[node4]；如果写入失败，next_to_run=node3, inputs=[node4]
+4. 节点id="node4"，负责将生成的代码写入git仓库。如果写入成功，next_to_run=node5, inputs=[node4]；如果写入失败，next_to_run=node3, inputs=[node4]
 5. 节点id="node5"，负责构建程序。如果构建成功，next_to_run=QUIT，inputs=[]；如果构建失败，next_to_run=node6，inputs=[]
 6. 节点id="node6"，负责回滚git仓库代码。无论成功或失败，next_to_run=node3，inputs=[node1, node5]
 
@@ -39,14 +39,14 @@ config = "node1_config_QueryCode.toml"
 
 [[nodes]]
 id = "node2"
-name = "分析指定的函数是否需要进行CUDA迁移"
+name = "任务评估"
 inputs = ["node1"]
 config = "node2_config_AnalyzeCode.toml"
 
 [[nodes]]
 id = "node3"
 name = "代码生成"
-inputs = ["node1", "node6"]
+inputs = ["node1", "node2", "node6"]
 config = "node3_config_genCode.toml"
 
 [[nodes]]
