@@ -31,6 +31,7 @@ class ModelConfig(BaseModel):
     api_key : str
     base_url : str
     model_capabilities : ModelCapabilities
+    temperature: float = 0.0
 
 
 def get_model_config(model_config_file: str, type:ModelEnum = ModelEnum.DEFAULT) -> ModelConfig:
