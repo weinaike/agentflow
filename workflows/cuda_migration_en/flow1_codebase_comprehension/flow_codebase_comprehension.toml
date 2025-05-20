@@ -1,0 +1,40 @@
+flow_name = "Codebase Dissection"
+flow_type = "SEQUENTIAL"
+description =  '''
+
+### Codebase Dissection Process
+The purpose of this process is to assist architects in:
+1. Analyzing the codebase to understand the main functionality and input/output structure of the project;
+2. Identifying the primary classes or modules that implement core functionality and analyzing their relationships;
+3. Extracting the main processes that implement core business logic along with their related components.
+
+'''
+
+# Gain an overall understanding of the project's functionality and its basic input/output structure
+[[nodes]]
+id = "node1"
+name = "Function Analysis"
+inputs = []
+config = "node1_FunctionAnalysis.toml"
+
+# Perform UML analysis to identify relationships between classes and extract core classes
+[[nodes]]
+id = "node2"
+name = "Conceptual Analysis"
+inputs = ['node1']
+config = "node2_ConceptualAnalysis.toml"
+
+# Analyze core classes individually to extract key members, methods, and inheritance relationships
+[[nodes]]
+id = "node3"
+name = "Core Module Analysis"
+inputs = ['node1', "node2"]
+config = "node3_CoreModule.toml"
+
+# Summarize findings and generate a system architecture analysis report
+[[nodes]]
+id = "node4"
+name = "Documentation Summary"
+inputs = ["node1", "node2", "node3"]
+config = "node4_DocumentationSummary.toml"
+

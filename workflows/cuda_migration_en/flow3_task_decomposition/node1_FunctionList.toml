@@ -1,0 +1,36 @@
+type = "Agent"
+task = '''Develop a detailed list of functions for CUDA migration plan.'''
+
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+questions = [
+    "To achieve computational acceleration, identify the main functions that require CUDA acceleration. Output a list of functions to be migrated to CUDA (format: class::function).",
+    "Query the inheritance information of the classes involved in the function list.",
+    "Combine the migration function list with the inheritance information to create a more comprehensive list of functions to be migrated to CUDA (all possible functions).",
+    "Use 'query_right_name' to correct the names in the function list and filter out non-existent functions.",
+    "Use 'query_important_functions' to identify the important intermediate or foundational functions that the migration functions depend on.",
+]
+participants = ["assistant"]
+
+summary_prompt = '''
+Summarize the functions to be migrated and their important dependencies (dependencies should be listed first).
+Format:
+### Function List (To Be Migrated to CUDA)
+- class::function1
+- class::function2
+- class::function3
+
+'''
+
+
+[[agents]]
+name = "assistant"
+tools = ['extract_Inheritance_classes_from_uml', 'query_right_name','query_important_functions'] 
+system_prompt = '''
+Role: Software Engineer
+'''
+
+
+
+

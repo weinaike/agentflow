@@ -1,0 +1,26 @@
+flow_name = "CUDA Migration Plan"
+flow_type = "SEQUENTIAL"
+description =  '''
+## Requirements
+{requirement}
+'''
+
+[[nodes]]
+id = "node1"
+name = "Migration Modules"
+inputs = ["flow1.node2", "flow1.node3", "flow1.node4"]
+config = "node1_migration_modules.toml"
+
+
+[[nodes]]
+id = "node2"
+name = "Migration Interface and Memory"
+inputs = ["node1"]
+config = "node2_interface_memory.toml"
+
+
+[[nodes]]
+id = "node3"
+name = "Summary"
+inputs = ["node1", "node2"]
+config = "node3_summary.toml"

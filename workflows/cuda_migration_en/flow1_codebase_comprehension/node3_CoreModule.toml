@@ -1,0 +1,59 @@
+type = "Agent"
+task = '''Break down tasks based on the list of core classes, analyze each core class individually, extract core members and methods, and organize core processes (one task per class).'''
+
+[manager]
+max_turns = 5
+mode = 'LoopQuestionnaire'
+questions = [
+    "Analyze the definition and structure of the class, and provide a detailed breakdown of its core methods.", 
+    "What are the derived and dependent classes related to this class?",
+    "How do the core methods of this class support the main methods and processes?", 
+]
+participants = ["assistant"]
+
+summary_prompt = '''
+Summarize the above content and present it in the following format:
+
+### Class Name: [Class Name]
+
+#### Class Definition and Structure
+
+- Class attributes
+- Class methods
+- Relationships with other classes
+- Core methods supporting business processes
+
+
+Note、Note、Note: All referenced classes or methods must be based strictly on the provided content and should not be fabricated.
+'''
+
+[manager.loop]
+dependencies = ["node2"]
+mode = 'Concurrent' # "Iteration"
+prompt = "Break down tasks based on the list of core key classes, analyze each core class individually, extract core members and methods, and organize core processes (one task per class)."
+
+
+[[agents]]
+name = "assistant"
+tools = ["run_shell_code", "find_definition", "extract_class_structure_from_uml", "extract_connect_from_uml"]
+system_prompt = '''
+You are a senior software architect with expertise in object-oriented design, UML modeling, and code analysis across multiple programming languages. Your task is to analyze the provided UML class diagrams and source code files to gain a deep understanding of the software architecture and generate the following outputs:
+
+1. **Architecture Analysis Report**: Include system module division, relationships between classes, use of design patterns, key responsibilities, and potential issues.
+2. **Conceptual Model Abstraction**: Extract high-level conceptual models, simplifying them into the main components, interactions, and functions of the system.
+
+Your analysis should:
+- Use professional terminology, be logically clear, and well-structured.
+- Include diagrams and pseudocode when necessary to enhance clarity.
+- Follow SOLID principles to evaluate the design's scalability, reusability, and flexibility.
+
+You can process inputs such as:
+- UML class diagrams (describing class names, attributes, methods, relationships, visibility, etc.).
+- Source code files (including classes, methods, comments, dependencies, etc.).
+
+Ensure your responses are accurate and comprehensive, avoiding unnecessary assumptions. If the input is insufficient, clearly specify the additional information required.
+'''
+
+
+
+

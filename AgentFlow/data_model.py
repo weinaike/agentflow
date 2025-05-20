@@ -10,7 +10,7 @@ from autogen_agentchat.base import TaskResult
 ############### llm_config  ################
 
 class ModelEnum(str, Enum):
-    DEFAULT = "gpt-4o-mini"
+    DEFAULT = "gpt-4o"
     GPT4O = "gpt-4o"
     O1MINI = "o1-mini"
     CLAUDE = "claude"
@@ -42,6 +42,8 @@ def get_model_config(model_config_file: str, type:ModelEnum = ModelEnum.DEFAULT)
     for key, value in model_dict.items():
         if key == type:
             return ModelConfig(**value)
+
+    assert False, f"Model {type} not found in the config file {model_config_file}"
 
 
 ###################### 循环并发或迭代任务 ######################
@@ -278,11 +280,16 @@ class SolutionParam(BaseModel):
 class CheckTypeEnum(str, Enum):
     PASS = "PASS"
     FAIL = "FAIL"
+    PARTIAL = "PARTIAL"
 
+class RoleTypeEnum(str, Enum):
+    ExecustionTeam = "ExecustionTeam"
+    SummaryAgent = "SummaryAgent"
 class CheckResult(BaseModel):
     result: CheckTypeEnum 
     reason: str  = Field(..., description="the reason for the result, if failed, give the reason and the suggestion")
     abstract: str = Field(..., description="总结任务处理过程的重要信息形成过程摘要")
     todo: List[str] = Field([], description="改进代办事项")
+    next_role: RoleTypeEnum = Field(RoleTypeEnum.SummaryAgent, description="需要重写交付物，下一个角色为SummaryAgent； 多次失败后，交付物需要重新执行，角色为ExecustionTeam")
 
 

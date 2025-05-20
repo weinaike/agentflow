@@ -2,31 +2,31 @@
 
 
 BACKGROUND_TEMPLATE = '''
-## 项目背景
+# 项目背景
 {project_description}
 
-## 当前工作流介绍
+# 当前工作流介绍
 {flow_description}
 
 '''
 
-MIDDLE_TEMPLATE = '''## 根据前面工作节点的努力，已经获知以下信息：'''
+MIDDLE_TEMPLATE = '''# 根据前面工作节点的努力，已经获知以下信息：'''
 
 CONTEXT_TEMPLATE = '''
 
-#### {node_description}
+## {node_description}
 {detail_content}
 
 '''
 
 
 TASK_TEMPLATE = '''
-### 当前工作目标
+# 当前工作目标
 {task}
 
 ** 该工作目标将分为多个步骤实现，每个步骤完成即可结束 ** 
 
-#### 当前步骤是获取以下信息，若获取到，则输出结束关键字。
+## 当前步骤是获取以下信息，若获取到，则输出结束关键字。
 {question}
 
 '''

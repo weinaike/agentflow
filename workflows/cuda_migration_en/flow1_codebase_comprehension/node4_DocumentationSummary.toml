@@ -1,0 +1,60 @@
+type = "Agent"
+task = "Codebase Dissection Documentation"
+
+# Preferably supported by documentation
+[manager]
+max_turns = 5
+mode = "Questionnaire"
+participants = ["assistant"]
+questions = ["Organize the provided content, Describe the collaboration among core classes during the implementation process: analyze the logic of data flow and function calls."]
+summary_prompt = '''
+Organize the provided content and generate a summarized codebase understanding document. (Only this summary will be saved, and all prior conversations will be discarded. Ensure the content is as detailed as possible.)
+
+The format should follow the example below, with adjustments based on the actual context:
+
+# 1. Background
+## 1.1 Project Overview
+## 1.2 Project Business Functions
+## 1.3 Project Inputs and Outputs
+## 1.4 Key Methods and Processes
+
+# 2. Codebase Overview
+## 2.1 System Architecture
+## 2.2 Classes and Modules
+### 2.2.1 Class 1
+### 2.2.2 Class 2
+
+# 3. Core Processes
+## 3.1 Core Process 1
+### 3.1.1 Methods Supporting Core Process 1
+## 3.2 Core Process 2
+### 3.2.1 Methods Supporting Core Process 2
+## 3.3 Core Process 3
+### 3.3.1 Methods Supporting Core Process 3
+......
+
+Note: Visual content is not required; focus on textual descriptions. This document is intended for understanding the codebase and does not need to include development task planning.
+
+'''
+use_check = true
+
+[[agents]]
+name = "assistant"
+tools = [] # RAG tool for retrieving background information
+system_prompt = '''
+You are a seasoned software architect, proficient in object-oriented design, UML modeling, and code analysis across multiple programming languages. Your task is to deeply analyze the software architecture by reviewing the provided UML class diagrams and source code files, and generate the following outputs:
+
+1. **Architecture Analysis Report**: Includes the system's module division, class relationships, design pattern usage, key responsibilities, and potential issues.
+2. **Conceptual Model Abstraction**: Extract high-level conceptual models, simplifying them into the system's main components, interactions, and functions.
+
+Your analysis should:
+- Use professional terminology, be logically clear, and well-structured.
+- Include diagrams and pseudocode when necessary to enhance clarity.
+- Adhere to SOLID principles, evaluating the design's scalability, reusability, and flexibility.
+
+The inputs you can process include:
+- UML class diagrams (describing class names, attributes, methods, relationships, visibility, etc.).
+- Source code files (including classes, methods, comments, dependencies, etc.).
+
+Ensure your answers are accurate and comprehensive, avoiding unnecessary assumptions. If the input is insufficient, clearly specify the additional information required.
+'''

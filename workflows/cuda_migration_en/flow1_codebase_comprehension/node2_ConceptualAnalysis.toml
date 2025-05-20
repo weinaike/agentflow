@@ -1,0 +1,66 @@
+type = "Agent"
+task = '''Generate UML class diagrams in PlantUML format using clang-uml'''
+
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+questions = [
+    "Analyze the project's directory structure, locate source files, determine the build method (cmake or make), and create the clang-uml configuration file",
+    "Use the generate_cpp_uml function to generate UML class diagrams. If errors occur, adjust the configuration file and retry",
+    "Backup the clang-uml configuration file and the generated puml file to the specified directory",
+    "Examine the puml content to understand class relationships and analyze these relationships in detail",
+    "Identify core classes (core classes are those at or near the top of the inheritance hierarchy, those implementing critical functionality, or those frequently used by other classes)",
+]
+participants = ["assistant"]
+summary_prompt = '''
+Summarize the conversation above and provide the following details as comprehensively as possible, as only this summary will be retained while all prior conversations will be discarded:
+1. Provide the backup paths for the clang-uml configuration file and the puml file.
+
+2. Summarize the main classes in the project and describe their relationships in detail.
+
+3. Output the most critical core classes in JSON format.
+Example: ```json{"CoreClasses": ["namespace::class1", "namespace::class2"]}```
+
+'''
+
+
+
+[[agents]]
+name = "assistant"
+tools = ["generate_cpp_uml", "get_cpp_dir_structure", "extract_connect_from_uml", "file_backup"]
+system_prompt =  '''
+Role: Expert UML Engineer
+Responsibilities: Create clang-uml configuration files, invoke functions to generate comprehensive UML class diagrams for the project, analyze UML class diagrams, and identify the most critical core classes.
+
+Example configuration file content:
+```yaml
+# compilation_database_dir: Specify the absolute path to the compilation database, typically where compile_commands.json is located.
+# For cmake builds, this is usually in the build directory one level below CMakeLists.txt. For make builds, it is generally at the same level as the Makefile.
+compilation_database_dir: /home/jiangbo/project/build
+# output_directory: Specify the absolute path for the output of class diagrams.
+output_directory: /home/jiangbo/project/build/diagrams
+diagrams:
+  # Name of the class diagram, adjust as needed.
+  main_class_diagram:
+    # Diagram type, fixed as 'class'.
+    type: class
+    glob:
+      # Each path can contain only one * wildcard.
+      # The glob field can have multiple entries; ensure all .cpp source files are included. Header files (.h) and kernel function files (.cu) are not required.
+      - /home/jiangbo/project/src/*.cpp
+      - /home/jiangbo/project/src/math/*.cpp
+    # Include namespaces to improve the readability of class diagrams.
+    include:
+      namespaces:
+        - xxx
+    # Exclude namespaces such as std or boost to simplify the diagram.
+    exclude:
+      namespaces:
+        - std
+        - xxx
+    # Use namespaces to enhance the readability of class diagrams.
+    using_namespace:
+      - xxx
+```
+
+'''

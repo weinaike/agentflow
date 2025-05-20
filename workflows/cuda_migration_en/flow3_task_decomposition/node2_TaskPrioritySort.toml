@@ -1,0 +1,49 @@
+type = "Agent"
+task = '''Analyze all functions to be migrated and their dependencies, and sort them based on dependency relationships (dependent modules first).'''
+
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+questions = [
+    '查询待迁移函数于依赖函数所在类的依赖关系，分析这些类之间的依赖关系',
+    '按照类的依赖关系，对待迁移函数与依赖函数进行排序，被依赖类靠前',
+]
+participants = ["assistant"]
+
+summary_prompt = '''
+汇总以上内容，按模块/类排序输出, (按类级别归纳汇总)
+
+### Foundational Module Class class1
+- class1::function1
+- class1::function2
+- class1::function3
+
+### Foundational Module Class class2
+- class2::function1
+- class2::function2
+- class2::function3
+
+### Higher-Level Module Class class3
+- class3::functionA
+- class3::functionB
+
+### Higher-Level Module Class class4
+- class4::functionA
+- class4::functionB
+
+
+-----
+Note: follow the above format strictly
+
+'''
+
+[[agents]]
+name = "assistant"
+tools = ['extract_inter_class_relationship_from_uml'] 
+system_prompt = '''
+Role: Software Engineer
+'''
+
+
+
+

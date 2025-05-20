@@ -1,0 +1,43 @@
+type = "Agent"
+task = "Identify the modules, classes, and functions involved in the migration process"
+
+# Preferably supported by documentation
+[manager]
+max_turns = 10
+mode = "Questionnaire"
+participants = ["assistant"]
+questions = ["Which modules or classes are most relevant to Requirements?",
+    "Among these classes or modules, which functions are critical for the migration?",
+    "Summarize the specific functions that need to be migrated (format: class::function).[Corrected function names, exclude non-existent functions]",
+    ]
+
+summary_prompt = """
+Summarize the above conversation to create a detailed and comprehensive migration planning document.
+
+The specific format is as follows:
+# CUDA Migration Plan
+## Background
+### Provide a backup PUML file (file path).
+### Codebase Information
+### Requirements
+
+## Objective
+[Provide a clear and concise objective for the migration.]
+
+## Modules, Classes, and Functions Involved in Migration (Corrected function names, exclude non-existent functions)
+- class1 :: function1 : [Description of the function's role in the migration]
+- class2 :: function2 : [Description of the function's role in the migration]
+- class3 :: function3 : [Description of the function's role in the migration]
+
+"""
+[[agents]]
+name = "assistant"
+tools = ["run_shell_code", "get_cpp_dir_structure", "find_definition","find_declaration"]
+system_prompt = '''
+Role: Architect
+Responsibilities:
+1. Utilize the system architecture of the project to design a comprehensive solution for the new requirements.
+2. Collaborate with stakeholders to gather and refine project requirements.
+3. Ensure the solution adheres to best practices and industry standards.
+4. Document the architecture and design decisions for future reference.
+'''

@@ -6,7 +6,7 @@ import time
 import numpy as np
 from typing import Union, List
 from collections import deque
-from transformers import AutoTokenizer
+
 try:
     from .utils import thread_safe_singleton
 except:
@@ -834,7 +834,7 @@ class AST:
         method_defs = self.find_definition_by_name(name=symbol, scope=scope, type=type)
         if len(method_defs) == 0:
             symbol = '::'.join([scope, symbol]) if scope else symbol
-            return f"Can't find the specified symbol {symbol}"
+            return f"Can't find the specified symbol {symbol}, please check the symbol name or scope name, then try again"
         all_context = [method_def for method_def in method_defs]    
         visited_usrs = set([method_def.get_usr() for method_def in method_defs])
         for method_def in method_defs:
@@ -872,7 +872,7 @@ class AST:
         method_deps = self.find_definition_by_name(name=symbol, scope=scope, type=type)
         if len(method_deps) == 0:
             symbol = '::'.join([scope, symbol]) if scope else symbol
-            return f"Can't find the specified symbol {symbol}"
+            return f"Can't find the specified symbol {symbol}, please check the symbol name or scope name, then try again"
         code_snippets = {}
         code_methods = {}
 
@@ -907,7 +907,7 @@ class AST:
         method_or_func_def = self.find_definition_by_name(name=symbol, scope=scope, type=type)
         if len(method_or_func_def) == 0:
             symbol = '::'.join([scope, symbol]) if scope else symbol
-            return f"Can't find the specified symbol {symbol}"
+            return f"Can't find the specified symbol {symbol}, please check the symbol name or scope name, then try again"
         method_deps = []
         code_snippets = {}
         code_methods = {}
@@ -980,6 +980,7 @@ class AST:
         return all_deps
 
 if __name__ == "__main__":
+    from transformers import AutoTokenizer
     #src = '/home/wnk/code/GalSim/tmp/no_tpl'  # Change this to the path of your source code directory
     #include = ['/home/wnk/code/GalSim/tmp/no_tpl']  # Change this to the path of your include directory
     #test_clang_includes()

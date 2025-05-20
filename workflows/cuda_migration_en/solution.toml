@@ -1,0 +1,48 @@
+project_name = "GalSim Photon Shooting Algorithm CUDA Acceleration"
+project_id = "project_1"
+description = '''Galsim is a project for simulating astronomical optical imaging. It constructs an ImageView image by simulating the brightness model SBProfile through optical simulation.
+The brightness model simulation rendering methods mainly include three types:
+1. Discrete Fourier transform rendering
+2. Real-space Direct rendering
+3. Photon shooting
+'''
+workspace_path = "workspace/galsim12/"
+llm_config = "docs/OAI_CONFIG_LIST.json"
+requirement = '''
+Galsim is a project for simulating astronomical optical imaging. It constructs an ImageView image by simulating the brightness model SBProfile through optical simulation.
+The Galsim project is developed in C++ at its core and provides a Python interface for users. There are bottlenecks in rendering simulation, especially in the photon shooting method, which is computationally intensive.
+To improve performance, it is decided to extend the Galsim functionality by using CUDA to accelerate the photon shooting method.
+'''
+requirement_flow = ['flow2']
+
+[codebase]
+language = "C++"
+project_path = "/home/wnk/code/GalSim/"
+source_path = "/home/wnk/code/GalSim/src/"
+header_path = ["/home/wnk/code/GalSim/include/galsim/","/home/wnk/code/GalSim/include/", "/home/wnk/code/GalSim/src", "/home/wnk/code/GalSim/src/cuda_kernels"]
+build_path = "/home/wnk/code/GalSim/build/"
+namespace = "galsim"
+
+[[flows]]
+flow_name = "Codebase Dissection"
+flow_id = "flow1"
+config = "workflows/cuda_migration_en/flow1_codebase_comprehension/flow_codebase_comprehension.toml"
+previous_flows = []
+
+[[flows]]
+flow_name = "Migration Plan"
+flow_id = "flow2"
+config = "workflows/cuda_migration_en/flow2_plan/flow_migration_plan.toml"
+previous_flows = ["flow1"]
+
+[[flows]]
+flow_name = "Task Decomposition"
+flow_id = "flow3"
+config = "workflows/cuda_migration_en/flow3_task_decomposition/flow_task_decomposition.toml"
+previous_flows = ["flow2"]
+
+[[flows]]
+flow_name = "Task Execution"
+flow_id = "flow4"
+config = "workflows/cuda_migration_en/flow4_task_execution/flow_task_execution.toml"
+previous_flows = ["flow3"]

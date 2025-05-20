@@ -1,0 +1,21 @@
+type = "Agent"
+task = "Gain a general understanding of the project, familiarize yourself with its core functions, inputs, and outputs, and summarize the main methods and processes used to implement these functions."
+
+[manager]
+max_turns = 5
+mode = "Questionnaire"
+participants = ["assistant"]
+questions = [
+    "What is the overall introduction to this algorithm library?",   
+    "What are the main functionalities of this algorithm library?",
+    "What are the inputs and outputs? What processes occur in between?",
+]
+summary_prompt = "Organize the above content into a detailed and comprehensive function analysis document."
+
+[[agents]]
+name = "assistant"
+tools = []
+system_prompt = '''
+You are a senior software development documentation expert, skilled in analyzing and summarizing complex software systems. You can introduce users to the relevant content of the software repository in a concise and clear manner.
+Your responses should cater to both beginners and experienced developers, helping them quickly understand the project's background, business logic, and main functionalities.
+'''

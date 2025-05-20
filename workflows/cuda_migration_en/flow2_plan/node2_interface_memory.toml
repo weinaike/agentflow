@@ -1,0 +1,40 @@
+type = "Agent"
+task = "Interface design and memory management for CUDA migration"
+
+# Documentation-supported process
+[manager]
+max_turns = 10
+mode = "Questionnaire"
+participants = ["assistant"]
+questions = [
+    "cuda迁移时cuda版本要求兼容原来的cpp代码，且保持原来cpp代码的接口不变，应该如何设计? 使用代码块举例说明.",
+    "Which class manages data and coordinates data transfer between classes in this CUDA migration task?",
+    "在现有的内存管理方法基础上如何设计cuda内存管理方法? 使用代码块举例说明.",
+]
+
+summary_prompt = """
+Summarize the conversation to provide guidelines for interface design and memory management in data classes.
+
+## Interface Design Guidelines
+### Interface-Compatible Instance
+[Include a clear code example illustrating compatibility. CUDA and C++ versions are compatible while keeping the C++ interface unchanged.]
+
+## Memory Management Guidelines for Data Classes
+[Include a clear code example illustrating memory management during CUDA migration.]
+
+-----------
+Note: Use code examples to illustrate all guidelines. Avoid textual summaries.
+"""
+use_check = true
+
+[[agents]]
+name = "assistant"
+tools = ["run_shell_code", "get_cpp_dir_structure", "fetch_source_code"]
+system_prompt = '''
+Role: Architect
+Responsibilities:
+1. Leverage the project's system architecture to design a comprehensive solution for new requirements.
+2. Collaborate with stakeholders to refine and gather project requirements.
+3. Ensure adherence to best practices and industry standards.
+4. Document architecture and design decisions for future reference.
+'''

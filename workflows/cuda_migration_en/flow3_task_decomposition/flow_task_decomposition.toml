@@ -1,0 +1,34 @@
+flow_name = "Task Decomposition"
+flow_type = "SEQUENTIAL"
+description =  '''
+## Task Decomposition
+The migration plan has been finalized. The next step is to break down and refine the migration plan into specific tasks to facilitate subsequent implementation. 
+During the task decomposition process, it is essential to consider task dependencies and granularity.
+'''
+
+
+[[nodes]]
+id = "node1"
+name = "CUDA Migration Function List"
+inputs = ['flow2.node3']
+config = "node1_FunctionList.toml"
+
+[[nodes]]
+id = "node2"
+name = "Priority Sorting" 
+inputs = ['flow2.node3','node1']
+config = "node2_TaskPrioritySort.toml"
+
+[[nodes]]
+id = "node3"
+name = "CUDA Task Evaluation"
+inputs = ['node2'] # Loop
+config = "node3_TaskEvaluation.toml"
+
+[[nodes]]
+id = "node4"
+name = "Task Summary"
+inputs = ['node2','node3']
+config = "node4_TaskDecompositionSummary.toml"
+
+

@@ -1,0 +1,45 @@
+type = "Agent"
+task = '''Filter the modules for migration, retaining only those with significant migration potential and their corresponding functions.'''
+
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+questions = [
+    "Reorganize modules individually based on CUDA migration potential for all Foundational and Higher-Level Modules sorted , keeping only high-potential modules and their functions; exclude low-potential parts.",
+    "Review the function lists of each module to ensure no dependent functions with significant CUDA migration potential are missing, and include them if necessary."
+]
+participants = ["assistant"]
+
+summary_prompt = '''
+Reorganize the above content and list the modules and functions with significant CUDA migration potential, organized by module/class.
+If a function has already been listed in a previous module, do not duplicate it.
+
+### Foundational Module Class class1
+- class1::function1
+- class1::function2
+- class1::function3
+
+### Higher-Level Module Class class2
+- class2::functionA
+- class2::functionB
+
+### Higher-Level Module Class class3
+- class3::functionC
+- class3::functionD
+
+------
+Note: follow the above format strictly
+
+'''
+use_check = true
+
+[[agents]]
+name = "assistant"
+tools = [] 
+system_prompt = '''
+Role: Software Engineer
+'''
+
+
+
+
