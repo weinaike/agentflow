@@ -10,7 +10,7 @@ max_turns = 10
 mode = 'Questionnaire'
 participants = ["assistant"]
 questions = [
-    "将生成的CUDA迁移代码，依次写入到代码库中: 对于新创建的文件，直接调用file_edit_save_to_file工具，将代码写入到文件；对于修改的文件，首先通过read_file_content工具读取原有内容，然后你需要将修改内容合并到原有代码，再通过file_edit_save_to_file将代码写回到原文件。如果read_file_content提示文件不存在，表明该文件是新创建的，可通过file_edit_save_to_file直接将内容写入文件，而无需合并。",
+    "将生成的CUDA迁移代码，依次写入到代码库中: 首先，调用read_file_content读取原始文件内容，如果提示文件不存在，表明需要创建这个文件，直接调用file_edit_save_to_file工具，将代码写入到文件；如果能够成功读取到原始的文件内容，你需要将修改内容合并到原有代码，合并时需要充分考虑代码间的逻辑，不要丢弃原文件中的#include语句、代码注释和未修改片断，最后通过file_edit_save_to_file将合并后的代码写回到原文件。",
 ]
 
 

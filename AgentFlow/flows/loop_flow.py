@@ -8,7 +8,7 @@ from autogen_core import CancellationToken
 from autogen_agentchat.ui import Console
 
 from ..tools import extract_code_blocks
-from ..data_model import LoopFlowParam, Context, TaskItem, get_model_config
+from ..data_model import LoopFlowParam, Context, TaskItem, get_model_config, ModelEnum
 from .sequential_flow import SequentialFlow
 from .auto_sched_flow import AutoSchedFlow
 from .base_flow import BaseFlow
@@ -36,7 +36,8 @@ class LoopFlow(BaseFlow):
      
         self.loop_param = self._flow_param.loop
        
-        llm_config = get_model_config(self._flow_param.llm_config)
+        llm_config = get_model_config(self._flow_param.llm_config)#, type=ModelEnum.O1MINI)
+        print(f"model: {llm_config.model}")
         model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
         #self.tasks_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_tasks.json")
         self.tasks_file = os.path.join(self._config["backup_dir"], f"{self._flow_param.flow_id}_loop_tasks.json")
