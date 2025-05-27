@@ -150,6 +150,9 @@ class ManagerParam(BaseModel):
     use_check: Optional[bool] = Field(False, description="Whether to use the check agent")
     check_items: Optional[List[CheckItem]] = Field(None, description="Check items for the node")
 
+    # 以下仅SelectorGroupChat
+    selector_prompt: Optional[str] = Field(None, description="Selector prompt for SelectorGroupChat mode")
+
 # AgentNodeParam 用于描述 Agent工作节点的完整参数
 class AgentNodeParam(NodeParam):
     task: str   

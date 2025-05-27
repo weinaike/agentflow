@@ -54,7 +54,7 @@ class LoopFlow(BaseFlow):
             self._update_tasks(tasks)
 
         for i, task in enumerate(tasks):
-            if i >= 1:
+            if task.status == 'done':
                 continue
             config = self._config_tranfer(self._config, f'task_{i}', task.content)
             
