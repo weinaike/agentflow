@@ -7,7 +7,7 @@ from autogen_agentchat.base import TaskResult, Response
 from autogen_core import CancellationToken
 from autogen_agentchat.ui import Console
 
-from ..tools import extract_code_blocks
+from ..tools import extract_code_blocks, AST
 from ..data_model import LoopFlowParam, Context, TaskItem, get_model_config, ModelEnum
 from .sequential_flow import SequentialFlow
 from .auto_sched_flow import AutoSchedFlow
@@ -55,13 +55,21 @@ class LoopFlow(BaseFlow):
             self._update_tasks(tasks)
 
         for i, task in enumerate(tasks):
-            if i >= 1:
-                continue
             config = self._config_tranfer(self._config, f'task_{i}', task.content)
             
             flow = self.create_internal_flow(config)
 
             context = await flow.run(context, specific_node, flow_execute)
+            
+            user_input = ""
+            while user_input not in ["Y", "N", "YES", "NO"]:
+                user_input = input("COMMIT/ROLLBACK code already? \n Yes/No: ").upper()
+            if user_input in ["Y", "YES"]:
+                ast = AST()
+                ast.update_symbol_tables()
+                continue
+            if user_input in ["N", "NO"]:
+                break
         
         return context 
      
