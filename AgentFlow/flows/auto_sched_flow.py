@@ -4,6 +4,7 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import ExternalTermination, TextMentionTermination
 from autogen_agentchat.messages import ChatMessage, TextMessage
 from autogen_agentchat.base import TaskResult, Response
+from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
 from autogen_core import CancellationToken
 from autogen_agentchat.ui import Console
 
@@ -18,7 +19,7 @@ import os
 import json
 import logging
 from copy import deepcopy
-from typing import List, Dict, Union, Optional
+from typing import  Dict, Union, List, Optional, AsyncGenerator, Union
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -34,6 +35,9 @@ class AutoSchedFlow(BaseFlow):
 
     async def before_run(self, context: Context, specific_node: list[str] = []):
         self._nodes = await self.create_node(self._flow_param)
+        if context.input_func:
+            for node in self._nodes:
+                node.set_input_func(context.input_func)
         self._start_node_id = self._flow_param.auto_sched.start_node_id
         self._sched_prompt  = self._flow_param.auto_sched.sched_prompt
         self._max_sched_times = self._flow_param.auto_sched.max_sched_times
@@ -90,3 +94,37 @@ class AutoSchedFlow(BaseFlow):
                 next_to_run, inputs = "QUIT", []
 
         return next_to_run, inputs
+    
+
+    async def run_stream(self, context: Context, specific_node: list[str] = [], flow_execute: bool = True
+                          ) -> AsyncGenerator[Union[BaseAgentEvent, BaseChatMessage, Context], None]:
+        await self.before_run(context, specific_node)
+
+        context.flow_description[self._flow_param.flow_id] = self._flow_param.description  
+        node_id = self._start_node_id
+        node = self.get_node(node_id)
+        for i in range(self._max_sched_times):
+            if context.cancellation_token and context.cancellation_token.is_cancelled():
+                logger.info(f"Flow {self.id} cancelled, stop running.")
+                break
+            self._draw_flow_graph(highlight_node_id=node_id)
+            async for msg in node.run_stream(context):
+                if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                    yield msg
+                elif isinstance(msg, Context):
+                    context = msg
+
+            if self.process:
+                self.process.terminate()
+                self.process = None
+            output = node.get_NodeOutput()
+            context.node_output[f'{self.id}.{node_id}'] = output
+
+            # select the next running node and its inputs
+            node_id, inputs = await self.auto_sched(node_id, output)
+            if node_id == 'QUIT':
+                break
+            node = self.get_node(node_id)
+            node._node_param.inputs = inputs
+
+        await self.after_run(context)

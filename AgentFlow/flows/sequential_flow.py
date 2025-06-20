@@ -2,16 +2,21 @@ from ..nodes import BaseNode
 from ..data_model import SequentialFlowParam, Context, NodeOutput
 from .base_flow import BaseFlow
 
-from typing import List, Dict, Union
+from typing import  Dict, Union, List, Optional, AsyncGenerator, Union
+from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
 import os
 import json
 import logging
 from collections import deque
-import asyncio
+
 logger = logging.getLogger(__name__)
 
 
 class SequentialFlow(BaseFlow):
+
+    component_config_schema = SequentialFlowParam
+    component_provider_override = "AgentFlow.flows.SequentialFlow"
+
     def __init__(self, config : Union[Dict, SequentialFlowParam]):
         if isinstance(config, dict):
             self._flow_param = SequentialFlowParam(**config)
@@ -24,7 +29,10 @@ class SequentialFlow(BaseFlow):
     
     async def before_run(self, context: Context, specific_node: list[str] = []):
         self._nodes = await self.create_node(self._flow_param)
-        logger.debug(f'---{self._flow_param.flow_id} {self._flow_param.flow_name} over---')
+        if context.input_func:
+            for node in self._nodes:
+                node.set_input_func(context.input_func)
+        
         dot, graph = self._draw_flow_graph()
         self._topological_order = self._topological_sort(graph)
         self.process = None
@@ -61,6 +69,10 @@ class SequentialFlow(BaseFlow):
 
         context.flow_description[self._flow_param.flow_id] = self._flow_param.description   
         for node_id in self._topological_order:
+            if context.cancellation_token and context.cancellation_token.is_cancelled():
+                logger.info(f"Flow {self.id} cancelled, stop running.")
+                break
+
             self._draw_flow_graph(highlight_node_id=node_id)
             node = self.get_node(node_id)
             assert node is not None
@@ -77,3 +89,27 @@ class SequentialFlow(BaseFlow):
         await self.after_run(context)
 
         return context
+
+    async def run_stream(self, context: Context, specific_node: list[str] = [], flow_execute: bool = True
+                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Context], None]:
+        await self.before_run(context, specific_node)
+        context.flow_description[self._flow_param.flow_id] = self._flow_param.description
+        for node_id in self._topological_order:
+            self._draw_flow_graph(highlight_node_id=node_id)
+            node = self.get_node(node_id)
+            assert node is not None
+            if self.should_node_run(node_id, specific_node, flow_execute):
+                async for msg in node.run_stream(context):
+                    if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                        yield msg
+                    elif isinstance(msg, Context):
+                        context = msg
+            else:
+                logger.info(f"Skip node {self.id}.{node_id}")
+
+            context.node_output[f'{self.id}.{node_id}'] = node.get_NodeOutput()
+            if self.process:
+                self.process.terminate()
+                self.process = None
+        await self.after_run(context)
+

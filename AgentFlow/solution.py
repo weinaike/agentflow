@@ -1,14 +1,22 @@
 from .flows import BaseFlow, FlowFactory
 from .nodes import BaseNode
-from .data_model import SolutionParam, Context, LanguageEnum
+from .data_model import SolutionParam, Context, LanguageEnum, get_model_config, RunParam
+from .tools.utils import get_json_content
 from .tools import AST
 import os
 import toml
 import json
 import logging
-from typing import Dict, List
-
-
+from typing import Callable, Dict, List, Union, Sequence, Optional
+from typing import AsyncGenerator
+from autogen_agentchat.base import TaskResult
+from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, TextMessage, UserMessage
+from autogen_core.models import CreateResult
+from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_core import ComponentBase, Component, CancellationToken
+from pydantic import BaseModel
+from typing_extensions import Self
+import traceback
 logger = logging.getLogger(__name__)
 
 
@@ -39,9 +47,21 @@ def load_config(config_file: str) -> SolutionParam:
 
 
 # Define the Solution class
-class Solution:
-    def __init__(self, config_file: str):        
-        self._souluton_param = load_config(config_file)
+class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
+    component_type = "solution"
+
+    component_version = 2
+    component_config_schema = SolutionParam
+    component_provider_override = "AgentFlow.solution.Solution"
+
+
+    def __init__(self, config_file: Union[str, SolutionParam]):    
+        if isinstance(config_file, str):
+            self._souluton_param = load_config(config_file)
+        elif isinstance(config_file, SolutionParam):
+            self._souluton_param = config_file
+        else:
+            raise ValueError("config_file must be a string path or an instance of SolutionParam")    
 
         os.makedirs(self._souluton_param.workspace_path, exist_ok=True)
         os.makedirs(self._souluton_param.backup_dir, exist_ok=True)
@@ -64,6 +84,13 @@ class Solution:
         logger.info('-----------------Workflows-----------------')
         logger.info(json.dumps(self._souluton_param.model_dump(), indent=4, ensure_ascii=False))
         logger.info('-----------------Workflows-----------------')
+
+
+        llm_config = get_model_config(self._souluton_param.llm_config)
+        self._model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
+        self._init = False
+        
+        self.input_func : Optional[Callable] = None
 
         if self._souluton_param.codebase:
             if self._souluton_param.codebase.language == LanguageEnum.CPP:
@@ -95,7 +122,13 @@ class Solution:
                 output_filters =  [
                     lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
                 ]
-                ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_file, load=True)
+                # ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_file, load=True)
+    def set_input_func(self, input_func: Callable):
+        """
+        Set the input function for the solution.
+        This function will be used to get user input during the execution of the solution.
+        """
+        self.input_func = input_func
 
     def get_previous_flow_nodes(self, flow_nodes: List[str]) -> Dict[str, BaseNode]:
 
@@ -130,3 +163,82 @@ class Solution:
                 if specific_flow and flow.id in specific_flow:
                     break
 
+    async def run_stream(self, task: str | BaseChatMessage | Sequence[BaseChatMessage] | None = None,
+                         cancellation_token: Optional[CancellationToken] = None,
+                         specific_flow: list[str] = [], specific_node: list[str] = []
+                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | TaskResult], None]:
+        if task is not None and ((len(specific_flow) == 0) or (len(specific_node) == 0)) and not self._init:        
+            try:
+                msg = UserMessage(content="##本方案的配置参数如下：\n{}\n\n ##现在用户如下指令:\n {}\n\n##请以json格式输出需要执行的flow与node, 格式：{{flow_id:[], node_id:[]}}； ps: 1. 如果用户没有特别指定，则默认运行全部flow与node;2. node_id与flow_id独立输出， 不要出现'flow1_node1'这类节点ID ".format(self._souluton_param, task), source="user")
+                ret: CreateResult = await self._model_client.create(messages=[msg], json_output=True)
+                print(f"ret: {ret.content}")
+                output = RunParam(**json.loads(ret.content))
+                specific_flow = output.flow_id
+                specific_node = output.node_id
+                self._init = True
+                logger.info(f"_model_client create Specific flows: {specific_flow}, Specific nodes: {specific_node}")
+            except Exception as e:
+                logger.error(f"Error during model client create: {e}\n{traceback.format_exc()}")
+                yield TaskResult(
+                    messages=[TextMessage(content="Error during configuring param.", source="solution")],
+                    stop_reason="error",
+                )
+                return
+
+        if  isinstance(specific_node, list) and len(specific_node) > 0 and \
+            isinstance(specific_flow, list) and len(specific_flow) > 1:
+            logger.error("Only one flow can be specified for execution")
+            return
+        
+
+        context= Context(project_description=self._souluton_param.description)
+        context.cancellation_token = cancellation_token
+        if self.input_func:
+            context.input_func = self.input_func
+        try:
+            for flow in self.flows:            
+                if cancellation_token and cancellation_token.is_cancelled():
+                    break
+                if specific_flow and flow.id not in specific_flow:
+                    logger.info(f"skip {flow.id}")
+                    async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=False):
+                        if cancellation_token and cancellation_token.is_cancelled():
+                            break
+                        if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                            yield msg
+                        elif isinstance(msg, Context):
+                            context = msg
+                else:
+                    logger.info(f"run {flow.id}")
+                    async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=True):
+                        if cancellation_token and cancellation_token.is_cancelled():
+                            break
+                        if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                            yield msg
+                        elif isinstance(msg, Context):
+                            context = msg
+                    # 如果指定了特定的流程并且当前流程是其中之一，则退出循环
+                    if specific_flow and flow.id in specific_flow:
+                        break
+        finally:
+            # 可在此处添加清理逻辑，如需要
+            pass
+        
+        yield TaskResult(
+            messages=[TextMessage(content="Solution execution completed.", source="solution")],
+            stop_reason= "end",
+        )
+
+    def _to_config(self) -> SolutionParam:
+        """
+        Convert the current solution to a configuration object.
+        """
+        return self._souluton_param
+    
+    @classmethod
+    def _from_config(cls, config: SolutionParam) -> Self:
+        """
+        Create a Solution instance from a configuration object.
+        """
+        return cls(config)
+    

@@ -17,7 +17,7 @@ from autogen_core.logging import LLMCallEvent
 
 from ..datamodel.types import EnvironmentVariable, LLMCallEventMessage, TeamResult
 from ..web.managers.run_context import RunContext
-
+from AgentFlow import Solution
 logger = logging.getLogger(__name__)
 
 
@@ -91,13 +91,19 @@ class TeamManager:
             logger.info("Loading environment variables")
             for var in env_vars:
                 os.environ[var.name] = var.value
+        if config.get("component_type") == "team":
+            self._team = BaseGroupChat.load_component(config)
+            for agent in self._team._participants:
+                if hasattr(agent, "input_func") and isinstance(agent, UserProxyAgent) and input_func:
+                    agent.input_func = input_func
+        elif config.get("component_type") == "solution":
+            solution:Solution = Solution.load_component(config)
+            if input_func:
+                logger.info("Setting input function for solution")
+                solution.set_input_func(input_func)
+            
 
-        self._team = BaseGroupChat.load_component(config)
-
-        for agent in self._team._participants:
-            if hasattr(agent, "input_func") and isinstance(agent, UserProxyAgent) and input_func:
-                agent.input_func = input_func
-
+            self._team = solution
         return self._team
 
     async def run_stream(

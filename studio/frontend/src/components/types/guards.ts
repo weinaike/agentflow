@@ -21,6 +21,7 @@ import type {
   UnboundedChatCompletionContextConfig,
   AnthropicClientConfig,
   AndTerminationConfig,
+  SolutionConfig,
 } from "./datamodel";
 
 // Provider constants
@@ -28,6 +29,7 @@ const PROVIDERS = {
   // Teams
   ROUND_ROBIN_TEAM: "autogen_agentchat.teams.RoundRobinGroupChat",
   SELECTOR_TEAM: "autogen_agentchat.teams.SelectorGroupChat",
+  SOLUTION_TEAM: "AgentFlow.solution.Solution",
 
   // Agents
   ASSISTANT_AGENT: "autogen_agentchat.agents.AssistantAgent",
@@ -60,6 +62,7 @@ type ProviderToConfig = {
   // Teams
   [PROVIDERS.SELECTOR_TEAM]: SelectorGroupChatConfig;
   [PROVIDERS.ROUND_ROBIN_TEAM]: RoundRobinGroupChatConfig;
+  [PROVIDERS.SOLUTION_TEAM]: SolutionConfig;
   [PROVIDERS.ANTHROPIC]: AnthropicClientConfig;
 
   // Agents
@@ -154,6 +157,12 @@ export function isSelectorTeam(
   component: Component<ComponentConfig>
 ): component is Component<SelectorGroupChatConfig> {
   return isComponentOfType(component, PROVIDERS.SELECTOR_TEAM);
+}
+
+export function isSolutionTeam(
+  component: Component<ComponentConfig>
+): component is Component<SolutionConfig> {
+  return isComponentOfType(component, PROVIDERS.SOLUTION_TEAM);
 }
 
 // Agent provider guards with proper type narrowing

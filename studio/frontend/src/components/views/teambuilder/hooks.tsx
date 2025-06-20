@@ -21,6 +21,7 @@ export const useTeam = (team: Team) => {
     // Type guards
     isRoundRobin: () => team.config.config.team_type === "RoundRobinGroupChat",
     isSelector: () => team.config.config.team_type === "SelectorGroupChat",
+    isSolution: () => team.config.config.team_type === "Solution",
   };
 };
 

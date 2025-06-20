@@ -1081,6 +1081,106 @@
           "allow_repeated_speaker": true,
           "max_selector_attempts": 3
         }
+      },
+      {
+        "provider": "AgentFlow.solution.Solution",
+        "component_type": "solution",
+        "version": 2,
+        "component_version": 2,
+        "description": "a solution for agent flow",
+        "label": "Solution",
+        "config": {
+          "participants": [],
+          "termination_condition": {
+            "provider": "autogen_agentchat.base.OrTerminationCondition",
+            "component_type": "termination",
+            "version": 1,
+            "component_version": 1,
+            "label": "OrTerminationCondition",
+            "config": {
+              "conditions": [
+                {
+                  "provider": "autogen_agentchat.conditions.TextMentionTermination",
+                  "component_type": "termination",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "Terminate the conversation if a specific text is mentioned.",
+                  "label": "TextMentionTermination",
+                  "config": {
+                    "text": "TERMINATE"
+                  }
+                },
+                {
+                  "provider": "autogen_agentchat.conditions.MaxMessageTermination",
+                  "component_type": "termination",
+                  "version": 1,
+                  "component_version": 1,
+                  "description": "Terminate the conversation after a maximum number of messages have been exchanged.",
+                  "label": "MaxMessageTermination",
+                  "config": {
+                    "max_messages": 30,
+                    "include_agent_event": false
+                  }
+                }
+              ]
+            }
+          },          
+          "project_name": "GalSim光子射击算法CUDA加速",
+          "project_id": "project_1",
+          "description": "Galsim是一个用于模拟天体光学成像的项目。将亮度模型SBprofie通过光学仿真构建ImageView图像。\n亮度模型仿真渲染的方法主要包含三种：\n1. Discrete Fourier transform rendering\n2. Real-space Direct rendering\n3. Photon shooting\n\n\n** 项目必要信息**** language ** : C++\n** 项目路径 ** : /home/wnk/code/GalSim/\n** 源码目录 ** : /home/wnk/code/GalSim/src/\n** 头文件目录 ** : ['/home/wnk/code/GalSim/include/galsim/', '/home/wnk/code/GalSim/include/', '/home/wnk/code/GalSim/src', '/home/wnk/code/GalSim/src/cuda_kernels']\n** 编译与构建目录 ** : /home/wnk/code/GalSim/build/\n** 命名空间 ** : galsim\n\n** 项目文件备份目录 (backup_dir) ** : workspace/galsim11/cache\n",
+          "workspace_path": "/home/wnk/code/agentflow/workspace/galsim11/",
+          "llm_config": "/home/wnk/code/agentflow/docs/OAI_CONFIG_LIST.json",
+          "codebase": {
+            "language": "C++",
+            "project_path": "/home/wnk/code/GalSim/",
+            "source_path": "/home/wnk/code/GalSim/src/",
+            "header_path": [
+              "/home/wnk/code/GalSim/include/galsim/",
+              "/home/wnk/code/GalSim/include/",
+              "/home/wnk/code/GalSim/src",
+              "/home/wnk/code/GalSim/src/cuda_kernels"
+            ],
+            "build_path": "/home/wnk/code/GalSim/build/",
+            "namespace": "galsim"
+          },
+          "flows": [
+            {
+              "flow_name": "架构理解",
+              "flow_id": "flow1",
+              "config": "/home/wnk/code/agentflow/workflows/cuda_migration/flow1_architect_understand/flow_architect_understand.toml",
+              "previous_flows": []
+            },
+            {
+              "flow_name": "迁移方案",
+              "flow_id": "flow2",
+              "config": "/home/wnk/code/agentflow/workflows/cuda_migration/flow2_solution/flow_solution.toml",
+              "previous_flows": [
+                "flow1"
+              ]
+            },
+            {
+              "flow_name": "任务分解",
+              "flow_id": "flow3",
+              "config": "/home/wnk/code/agentflow/workflows/cuda_migration/flow3_task_decomposition/flow_task_decomposition.toml",
+              "previous_flows": [
+                "flow2"
+              ]
+            },
+            {
+              "flow_name": "任务执行",
+              "flow_id": "flow4",
+              "config": "/home/wnk/code/agentflow/workflows/cuda_migration/flow4_task_execution/flow_task_execution.toml",
+              "previous_flows": [
+                "flow3"
+              ]
+            }
+          ],
+          "backup_dir": "/home/wnk/code/agentflow/workspace/galsim11/cache",
+          "requirement": "Galsim是一个用于模拟天体光学成像的项目。 将亮度模型SBprofie通过光学仿真构建ImageView图像。\nGalsim项目底层是以C++开发的，通过python接口提供给用户使用。渲染仿真上存在瓶颈. 特别是光子射击方法，计算量大。\n为了提高性能，决定扩展Galsim功能， 使用CUDA加速光子射击(Photon shooting)方法。\n",
+          "requirement_flow": [
+            "flow2"
+          ]
+        }
       }
     ]
   }

@@ -284,7 +284,10 @@ export interface TextMentionTerminationConfig {
 }
 
 // Config type unions based on provider
-export type TeamConfig = SelectorGroupChatConfig | RoundRobinGroupChatConfig;
+export type TeamConfig =
+  | SelectorGroupChatConfig
+  | RoundRobinGroupChatConfig
+  | SolutionConfig;
 
 export type AgentConfig =
   | MultimodalWebSurferConfig
@@ -451,4 +454,20 @@ export interface GalleryConfig {
 
 export interface Gallery extends DBModel {
   config: GalleryConfig;
+}
+
+export interface SolutionConfig {
+  name: string;
+  description?: string;
+  flows?: any[]; // 可根据后端定义进一步细化
+  workspace_path?: string;
+  backup_dir?: string;
+  codebase?: any;
+  llm_config?: any;
+  requirement_flow?: string[];
+  requirement?: string;
+
+  participants: Component<AgentConfig>[];
+  termination_condition?: Component<TerminationConfig>;
+
 }

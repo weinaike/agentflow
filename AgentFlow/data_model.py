@@ -1,10 +1,10 @@
 from pydantic import BaseModel, Field
-from typing import Literal, Optional, Union, Dict, List
+from typing import Literal, Optional, Union, Dict, List, Callable
 from enum import Enum
 from .prompt_template import CONTEXT_TEMPLATE
 import json
 from autogen_agentchat.base import TaskResult
-
+from autogen_core import CancellationToken
 
 
 ############### llm_config  ################
@@ -24,6 +24,7 @@ class ModelCapabilities(BaseModel):
     vision : bool
     function_calling : bool
     json_output : bool
+    structured_output : bool
 
 
 class ModelConfig(BaseModel):
@@ -162,6 +163,10 @@ class AgentNodeParam(NodeParam):
     agents : List[AgentParam] = list()   
 
 
+class RunParam(BaseModel):
+    flow_id: List[str] = Field([], description="工作流ID列表, 需要执行的工作流ID, 如果为空则执行所有工作流")
+    node_id: List[str] = Field([], description="节点ID列表, 需要执行的节点ID, 如果为空则执行所有节点")
+
 
 ############# 上下文传递 ################
 
@@ -170,7 +175,9 @@ class Context(BaseModel):
     project_description: str
     flow_description: Dict[str,str] = dict()
     node_output: Dict[str, NodeOutput] = dict()
-
+    input_func: Optional[Callable] = None  # 输入函数，用于获取用户输入
+    cancellation_token: Optional[CancellationToken] = None
+    
     def get_node_output(self, flow_id : str, node_id: str) -> NodeOutput:
         key = f'{flow_id}.{node_id}'
         return self.node_output.get(key, None)
@@ -183,6 +190,9 @@ class Context(BaseModel):
             return CONTEXT_TEMPLATE.format(node_description = output.description,
                                            detail_content = content)
         return None
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 ############### flow  ################
@@ -272,7 +282,6 @@ class SolutionParam(BaseModel):
     backup_dir: str = None # 数据备份/缓存目录
     requirement: Optional[str] = None   # 项目需求描述，用于替换工作流描述中的{requirement}
     requirement_flow: Optional[List[str]] = None # 需求对应的工作流ID
-    
     def get_flow_param(self, flow_id: str) -> flowNodeParam:
         for flow in self.flows:
             if flow.flow_id == flow_id:

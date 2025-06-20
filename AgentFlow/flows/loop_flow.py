@@ -6,6 +6,7 @@ from autogen_agentchat.messages import ChatMessage, TextMessage
 from autogen_agentchat.base import TaskResult, Response
 from autogen_core import CancellationToken
 from autogen_agentchat.ui import Console
+from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
 
 from ..tools import extract_code_blocks
 from ..data_model import LoopFlowParam, Context, TaskItem, get_model_config
@@ -19,13 +20,17 @@ import os
 import json
 import logging
 from copy import deepcopy
-from typing import List, Dict, Union, Optional
+from typing import  Dict, Union, List, Optional, AsyncGenerator, Union
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
 class LoopFlow(BaseFlow):
+
+    component_config_schema = LoopFlowParam
+    component_provider_override = "AgentFlow.flows.LoopFlow"
+
     def __init__(self, config : Union[Dict, LoopFlowParam]):
         if isinstance(config, dict):
             self._flow_param = LoopFlowParam(**config)
@@ -33,7 +38,6 @@ class LoopFlow(BaseFlow):
         else:
             self._flow_param = config
             self._config = self._flow_param.model_dump()
-     
         self.loop_param = self._flow_param.loop
        
         llm_config = get_model_config(self._flow_param.llm_config)
@@ -42,7 +46,7 @@ class LoopFlow(BaseFlow):
         self.tasks_file = os.path.join(self._config["backup_dir"], f"{self._flow_param.flow_id}_loop_tasks.json")
         self.planner = AssistantAgent(name='planner', model_client=model_client, system_message = FORMAT_SYSTEM_PROMPT)
 
-    def create_internal_flow(config):
+    def create_internal_flow(config) -> BaseFlow:
         raise NotImplementedError("override this method in the subclass please!")
 
     async def run(self, context, specific_node = [], flow_execute = True) -> Context:
@@ -58,7 +62,7 @@ class LoopFlow(BaseFlow):
                 continue
             config = self._config_tranfer(self._config, f'task_{i}', task.content)
             
-            flow = self.create_internal_flow(config)
+            flow:BaseFlow = self.create_internal_flow(config)
 
             context = await flow.run(context, specific_node, flow_execute)
         
@@ -117,6 +121,31 @@ class LoopFlow(BaseFlow):
             raise ValueError("No task generated")
 
         return tasks    
+    
+    async def run_stream(self, context, specific_node = [], flow_execute = True
+                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Context], None]:
+        if os.path.exists(self.tasks_file):
+            with open(self.tasks_file) as f:
+                tasks = [TaskItem(**obj) for obj in json.load(f)]
+        else:
+            tasks = await self._format_tasks(context)
+            self._update_tasks(tasks)
+        for i, task in enumerate(tasks):
+            if context.cancellation_token and context.cancellation_token.is_cancelled():
+                logger.info(f"Flow {self.id} cancelled, stop running.")
+                break
+            if task.status == 'done':
+                continue
+            config = self._config_tranfer(self._config, f'task_{i}', task.content)
+            
+            flow:BaseFlow = self.create_internal_flow(config)
+
+            async for msg in flow.run_stream(context, specific_node, flow_execute):
+                if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                    yield msg
+                elif isinstance(msg, Context):
+                    context = msg
+
 
 class SequentialLoopFlow(LoopFlow):
     def create_internal_flow(self, config):

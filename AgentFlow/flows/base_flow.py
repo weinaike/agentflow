@@ -15,14 +15,20 @@ import subprocess
 import toml
 import logging
 from abc import ABC, abstractmethod
-from typing import  Dict, Union, List, Optional
+from typing import  Dict, Union, List, Optional, AsyncGenerator, Union
+from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
+from autogen_core import ComponentBase
+from pydantic import BaseModel
 import json  # Add this import for using json.dumps
+
 logger = logging.getLogger(__name__)
 
-class BaseFlow(ABC):
+class BaseFlow(ABC, ComponentBase[BaseModel]):
+    component_type = "flow"
     def __init__(self, config: Union[Dict, flowDetailParam]):
         self._flow_param: flowDetailParam 
-        self._nodes: List[BaseNode] 
+        self._nodes: List[BaseNode] = []
+       
 
     async def before_run(self, context: Context, specific_node: list[str] = []):
         pass
@@ -33,6 +39,12 @@ class BaseFlow(ABC):
     @abstractmethod
     async def run(self, context: Context, specific_node: list[str] = [], flow_execute : bool = True) -> Context:
         pass
+
+    @abstractmethod
+    async def run_stream(self, context: Context, specific_node: list[str] = [], flow_execute : bool = True
+                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Context], None]:
+        pass
+
 
     def should_node_run(self, node_id :str, specific_node: list[str] = [], flow_execute : bool = True) -> bool:
         if flow_execute:

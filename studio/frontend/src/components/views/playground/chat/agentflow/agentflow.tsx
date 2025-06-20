@@ -31,6 +31,7 @@ import { CustomEdge, CustomEdgeData } from "./edge";
 import { useConfigStore } from "../../../../../hooks/store";
 import { AgentFlowToolbar } from "./toolbar";
 import { EdgeMessageModal } from "./edgemessagemodal";
+import { isTeamComponent, isSelectorTeam, isRoundRobinTeam } from "../../../../types/guards";
 
 interface AgentFlowProps {
   teamConfig: Component<TeamConfig>;

@@ -1,14 +1,19 @@
 import React, { useCallback } from "react";
 import { Input, Button } from "antd";
-import { Edit, Timer } from "lucide-react";
+import { Edit, Timer, Folder } from "lucide-react";
 import {
   Component,
   TeamConfig,
   ComponentConfig,
   RoundRobinGroupChatConfig,
   SelectorGroupChatConfig,
+  SolutionConfig,
 } from "../../../../../types/datamodel";
-import { isSelectorTeam, isRoundRobinTeam } from "../../../../../types/guards";
+import {
+  isSelectorTeam,
+  isRoundRobinTeam,
+  isSolutionTeam,
+} from "../../../../../types/guards";
 import DetailGroup from "../detailgroup";
 
 const { TextArea } = Input;
@@ -24,7 +29,12 @@ export const TeamFields: React.FC<TeamFieldsProps> = ({
   onChange,
   onNavigate,
 }) => {
-  if (!isSelectorTeam(component) && !isRoundRobinTeam(component)) return null;
+  if (
+    !isSelectorTeam(component) &&
+    !isRoundRobinTeam(component) &&
+    !isSolutionTeam(component)
+  )
+    return null;
 
   const handleComponentUpdate = useCallback(
     (updates: Partial<Component<ComponentConfig>>) => {
@@ -56,10 +66,33 @@ export const TeamFields: React.FC<TeamFieldsProps> = ({
             [field]: value,
           } as RoundRobinGroupChatConfig,
         });
+      } else if (isSolutionTeam(component)) {
+        handleComponentUpdate({
+          config: {
+            ...component.config,
+            [field]: value,
+          } as SolutionConfig,
+        });
       }
     },
     [component, handleComponentUpdate]
   );
+
+  const handleNameChange = (value: string) => {
+    const updates: Partial<Component<ComponentConfig>> = { label: value };
+    if (isSolutionTeam(component)) {
+      updates.config = { ...component.config, name: value };
+    }
+    handleComponentUpdate(updates);
+  };
+
+  const handleDescriptionChange = (value: string) => {
+    const updates: Partial<Component<ComponentConfig>> = { description: value };
+    if (isSolutionTeam(component)) {
+      updates.config = { ...component.config, description: value };
+    }
+    handleComponentUpdate(updates);
+  };
 
   return (
     <div className=" ">
@@ -69,7 +102,7 @@ export const TeamFields: React.FC<TeamFieldsProps> = ({
             <span className="text-sm font-medium text-primary">Name</span>
             <Input
               value={component.label || ""}
-              onChange={(e) => handleComponentUpdate({ label: e.target.value })}
+              onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Team name"
               className="mt-1"
             />
@@ -81,9 +114,7 @@ export const TeamFields: React.FC<TeamFieldsProps> = ({
             </span>
             <TextArea
               value={component.description || ""}
-              onChange={(e) =>
-                handleComponentUpdate({ description: e.target.value })
-              }
+              onChange={(e) => handleDescriptionChange(e.target.value)}
               placeholder="Team description"
               rows={4}
               className="mt-1"
@@ -92,7 +123,7 @@ export const TeamFields: React.FC<TeamFieldsProps> = ({
         </div>
       </DetailGroup>
 
-      <DetailGroup title="Configuration">
+      <DetailGroup title="TeamFields">
         {isSelectorTeam(component) && (
           <div className="space-y-4">
             <label className="block">
@@ -139,6 +170,53 @@ export const TeamFields: React.FC<TeamFieldsProps> = ({
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {isSolutionTeam(component) && (
+          <div className="space-y-4">
+            <label className="block">
+              <span className="text-sm font-medium text-primary">
+                Workspace Path
+              </span>
+              <Input
+                value={component.config.workspace_path || ""}
+                onChange={(e) =>
+                  handleConfigUpdate("workspace_path", e.target.value)
+                }
+                placeholder="/path/to/workspace"
+                className="mt-1"
+                prefix={<Folder className="w-4 h-4 text-gray-400" />}
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-primary">
+                Backup Directory
+              </span>
+              <Input
+                value={component.config.backup_dir || ""}
+                onChange={(e) =>
+                  handleConfigUpdate("backup_dir", e.target.value)
+                }
+                placeholder="/path/to/backup"
+                className="mt-1"
+                prefix={<Folder className="w-4 h-4 text-gray-400" />}
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-primary">
+                Requirement
+              </span>
+              <TextArea
+                value={component.config.requirement || ""}
+                onChange={(e) =>
+                  handleConfigUpdate("requirement", e.target.value)
+                }
+                placeholder="Describe the requirement"
+                rows={4}
+                className="mt-1"
+              />
+            </label>
           </div>
         )}
 

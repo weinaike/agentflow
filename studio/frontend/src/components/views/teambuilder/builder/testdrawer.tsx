@@ -5,7 +5,7 @@ import { Team, Session } from "../../../types/datamodel";
 import ChatView from "../../playground/chat/chat";
 import { appContext } from "../../../../hooks/provider";
 import { sessionAPI } from "../../playground/api";
-
+import { isSolutionTeam } from "../../../types/guards";
 interface TestDrawerProps {
   isVisble: boolean;
   team: Team;
@@ -51,7 +51,7 @@ const TestDrawer = ({ isVisble, onClose, team }: TestDrawerProps) => {
 
   // Single effect to handle session creation when drawer opens
   useEffect(() => {
-    if (isVisble && team?.id && !session) {
+    if (isVisble && team?.id && !session && !isSolutionTeam(team.component)) {
       setLoading(true);
       createSession(
         team.id,
@@ -81,16 +81,26 @@ const TestDrawer = ({ isVisble, onClose, team }: TestDrawerProps) => {
         onClose={handleClose}
         open={isVisble}
         extra={
-          <Checkbox
-            checked={deleteOnClose}
-            onChange={(e) => setDeleteOnClose(e.target.checked)}
-          >
-            Delete session on close
-          </Checkbox>
+          !isSolutionTeam(team.component) && (
+            <Checkbox
+              checked={deleteOnClose}
+              onChange={(e) => setDeleteOnClose(e.target.checked)}
+            >
+              Delete session on close
+            </Checkbox>
+          )
         }
       >
-        {loading && <p>Creating a test session...</p>}
-        {session && <ChatView session={session} showCompareButton={false} />}
+        {isSolutionTeam(team.component) ? (
+          <div style={{ color: 'orange', fontWeight: 500 }}>
+            Solution 类型团队不支持直接对话测试。
+          </div>
+        ) : (
+          <>
+            {loading && <p>Creating a test session...</p>}
+            {session && <ChatView session={session} showCompareButton={false} />}
+          </>
+        )}
       </Drawer>
     </div>
   );
