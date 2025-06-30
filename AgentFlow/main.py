@@ -2,6 +2,7 @@ from .solution import Solution
 import logging
 import asyncio
 import argparse
+from autogen_agentchat.ui import Console
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -28,8 +29,7 @@ def main():
     if args.stream:
         # 流式运行
         async def stream_main():
-            async for msg in workflows.run_stream(specific_flow=sp_flow, specific_node=sp_node):
-                print(msg, flush=True)
+            await Console(workflows.run_stream(specific_flow=sp_flow, specific_node=sp_node), output_stats=True)                
         asyncio.run(stream_main())
     else:
         asyncio.run(workflows.run(specific_flow=sp_flow, specific_node=sp_node))

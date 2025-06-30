@@ -163,7 +163,7 @@ class LoopQuestionnaireNode(AgentNode):
         summary_state = await self.summary_agent.save_state()
         state = {"planner": plan_state, "summary": summary_state, "response": self.response}
         with open(self.state_file, "w") as f:
-            json.dump(state, f, ensure_ascii=False, indent=4)
+            json.dump(state, f, ensure_ascii=False, indent=4, default=self.json_serializer)
         return state
     
 

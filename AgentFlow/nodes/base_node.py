@@ -1,5 +1,6 @@
 
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_core.model_context import BufferedChatCompletionContext
 from autogen_agentchat.agents import AssistantAgent, UserProxyAgent
 from autogen_agentchat.conditions import ExternalTermination, TextMentionTermination
 from autogen_agentchat.teams import BaseGroupChat, RoundRobinGroupChat
@@ -64,6 +65,13 @@ class BaseNode(ABC, ComponentBase[BaseModel]):
         """
         self._input_func = input_func
         print("Setting input function for node")
+
+    @staticmethod
+    def json_serializer(obj):
+        """JSON serializer for objects not serializable by default json code"""
+        if hasattr(obj, 'isoformat'):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
 class ToolNode(BaseNode) :    
     def __init__(self, config: Union[Dict, ToolNodeParam]):
@@ -221,7 +229,7 @@ class AgentNode(BaseNode) :
         summary_state = await self.summary_agent.save_state()
         state = {"team": None, "summary": summary_state}
         with open(self.state_file, "w") as f:
-            json.dump(state, f, ensure_ascii=False, indent=4)
+            json.dump(state, f, ensure_ascii=False, indent=4, default=self.json_serializer)
         return state
     
     def get_NodeOutput(self) -> NodeOutput:
