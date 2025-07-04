@@ -86,18 +86,16 @@ def ui(
 
 @app.command()
 def serve(
-    team: str = "",
     host: str = "127.0.0.1",
     port: int = 8084,
     workers: int = 1,
     reload: Annotated[bool, typer.Option("--reload")] = False,
-    docs: bool = False,
+    docs: bool = True,  # 默认启用文档
 ):
     """
     Serve an API Endpoint based on an AutoGen Studio workflow json file.
 
     Args:
-        team (str): Path to the team json file.
         host (str, optional): Host to run the UI on. Defaults to 127.0.0.1 (localhost).
         port (int, optional): Port to run the UI on. Defaults to 8084
         workers (int, optional): Number of workers to run the UI with. Defaults to 1.
@@ -105,13 +103,7 @@ def serve(
         docs (bool, optional): Whether to generate API docs. Defaults to False.
 
     """
-
     os.environ["AUTOGENSTUDIO_API_DOCS"] = str(docs)
-    os.environ["AUTOGENSTUDIO_TEAM_FILE"] = team
-
-    # validate the team file
-    if not os.path.exists(team):
-        raise ValueError(f"Team file not found: {team}")
 
     uvicorn.run(
         "autogenstudio.web.serve:app",

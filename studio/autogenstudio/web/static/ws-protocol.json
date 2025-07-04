@@ -1,0 +1,143 @@
+{
+  "endpoint": "/ws/runs/{run_id}",
+  "protocol": "WebSocket",
+  "description": "Real-time communication for task execution",
+  "connection": {
+    "url": "ws://localhost:8084/ws/runs/{run_id}",
+    "authentication": "Optional Bearer token in query parameter: ?token=your_token",
+    "example": "ws://localhost:8084/ws/runs/123?token=your_auth_token"
+  },
+  "message_types": {
+    "client_to_server": {
+      "start": {
+        "description": "Start task execution",
+        "format": {
+          "type": "start",
+          "task": "string - The task description",
+          "files": "array - Optional file attachments",
+          "team_config": "object - Team configuration"
+        },
+        "example": {
+          "type": "start",
+          "task": "What is the weather today?",
+          "files": [],
+          "team_config": {"agents": []}
+        }
+      },
+      "stop": {
+        "description": "Stop task execution",
+        "format": {
+          "type": "stop",
+          "reason": "string - Optional reason for stopping"
+        },
+        "example": {
+          "type": "stop",
+          "reason": "User cancelled"
+        }
+      },
+      "ping": {
+        "description": "Ping server for connection check",
+        "format": {"type": "ping"},
+        "example": {"type": "ping"}
+      },
+      "input_response": {
+        "description": "Respond to input request from agent",
+        "format": {
+          "type": "input_response",
+          "response": "string - User input response"
+        },
+        "example": {
+          "type": "input_response",
+          "response": "Yes, continue with the task"
+        }
+      }
+    },
+    "server_to_client": {
+      "system": {
+        "description": "System status messages",
+        "format": {
+          "type": "system",
+          "status": "string - System status",
+          "timestamp": "string - ISO timestamp"
+        },
+        "example": {
+          "type": "system",
+          "status": "connected",
+          "timestamp": "2024-01-01T12:00:00Z"
+        }
+      },
+      "message": {
+        "description": "Agent messages during execution",
+        "format": {
+          "type": "message",
+          "data": "object - Message data from agent"
+        },
+        "example": {
+          "type": "message",
+          "data": {
+            "source": "agent",
+            "content": "Processing your request...",
+            "timestamp": "2024-01-01T12:00:00Z"
+          }
+        }
+      },
+      "message_chunk": {
+        "description": "Streaming message chunks",
+        "format": {
+          "type": "message_chunk",
+          "data": "object - Streaming chunk data"
+        }
+      },
+      "result": {
+        "description": "Final task result",
+        "format": {
+          "type": "result",
+          "status": "string - complete/error/cancelled",
+          "data": "object - Task result data"
+        }
+      },
+      "input_request": {
+        "description": "Request for user input",
+        "format": {
+          "type": "input_request",
+          "prompt": "string - Input prompt",
+          "data": "object - Additional context"
+        },
+        "example": {
+          "type": "input_request",
+          "prompt": "Do you want to continue?",
+          "data": {"source": "system", "content": "Waiting for user input"}
+        }
+      },
+      "pong": {
+        "description": "Response to ping",
+        "format": {
+          "type": "pong",
+          "timestamp": "string - ISO timestamp"
+        }
+      },
+      "error": {
+        "description": "Error messages",
+        "format": {
+          "type": "error",
+          "error": "string - Error description",
+          "timestamp": "string - ISO timestamp"
+        }
+      }
+    }
+  },
+  "connection_states": {
+    "connecting": "Establishing WebSocket connection",
+    "connected": "Successfully connected, ready to receive messages",
+    "active": "Task execution in progress",
+    "awaiting_input": "Waiting for user input response",
+    "completed": "Task completed successfully",
+    "error": "Connection or execution error occurred",
+    "closed": "Connection closed"
+  },
+  "error_codes": {
+    "4001": "Authentication failed",
+    "4003": "Not authorized to access this run or run not in valid state",
+    "4004": "Run not found"
+  }
+}

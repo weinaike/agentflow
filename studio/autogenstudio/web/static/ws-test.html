@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test - AgentFlow Studio</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f5f5f5; 
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 { margin: 0; }
+        .main-content {
+            display: flex;
+            height: calc(100vh - 200px);
+            min-height: 600px;
+        }
+        .left-panel {
+            width: 450px;
+            border-right: 1px solid #e0e0e0;
+            padding: 20px;
+            background: #fafafa;
+            overflow-y: auto;
+        }
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .messages-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        .sent-messages, .received-messages {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 50vw;
+            min-width: 300px;
+            overflow: hidden;
+        }
+        .sent-messages {
+            border-right: 1px solid #e0e0e0;
+            background: #f8f9ff;
+        }
+        .received-messages {
+            background: #f8fff8;
+        }
+        .form-group { 
+            margin: 15px 0; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            font-weight: 600; 
+            color: #333;
+        }
+        input, textarea, select { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 6px; 
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+        button { 
+            background: #667eea; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 14px;
+            margin: 5px 5px 5px 0;
+            transition: background 0.2s;
+        }
+        button:hover { 
+            background: #5a6fd8; 
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .message { 
+            margin: 8px 0; 
+            padding: 12px; 
+            border-radius: 8px; 
+            border-left: 4px solid;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            word-wrap: break-word;
+            word-break: break-all;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+        .message.sent { 
+            border-left-color: #667eea;
+        }
+        .message.received { 
+            border-left-color: #48bb78;
+        }
+        .message.error { 
+            border-left-color: #f56565;
+            background: #fed7d7;
+        }
+        .message.system {
+            border-left-color: #ed8936;
+            background: #feebc8;
+        }
+        .message-time {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .message-content {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            overflow-wrap: break-word;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+        .status { 
+            margin: 15px 0; 
+            padding: 12px; 
+            border-radius: 6px; 
+            font-weight: 600;
+            text-align: center;
+        }
+        .status.connected { 
+            background: #c6f6d5; 
+            color: #22543d; 
+            border: 1px solid #9ae6b4;
+        }
+        .status.disconnected { 
+            background: #fed7d7; 
+            color: #742a2a; 
+            border: 1px solid #fc8181;
+        }
+        .panel-header {
+            background: #e2e8f0;
+            padding: 15px 20px;
+            font-weight: 600;
+            color: #2d3748;
+            border-bottom: 1px solid #cbd5e0;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .messages-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .clear-btn {
+            background: #e53e3e;
+            float: right;
+        }
+        .clear-btn:hover {
+            background: #c53030;
+        }
+        .json-preview {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .team-config-section {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            background: white;
+            margin-top: 10px;
+        }
+        .team-config-section .form-group {
+            margin: 8px 0;
+        }
+        .team-config-section label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔌 WebSocket Test - AgentFlow Studio</h1>
+            <p>Real-time WebSocket communication testing interface</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- Left Panel: Controls -->
+            <div class="left-panel">
+                <div class="form-group">
+                    <label for="runId">🆔 Run ID:</label>
+                    <input type="number" id="runId" value="1" placeholder="Enter run ID">
+                </div>
+                
+                <div class="form-group">
+                    <label for="token">🔐 Auth Token (optional):</label>
+                    <input type="text" id="token" placeholder="Enter auth token">
+                </div>
+                
+                <div class="form-group">
+                    <div class="button-group">
+                        <button onclick="connect()" id="connectBtn">Connect</button>
+                        <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+                        <button onclick="ping()" id="pingBtn" disabled>Ping</button>
+                        <button onclick="createTestRun()" id="createTestBtn">Create Test Run</button>
+                    </div>
+                </div>
+                
+                <div id="status" class="status disconnected">❌ Disconnected</div>
+                
+                <div class="form-group">
+                    <label for="messageType">📨 Message Type:</label>
+                    <select id="messageType">
+                        <option value="ping">Ping</option>
+                        <option value="start">Start Task</option>
+                        <option value="stop">Stop Task</option>
+                        <option value="input_response">Input Response</option>
+                        <option value="custom">Custom JSON</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="messageContent">💬 Message Content:</label>
+                    <textarea id="messageContent" rows="4" placeholder="Enter message content"></textarea>
+                </div>
+                
+                <!-- Team Config Section -->
+                <div id="teamConfigSection" class="form-group" style="display: none;">
+                    <label>⚙️ Team Configuration:</label>
+                    <div class="team-config-section">
+                        <div class="form-group">
+                            <label for="teamId">Team ID:</label>
+                            <input type="number" id="teamId" placeholder="Enter team ID" value=1>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="ossEndpoint">OSS Endpoint:</label>
+                            <input type="text" id="ossEndpoint" placeholder="Enter OSS endpoint URL">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="bucketName">Bucket Name:</label>
+                            <input type="text" id="bucketName" placeholder="Enter OSS bucket name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="mcpServer">MCP Server:</label>
+                            <input type="text" id="mcpServer" placeholder="Enter MCP server address">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="mcpPort">MCP Port:</label>
+                            <input type="number" id="mcpPort" placeholder="Enter MCP port" value="8080">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="mcpToken">MCP Token:</label>
+                            <input type="text" id="mcpToken" placeholder="Enter MCP access token">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="llmConfig">LLM Config (JSON):</label>
+                            <textarea id="llmConfig" rows="3" placeholder='{"model": "gpt-4", "temperature": 0.7}'></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="button-group">
+                        <button onclick="sendMessage()" id="sendBtn" disabled>Send Message</button>
+                        <button onclick="clearAllMessages()" class="clear-btn">Clear All</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>📋 Preview JSON:</label>
+                    <div id="jsonPreview" class="json-preview">Select message type to preview</div>
+                </div>
+            </div>
+            
+            <!-- Right Panel: Messages -->
+            <div class="right-panel">
+                <div class="messages-container">
+                    <!-- Sent Messages -->
+                    <div class="sent-messages">
+                        <div class="panel-header">
+                            📤 Sent Messages
+                            <button onclick="clearSentMessages()" class="clear-btn" style="float: right; padding: 5px 10px; font-size: 12px;">Clear</button>
+                        </div>
+                        <div class="messages-content">
+                            <div id="sentMessages"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Received Messages -->
+                    <div class="received-messages">
+                        <div class="panel-header">
+                            📥 Received Messages
+                            <button onclick="clearReceivedMessages()" class="clear-btn" style="float: right; padding: 5px 10px; font-size: 12px;">Clear</button>
+                        </div>
+                        <div class="messages-content">
+                            <div id="receivedMessages"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let ws = null;
+        let runId = 1;
+        let messageCount = 0;
+        
+        function updateButtons(connected) {
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('pingBtn').disabled = !connected;
+            document.getElementById('sendBtn').disabled = !connected;
+        }
+        
+        function connect() {
+            const runIdInput = document.getElementById('runId').value;
+            const token = document.getElementById('token').value;
+            
+            if (!runIdInput) {
+                alert('Please enter a run ID');
+                return;
+            }
+            
+            runId = runIdInput;
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const tokenParam = token ? `?token=${token}` : '';
+            const wsUrl = `${protocol}//${location.host}/ws/runs/${runId}${tokenParam}`;
+            
+            addMessage('Connecting to: ' + wsUrl, 'system', 'received');
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function(event) {
+                updateStatus('✅ Connected', true);
+                updateButtons(true);
+                addMessage('WebSocket connection established', 'system', 'received');
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    let messageType = 'received';
+                    let displayMessage = JSON.stringify(data, null, 2);
+                    
+                    // Special handling for different message types
+                    if (data.type === 'pong') {
+                        messageType = 'system';
+                        displayMessage = `Pong received at ${data.timestamp}`;
+                    } else if (data.type === 'error') {
+                        messageType = 'error';
+                        displayMessage = `Error: ${data.error} (${data.timestamp})`;
+                    } else if (data.type === 'system') {
+                        messageType = 'system';
+                        displayMessage = `System: ${data.status || data.message} (${data.timestamp})`;
+                    }
+                    
+                    addMessage(displayMessage, messageType, 'received');
+                } catch (e) {
+                    addMessage(event.data, 'received', 'received');
+                }
+            };
+            
+            ws.onclose = function(event) {
+                updateStatus('❌ Disconnected', false);
+                updateButtons(false);
+                addMessage(`Connection closed: ${event.code} - ${event.reason}`, 'error', 'received');
+            };
+            
+            ws.onerror = function(error) {
+                updateStatus('⚠️ Error', false);
+                updateButtons(false);
+                addMessage('WebSocket error occurred', 'error', 'received');
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function ping() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = {type: 'ping'};
+                const messageStr = JSON.stringify(message);
+                ws.send(messageStr);
+                addMessage(messageStr, 'sent', 'sent');
+                addMessage('Ping sent, waiting for pong...', 'system', 'received');
+            }
+        }
+        
+        async function createTestRun() {
+            try {
+                addMessage('Creating test run...', 'system', 'received');
+                const response = await fetch('/debug/create-test-run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                if (result.status) {
+                    addMessage(`Test run created successfully: Run ID ${result.data.run_id}`, 'system', 'received');
+                    document.getElementById('runId').value = result.data.run_id;
+                } else {
+                    addMessage(`Failed to create test run: ${result.message}`, 'error', 'received');
+                }
+            } catch (error) {
+                addMessage(`Error creating test run: ${error.message}`, 'error', 'received');
+            }
+        }
+        
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('WebSocket is not connected');
+                return;
+            }
+            
+            const messageType = document.getElementById('messageType').value;
+            const content = document.getElementById('messageContent').value;
+            
+            let message;
+            
+            if (messageType === 'custom') {
+                try {
+                    message = JSON.parse(content);
+                } catch (e) {
+                    alert('Invalid JSON in custom message');
+                    return;
+                }
+            } else if (messageType === 'start') {
+                const teamConfig = buildTeamConfig();
+                message = {
+                    type: 'start',
+                    task: content || 'Hello, how can you help me?',
+                    files: [],
+                    team_config: teamConfig
+                };
+            } else if (messageType === 'stop') {
+                message = {
+                    type: 'stop',
+                    reason: content || 'User requested stop'
+                };
+            } else if (messageType === 'ping') {
+                message = {type: 'ping'};
+            } else if (messageType === 'input_response') {
+                message = {
+                    type: 'input_response',
+                    response: content
+                };
+            }
+            
+            const messageStr = JSON.stringify(message);
+            ws.send(messageStr);
+            addMessage(messageStr, 'sent', 'sent');
+        }
+        
+        function buildTeamConfig() {
+            const teamConfig = {};
+            
+            // 获取所有配置字段
+            const teamId = document.getElementById('teamId').value;
+            const ossEndpoint = document.getElementById('ossEndpoint').value;
+            const bucketName = document.getElementById('bucketName').value;
+            const mcpServer = document.getElementById('mcpServer').value;
+            const mcpPort = document.getElementById('mcpPort').value;
+            const mcpToken = document.getElementById('mcpToken').value;
+            const llmConfig = document.getElementById('llmConfig').value;
+            
+            // 只添加非空字段
+            if (teamId) teamConfig.id = parseInt(teamId);
+            if (ossEndpoint) teamConfig.oss_endpoint = ossEndpoint;
+            if (bucketName) teamConfig.bucket_name = bucketName;
+            if (mcpServer) teamConfig.mcp_server = mcpServer;
+            if (mcpPort) teamConfig.mcp_port = parseInt(mcpPort);
+            if (mcpToken) teamConfig.mcp_token = mcpToken;
+            
+            // 处理LLM配置JSON
+            if (llmConfig) {
+                try {
+                    teamConfig.llm_config = JSON.parse(llmConfig);
+                } catch (e) {
+                    console.warn('Invalid LLM config JSON, using raw string:', e);
+                    teamConfig.llm_config = llmConfig;
+                }
+            }
+            
+            return teamConfig;
+        }
+        
+        function updateStatus(status, connected) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = status;
+            statusDiv.className = connected ? 'status connected' : 'status disconnected';
+        }
+        
+        function addMessage(content, type, panel) {
+            messageCount++;
+            const container = panel === 'sent' ? 
+                document.getElementById('sentMessages') : 
+                document.getElementById('receivedMessages');
+                
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.id = `msg-${messageCount}`;
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = new Date().toLocaleTimeString();
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = content;
+            
+            messageDiv.appendChild(timeDiv);
+            messageDiv.appendChild(contentDiv);
+            container.appendChild(messageDiv);
+            
+            // 滚动到消息内容容器的底部
+            const messagesContent = container.parentElement;
+            messagesContent.scrollTop = messagesContent.scrollHeight;
+        }
+        
+        function clearSentMessages() {
+            document.getElementById('sentMessages').innerHTML = '';
+        }
+        
+        function clearReceivedMessages() {
+            document.getElementById('receivedMessages').innerHTML = '';
+        }
+        
+        function clearAllMessages() {
+            clearSentMessages();
+            clearReceivedMessages();
+        }
+        
+        function updateJsonPreview() {
+            const messageType = document.getElementById('messageType').value;
+            const content = document.getElementById('messageContent').value;
+            const preview = document.getElementById('jsonPreview');
+            
+            let message;
+            
+            try {
+                if (messageType === 'custom') {
+                    message = content ? JSON.parse(content) : {};
+                } else if (messageType === 'start') {
+                    const teamConfig = buildTeamConfig();
+                    message = {
+                        type: 'start',
+                        task: content || 'Hello, how can you help me?',
+                        files: [],
+                        team_config: teamConfig
+                    };
+                } else if (messageType === 'stop') {
+                    message = {
+                        type: 'stop',
+                        reason: content || 'User requested stop'
+                    };
+                } else if (messageType === 'ping') {
+                    message = {type: 'ping'};
+                } else if (messageType === 'input_response') {
+                    message = {
+                        type: 'input_response',
+                        response: content || 'Your response here'
+                    };
+                }
+                
+                preview.textContent = JSON.stringify(message, null, 2);
+            } catch (e) {
+                preview.textContent = 'Invalid JSON format';
+            }
+        }
+        
+        function toggleTeamConfigSection() {
+            const messageType = document.getElementById('messageType').value;
+            const teamConfigSection = document.getElementById('teamConfigSection');
+            
+            if (messageType === 'start') {
+                teamConfigSection.style.display = 'block';
+            } else {
+                teamConfigSection.style.display = 'none';
+            }
+        }
+        
+        // Set default message content based on type
+        document.getElementById('messageType').addEventListener('change', function() {
+            const type = this.value;
+            const contentArea = document.getElementById('messageContent');
+            
+            switch(type) {
+                case 'start':
+                    contentArea.value = 'Hello, how can you help me?';
+                    break;
+                case 'stop':
+                    contentArea.value = 'User requested stop';
+                    break;
+                case 'ping':
+                    contentArea.value = '';
+                    break;
+                case 'input_response':
+                    contentArea.value = 'Yes, please continue';
+                    break;
+                case 'custom':
+                    contentArea.value = '{"type": "ping"}';
+                    break;
+            }
+            toggleTeamConfigSection();
+            updateJsonPreview();
+        });
+        
+        // Update JSON preview when content changes
+        document.getElementById('messageContent').addEventListener('input', updateJsonPreview);
+        
+        // Add event listeners for team config fields
+        const teamConfigFields = ['teamId', 'ossEndpoint', 'bucketName', 'mcpServer', 'mcpPort', 'mcpToken', 'llmConfig'];
+        teamConfigFields.forEach(fieldId => {
+            const element = document.getElementById(fieldId);
+            if (element) {
+                element.addEventListener('input', updateJsonPreview);
+            }
+        });
+        
+        // Initialize
+        updateJsonPreview();
+        updateButtons(false);
+        toggleTeamConfigSection();
+    </script>
+</body>
+</html>

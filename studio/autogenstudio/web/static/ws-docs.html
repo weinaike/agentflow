@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Protocol Documentation - AgentFlow</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f8f9fa; 
+            line-height: 1.6;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { margin: 0; font-size: 2.5em; }
+        .header p { margin: 10px 0 0 0; opacity: 0.9; }
+        .content { padding: 30px; }
+        .section { margin-bottom: 40px; }
+        .section h2 { 
+            color: #2d3748; 
+            border-bottom: 2px solid #e2e8f0; 
+            padding-bottom: 10px; 
+            margin-bottom: 20px;
+        }
+        .section h3 { 
+            color: #4a5568; 
+            margin-top: 25px; 
+            margin-bottom: 15px;
+        }
+        .code-block { 
+            background: #f7fafc; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 6px; 
+            padding: 15px; 
+            margin: 10px 0; 
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; 
+            font-size: 14px;
+            overflow-x: auto;
+        }
+        .endpoint { 
+            background: #e6fffa; 
+            border-left: 4px solid #38b2ac; 
+            padding: 15px; 
+            margin: 10px 0;
+        }
+        .message-type { 
+            background: #f0fff4; 
+            border-left: 4px solid #48bb78; 
+            padding: 15px; 
+            margin: 15px 0;
+        }
+        .error-code { 
+            background: #fed7d7; 
+            border-left: 4px solid #f56565; 
+            padding: 10px; 
+            margin: 10px 0;
+        }
+        .table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 15px 0;
+        }
+        .table th, .table td { 
+            border: 1px solid #e2e8f0; 
+            padding: 12px; 
+            text-align: left;
+        }
+        .table th { 
+            background: #f7fafc; 
+            font-weight: 600;
+        }
+        .nav { 
+            background: #edf2f7; 
+            padding: 20px; 
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .nav a { 
+            color: #4a5568; 
+            text-decoration: none; 
+            margin-right: 20px; 
+            padding: 5px 10px; 
+            border-radius: 4px;
+        }
+        .nav a:hover { 
+            background: #cbd5e0; 
+        }
+        .badge { 
+            display: inline-block; 
+            padding: 4px 8px; 
+            background: #667eea; 
+            color: white; 
+            border-radius: 12px; 
+            font-size: 12px; 
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔌 WebSocket Protocol Documentation</h1>
+            <p>AgentFlow Real-time Communication API</p>
+        </div>
+        
+        <div class="nav">
+            <a href="#overview">Overview</a>
+            <a href="#connection">Connection</a>
+            <a href="#client-messages">Client Messages</a>
+            <a href="#server-messages">Server Messages</a>
+            <a href="#states">Connection States</a>
+            <a href="#errors">Error Codes</a>
+        </div>
+        
+        <div class="content">
+            <div class="section" id="overview">
+                <h2>📋 Overview</h2>
+                <p>The AgentFlow WebSocket API provides real-time communication for task execution. It enables bidirectional communication between clients and the AutoGen agents system.</p>
+                
+                <div class="endpoint">
+                    <strong>Endpoint:</strong> <code>/ws/runs/{run_id}</code><br>
+                    <strong>Protocol:</strong> WebSocket (RFC 6455)<br>
+                    <strong>Description:</strong> Real-time communication for task execution
+                </div>
+            </div>
+
+            <div class="section" id="connection">
+                <h2>🔗 Connection</h2>
+                <p>Connect to the WebSocket endpoint using the following URL pattern:</p>
+                
+                <div class="code-block">ws://localhost:8084/ws/runs/{run_id}?token=your_auth_token</div>
+                
+                <h3>Parameters</h3>
+                <table class="table">
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Required</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td>run_id</td>
+                        <td>integer</td>
+                        <td>Yes</td>
+                        <td>The ID of the run to connect to</td>
+                    </tr>
+                    <tr>
+                        <td>token</td>
+                        <td>string</td>
+                        <td>No</td>
+                        <td>Bearer authentication token (query parameter)</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="section" id="client-messages">
+                <h2>📤 Client to Server Messages</h2>
+                <p>Messages that clients can send to the server:</p>
+
+                <div class="message-type">
+                    <h3>Start Task <span class="badge">start</span></h3>
+                    <p><strong>Description:</strong> Start task execution</p>
+                    <div class="code-block">{
+  "type": "start",
+  "task": "What is the weather today?",
+  "files": [],
+  "team_config": {"agents": []}
+}</div>
+                </div>
+
+                <div class="message-type">
+                    <h3>Stop Task <span class="badge">stop</span></h3>
+                    <p><strong>Description:</strong> Stop task execution</p>
+                    <div class="code-block">{
+  "type": "stop",
+  "reason": "User cancelled"
+}</div>
+                </div>
+
+                <div class="message-type">
+                    <h3>Ping <span class="badge">ping</span></h3>
+                    <p><strong>Description:</strong> Ping server for connection check</p>
+                    <div class="code-block">{"type": "ping"}</div>
+                </div>
+
+                <div class="message-type">
+                    <h3>Input Response <span class="badge">input_response</span></h3>
+                    <p><strong>Description:</strong> Respond to input request from agent</p>
+                    <div class="code-block">{
+  "type": "input_response",
+  "response": "Yes, continue with the task"
+}</div>
+                </div>
+            </div>
+
+            <div class="section" id="server-messages">
+                <h2>📥 Server to Client Messages</h2>
+                <p>Messages that the server sends to clients:</p>
+
+                <div class="message-type">
+                    <h3>System Status <span class="badge">system</span></h3>
+                    <p><strong>Description:</strong> System status messages</p>
+                    <div class="code-block">{
+  "type": "system",
+  "status": "connected",
+  "timestamp": "2024-01-01T12:00:00Z"
+}</div>
+                </div>
+
+                <div class="message-type">
+                    <h3>Agent Message <span class="badge">message</span></h3>
+                    <p><strong>Description:</strong> Agent messages during execution</p>
+                    <div class="code-block">{
+  "type": "message",
+  "data": {
+    "source": "agent",
+    "content": "Processing your request...",
+    "timestamp": "2024-01-01T12:00:00Z"
+  }
+}</div>
+                </div>
+
+                <div class="message-type">
+                    <h3>Streaming Chunk <span class="badge">message_chunk</span></h3>
+                    <p><strong>Description:</strong> Streaming message chunks</p>
+                    <div class="code-block">{
+  "type": "message_chunk",
+  "data": { ... }
+}</div>
+                </div>
+
+                <div class="message-type">
+                    <h3>Task Result <span class="badge">result</span></h3>
+                    <p><strong>Description:</strong> Final task result</p>
+                    <div class="code-block">{
+  "type": "result",
+  "status": "complete",
+  "data": { ... }
+}</div>
+                </div>
+
+                <div class="message-type">
+                    <h3>Input Request <span class="badge">input_request</span></h3>
+                    <p><strong>Description:</strong> Request for user input</p>
+                    <div class="code-block">{
+  "type": "input_request",
+  "prompt": "Do you want to continue?",
+  "data": {"source": "system", "content": "Waiting for user input"}
+}</div>
+                </div>
+
+                <div class="message-type">
+                    <h3>Pong <span class="badge">pong</span></h3>
+                    <p><strong>Description:</strong> Response to ping</p>
+                    <div class="code-block">{
+  "type": "pong",
+  "timestamp": "2024-01-01T12:00:00Z"
+}</div>
+                </div>
+
+                <div class="message-type">
+                    <h3>Error <span class="badge">error</span></h3>
+                    <p><strong>Description:</strong> Error messages</p>
+                    <div class="code-block">{
+  "type": "error",
+  "error": "Error description",
+  "timestamp": "2024-01-01T12:00:00Z"
+}</div>
+                </div>
+            </div>
+
+            <div class="section" id="states">
+                <h2>🔄 Connection States</h2>
+                <table class="table">
+                    <tr>
+                        <th>State</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td>connecting</td>
+                        <td>Establishing WebSocket connection</td>
+                    </tr>
+                    <tr>
+                        <td>connected</td>
+                        <td>Successfully connected, ready to receive messages</td>
+                    </tr>
+                    <tr>
+                        <td>active</td>
+                        <td>Task execution in progress</td>
+                    </tr>
+                    <tr>
+                        <td>awaiting_input</td>
+                        <td>Waiting for user input response</td>
+                    </tr>
+                    <tr>
+                        <td>completed</td>
+                        <td>Task completed successfully</td>
+                    </tr>
+                    <tr>
+                        <td>error</td>
+                        <td>Connection or execution error occurred</td>
+                    </tr>
+                    <tr>
+                        <td>closed</td>
+                        <td>Connection closed</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="section" id="errors">
+                <h2>⚠️ Error Codes</h2>
+                
+                <div class="error-code">
+                    <strong>4001:</strong> Authentication failed
+                </div>
+                
+                <div class="error-code">
+                    <strong>4003:</strong> Not authorized to access this run or run not in valid state
+                </div>
+                
+                <div class="error-code">
+                    <strong>4004:</strong> Run not found
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🚀 Quick Start</h2>
+                <p>1. Create a test run using <code>POST /debug/create-test-run</code></p>
+                <p>2. Connect to <code>ws://localhost:8084/ws/runs/1</code></p>
+                <p>3. Send a ping message: <code>{"type": "ping"}</code></p>
+                <p>4. Start a task: <code>{"type": "start", "task": "Hello", "files": [], "team_config": {}}</code></p>
+                <p>5. Use the <a href="/ws-test">WebSocket Test Page</a> for interactive testing</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

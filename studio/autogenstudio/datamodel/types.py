@@ -119,3 +119,19 @@ class SocketMessage(BaseModel):
     connection_id: str
     data: Dict[str, Any]
     type: str
+
+class TeamConfig(BaseModel):
+    id: int  # 唯一标识符，与数据库的Team id对应
+
+    oss_endpoint:str # OSS存储地址
+    bucket_name: str # OSS存储桶名称
+    # oss_access_key_id: str # OSS访问密钥ID, 这个如何管理
+    # oss_access_key_secret: str # OSS访问密钥Secret
+    
+    llm_config: Optional[dict] = None # 先内置， 是否需要外部配置，再讨论。
+
+    # codebase RepositoryParam: str = None # 代码库路径 通过MCP接口获取，RepositoryParam， 
+    mcp_server: Optional[str] = None  # MCP服务器地址， MCP工具与待处理数据放在一个容器中
+    mcp_port: Optional[int] = None  # MCP服务器端口
+    mcp_token: Optional[str] = None  # MCP访问令牌
+    

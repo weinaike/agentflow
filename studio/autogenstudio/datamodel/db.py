@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from autogen_core import ComponentModel
 from pydantic import ConfigDict, SecretStr, field_validator
-from sqlalchemy import ForeignKey, Integer
+from sqlalchemy import ForeignKey, Integer, String
 from sqlmodel import JSON, Column, DateTime, Field, SQLModel, func
 
 from .eval import EvalJudgeCriteria, EvalRunResult, EvalRunStatus, EvalScore, EvalTask
@@ -51,6 +51,7 @@ class BaseDBModel(SQLModel, table=False):
 class Team(BaseDBModel, table=True):
     __table_args__ = {"sqlite_autoincrement": True}
     component: Union[ComponentModel, dict] = Field(sa_column=Column(JSON))
+    name: str = Field(default="Unnamed Team", sa_column=Column(String, server_default="Unnamed Team"))
 
 
 class Message(BaseDBModel, table=True):

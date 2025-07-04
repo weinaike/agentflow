@@ -297,7 +297,7 @@ class DatabaseManager:
                     )
 
             # Store in database
-            team_db = Team(user_id=user_id, component=config)
+            team_db = Team(user_id=user_id, component=config, name=config.get("label", "Unnamed Team"))
 
             result = self.upsert(team_db)
             return result
