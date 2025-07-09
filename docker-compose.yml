@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # MCP服务端容器
+  mcp-server:
+    build:
+      context: .
+      dockerfile: docs/dockerfile
+    image: agentflow-mcp:0.1  # 这样可以指定自定义镜像名
+    container_name: mcp-server
+    hostname: mcp-server
+    ports:
+      - "8080:8080"  # MCP服务端口映射
+    networks:
+      - mcp-network
+    volumes:
+      # 挂载项目代码库
+      - /home/wnk/code/agentflow/AgentFlow/tools:/app
+      - /media/wnk/projects/x265:/root/project/
+      # 如果需要访问宿主机的Docker socket (用于在容器内运行Docker命令)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # 挂载CUDA目录
+      - /usr/local/cuda-12.1:/usr/local/cuda
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RAG_MINIMUM_MESSAGE_LENGTH=5
+      - HASH_LENGTH=8
+      - CHROMADB_MAX_BATCH_SIZE=40000
+      - OPENAI_API_KEY=sk-E7gOgfTjf0tREnYXEa1767178b7f43499eBdA49389CdD905
+      - OPENAI_BASE_URL=https://api2.road2all.com/v1
+      - BING_API_KEY=d6d7d9b9edf74eeda368abf160cfae26
+      - PYTHONPATH=/app
+    working_dir: /root/project/
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+networks:
+  mcp-network:
+    driver: bridge
+
+volumes:
+  workspace-data:
+    driver: local

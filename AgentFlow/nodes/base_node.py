@@ -11,7 +11,7 @@ from autogen_agentchat.base import TaskResult, Response
 from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, ChatMessage, TextMessage
 from ..data_model import NodeParam, AgentNodeParam, ToolNodeParam, AgentParam, NodeOutput,Context, \
     get_model_config, ModelEnum, CheckResult, NodeCheckList
-from ..tools import tool_mapping
+from ..tools import tool_mapping, mcp_tool_mapping
 from autogen_core import ComponentBase
 from pydantic import BaseModel
 from ..tools.utils import get_json_content
@@ -155,8 +155,7 @@ class AgentNode(BaseNode) :
 
         if hasattr(self, "_input_func") and self._input_func:
             print("Setting input function for user proxy agent")
-            msg = TextMessage(content="## checker检查结果:\n{}\n## 接下来要按如下格式生成修改建议：{}\n前提供你的建议......\n".format(
-                check_response.chat_message.content, format_prompt), source='user')
+            msg = TextMessage(content=f"## 内置checker检查结果:\n{check_response.chat_message.content}\n请提供你的建议......\n", source='user')
             yield msg
             human_response:Response = await self.user_proxy_agent.on_messages(messages=[msg], cancellation_token=cancellation_token)
        
@@ -195,7 +194,12 @@ class AgentNode(BaseNode) :
         if len(agent_param.tools) > 0:
             tools = []
         for tool in agent_param.tools:
-            tools.append(tool_mapping[tool])
+            if tool in mcp_tool_mapping:
+                tools.append(mcp_tool_mapping[tool])
+            elif tool in tool_mapping:                
+                tools.append(tool_mapping[tool])
+            else:
+                logger.warning(f"Tool {tool} not found in tool mapping, skipping.")
         system_prompt = agent_param.system_prompt
 
         # create model client

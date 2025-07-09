@@ -1,8 +1,8 @@
 from .flows import BaseFlow, FlowFactory
 from .nodes import BaseNode
-from .data_model import SolutionParam, Context, LanguageEnum, get_model_config, RunParam
+from .data_model import SolutionParam, Context, LanguageEnum, get_model_config, RunParam, RepositoryParam
 from .tools.utils import get_json_content
-from .tools import AST
+from .tools import AST, register_mcp_tools, mcp_tool_mapping
 import os
 import toml
 import json
@@ -13,6 +13,7 @@ from autogen_agentchat.base import TaskResult
 from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, TextMessage, UserMessage
 from autogen_core.models import CreateResult
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_ext.tools.mcp import StdioServerParams, StreamableHttpServerParams, SseServerParams
 from autogen_core import ComponentBase, Component, CancellationToken
 from pydantic import BaseModel
 from typing_extensions import Self
@@ -25,24 +26,33 @@ def load_config(config_file: str) -> SolutionParam:
         config = f.read()
     config = toml.loads(config)
 
-    codebase = config['codebase']
-    config['description'] += f"\n\n** 项目必要信息**"
-    if 'language' in codebase:
-        config['description'] += f"** language ** : {codebase['language']}\n"
-    if 'project_path' in codebase:
-        config['description'] += f"** 项目路径 ** : {codebase['project_path']}\n"
-    if 'source_path' in codebase:
-        config['description'] += f"** 源码目录 ** : {codebase['source_path']}\n"
-    if 'header_path' in codebase:
-        config['description'] += f"** 头文件目录 ** : {codebase['header_path']}\n"
-    if 'build_path' in codebase:
-        config['description'] += f"** 编译与构建目录 ** : {codebase['build_path']}\n"
-    if 'namespace' in codebase:
-        config['description'] += f"** 命名空间 ** : {codebase['namespace']}\n"
+    
+    codebase = config['codebase'] if 'codebase' in config else {}
+    if isinstance(codebase, str):
+        config['description'] += f"\n\n** 项目必要信息**"
+        config['description'] += f"** 代码库路径 ** : {codebase}\n"
+        if 'backup_dir' not in config:
+            config['backup_dir'] = os.path.join(config['workspace_path'], 'cache')
+        config['description'] += f"\n** 项目文件备份目录 (backup_dir) ** : {config['backup_dir']}\n"
+    elif isinstance(codebase, dict):
+        
+        config['description'] += f"\n\n** 项目必要信息**"
+        if 'language' in codebase:
+            config['description'] += f"** language ** : {codebase['language']}\n"
+        if 'project_path' in codebase:
+            config['description'] += f"** 项目路径 ** : {codebase['project_path']}\n"
+        if 'source_path' in codebase:
+            config['description'] += f"** 源码目录 ** : {codebase['source_path']}\n"
+        if 'header_path' in codebase:
+            config['description'] += f"** 头文件目录 ** : {codebase['header_path']}\n"
+        if 'build_path' in codebase:
+            config['description'] += f"** 编译与构建目录 ** : {codebase['build_path']}\n"
+        if 'namespace' in codebase:
+            config['description'] += f"** 命名空间 ** : {codebase['namespace']}\n"
 
-    if 'backup_dir' not in config:
-        config['backup_dir'] = os.path.join(config['workspace_path'], 'cache')
-    config['description'] += f"\n** 项目文件备份目录 (backup_dir) ** : {config['backup_dir']}\n"
+        if 'backup_dir' not in config:
+            config['backup_dir'] = os.path.join(config['workspace_path'], 'cache')
+        config['description'] += f"\n** 项目文件备份目录 (backup_dir) ** : {config['backup_dir']}\n"
     return SolutionParam(**config)
 
 
@@ -92,7 +102,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
         
         self.input_func : Optional[Callable] = None
 
-        if self._souluton_param.codebase:
+        if isinstance(self._souluton_param.codebase, RepositoryParam):
             if self._souluton_param.codebase.language == LanguageEnum.CPP:
 
                 src = self._souluton_param.codebase.source_path
@@ -171,7 +181,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
             try:
                 msg = UserMessage(content="##本方案的配置参数如下：\n{}\n\n ##现在用户如下指令:\n {}\n\n##请以json格式输出需要执行的flow与node, 格式：{{flow_id:[], node_id:[]}}； ps: 1. 如果用户没有特别指定，则默认运行全部flow与node;2. node_id与flow_id独立输出， 不要出现'flow1_node1'这类节点ID ".format(self._souluton_param, task), source="user")
                 ret: CreateResult = await self._model_client.create(messages=[msg], json_output=True)
-                print(f"ret: {ret.content}")
+                print(f"根据task信息，需运行的Flow、Node: {ret.content}")
                 output = RunParam(**json.loads(ret.content))
                 specific_flow = output.flow_id
                 specific_node = output.node_id
@@ -204,7 +214,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                     async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=False):
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
-                        if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                        if isinstance(msg, (BaseChatMessage)):
                             yield msg
                         elif isinstance(msg, Context):
                             context = msg
@@ -213,7 +223,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                     async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=True):
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
-                        if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                        if isinstance(msg, (BaseChatMessage)):
                             yield msg
                         elif isinstance(msg, Context):
                             context = msg
@@ -226,7 +236,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
         
         yield TaskResult(
             messages=[TextMessage(content="Solution execution completed.", source="solution")],
-            stop_reason= "end",
+            stop_reason= "task completed",
         )
 
     def _to_config(self) -> SolutionParam:
@@ -242,3 +252,9 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
         """
         return cls(config)
     
+    async def register_tools(self, param: Union[StdioServerParams, StreamableHttpServerParams, SseServerParams]):
+        """
+        Register MCP tools for the solution.
+        """
+
+        await register_mcp_tools(param)

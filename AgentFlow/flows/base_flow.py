@@ -74,7 +74,7 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
         if not os.path.exists(flow_param.workspace_path):
             os.makedirs(flow_param.workspace_path)
 
-
+        use_check = False
         node_configs : List[Dict] = []
         prompt += f'## 工作流节点\n本工作流包含以下{len(flow_param.nodes)}个节点:\n'
         for node in flow_param.nodes:
@@ -94,6 +94,8 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
                                           "description": node.name}  
                 prompt += f"### {node.id} {node.name}\n- 节点职责:{node_config['task']}\n- 节点执行结果的总结提示词：'''{node_config['manager']['summary_prompt']}'''\n\n"
                 node_configs.append(node_config)
+                if 'use_check' in node_config['manager'] and node_config['manager']['use_check']:
+                    use_check = True
 
             except Exception as e:
                 print(f"Error in reading config file: {config_file}, {e}")
@@ -101,42 +103,43 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
         
         
         nodechecklist:NodeCheckList = None
+        if use_check:
+            checklist_file_path = os.path.join(flow_param.backup_dir, f'{flow_param.flow_id}_checklist.json')
+            if os.path.exists(checklist_file_path):
+                with open(checklist_file_path, 'r') as f:
+                    nodechecklist = NodeCheckList(**json.loads(f.read()))
+            else:
+                prompt += f"问题1：若要对每个节点设置检查清单。具体的检查项内容是什么？\n问题2：参考各节点的检查项内容，改进各节点的总结提示词\n"
+                format_prompt = f"将以上结果以json格式输出。```json\ncontent\n```,具体各内容字段要求：{NodeCheckList.model_json_schema().__str__()}\n请特别注意字段规则，特别是引号规则，避免json解析出错的情况"
 
-        checklist_file_path = os.path.join(flow_param.backup_dir, f'{flow_param.flow_id}_checklist.json')
-        if os.path.exists(checklist_file_path):
-            with open(checklist_file_path, 'r') as f:
-                nodechecklist = NodeCheckList(**json.loads(f.read()))
-        else:
-            prompt += f"问题1：若要对每个节点设置检查清单。具体的检查项内容是什么？\n问题2：参考各节点的检查项内容，改进各节点的总结提示词\n"
-            format_prompt = f"将以上结果以json格式输出。```json\ncontent\n```,具体各内容字段要求：{NodeCheckList.model_json_schema().__str__()}\n请特别注意字段规则，特别是引号规则，避免json解析出错的情况"
+                
+                llm_config = get_model_config(flow_param.llm_config, ModelEnum.GPT4O)
+                model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
+                agent = AssistantAgent(name='Designer', model_client=model_client)
+                await Console(agent.on_messages_stream([TextMessage(content=prompt, source = 'user')],CancellationToken()) )
 
+                
+                msg = TextMessage(content=format_prompt, source = 'user')
+                for i in range(3):            
+                    response:Response = await Console(agent.on_messages_stream([msg], CancellationToken()))
+                    try:        
+                        data = get_json_content(response.chat_message.content)
+                        nodechecklist = NodeCheckList(**data)
+                        break
+                    except Exception as e:
+                        print(f"Error in parsing json: {e}")
+                        msg = TextMessage(content = f"Error in parsing json: {e} ,follow format requrirement,retry again ", source= 'user')
+                with open(checklist_file_path, 'w') as f:
+                    f.write(json.dumps(nodechecklist.model_dump(), indent=4, ensure_ascii=False))  # Use json.dumps instead of nodechecklist.json()
+                
             
-            llm_config = get_model_config(flow_param.llm_config, ModelEnum.GPT4O)
-            model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
-            agent = AssistantAgent(name='Designer', model_client=model_client)
-            await Console(agent.on_messages_stream([TextMessage(content=prompt, source = 'user')],CancellationToken()) )
-
-            
-            msg = TextMessage(content=format_prompt, source = 'user')
-            for i in range(3):            
-                response:Response = await Console(agent.on_messages_stream([msg], CancellationToken()))
-                try:        
-                    data = get_json_content(response.chat_message.content)
-                    nodechecklist = NodeCheckList(**data)
-                    break
-                except Exception as e:
-                    print(f"Error in parsing json: {e}")
-                    msg = TextMessage(content = f"Error in parsing json: {e} ,follow format requrirement,retry again ", source= 'user')
-            with open(checklist_file_path, 'w') as f:
-                f.write(json.dumps(nodechecklist.model_dump(), indent=4, ensure_ascii=False))  # Use json.dumps instead of nodechecklist.json()
-            
-        
         for node_config in node_configs:
-            for node_check in nodechecklist.nodes:
-                if node_check.node_id == node_config['id']:
-                    node_config['manager']['summary_prompt'] = node_check.summary_prompt
-                    node_config['manager']['check_items'] = node_check.check_items
-                    break
+            if nodechecklist is not None:                
+                for node_check in nodechecklist.nodes:
+                    if node_check.node_id == node_config['id']:
+                        node_config['manager']['summary_prompt'] = node_check.summary_prompt
+                        node_config['manager']['check_items'] = node_check.check_items
+                        break
             
             nodes.append(NodeFactory.create_node(node_config['type'], node_config))
 

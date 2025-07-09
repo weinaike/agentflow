@@ -2,10 +2,15 @@
 import os
 import subprocess
 from typing_extensions import Annotated, List, Union
-from .utils import calculate_degrees
+try:
+    from .utils import calculate_degrees
+    from .file_edit import FileEditClass
+    from .abstract_syntax_tree import AST
+except ImportError:
+    from utils import calculate_degrees
+    from file_edit import FileEditClass
+    from abstract_syntax_tree import AST
 import re
-from .file_edit import FileEditClass
-from .abstract_syntax_tree import AST
 import json
 import logging
 

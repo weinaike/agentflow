@@ -1,8 +1,12 @@
-from .solution import Solution
+
+from autogen_agentchat.ui import Console
+from autogen_ext.tools.mcp import StdioServerParams, StreamableHttpServerParams, SseServerParams
 import logging
 import asyncio
 import argparse
-from autogen_agentchat.ui import Console
+from pathlib import Path
+
+from .solution import Solution
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -17,19 +21,33 @@ def main():
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     logging.info(args)
-    print(args, flush=True)
+    logging.info("Running workflows with config file: {}".format(args.config))
     config_file = args.config
     sp_flow = args.specific_flow
     sp_node = args.specific_node
 
     workflows = Solution(config_file)
     config = workflows.dump_component()
-    print(config.model_dump_json())
+    with open(config_file + '_component.json', 'w') as f:
+        json_str = config.model_dump_json(indent=2)
+        f.write(json_str)
 
     if args.stream:
         # 流式运行
         async def stream_main():
+            # fetch_mcp_server = StdioServerParams(
+            #     command="mcp-server-fetch",
+            #     args=[],
+            # )
+            command_mcp_server = StreamableHttpServerParams(
+                url="http://localhost:8080/mcp",
+                headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN"}
+            )
+
+            await workflows.register_tools(command_mcp_server)
+
             await Console(workflows.run_stream(specific_flow=sp_flow, specific_node=sp_node), output_stats=True)                
+            
         asyncio.run(stream_main())
     else:
         asyncio.run(workflows.run(specific_flow=sp_flow, specific_node=sp_node))

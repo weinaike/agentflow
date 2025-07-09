@@ -3,7 +3,10 @@ import os
 from typing_extensions import Annotated, List, Union
 import difflib
 import subprocess
-from .utils import thread_safe_singleton
+try:
+    from .utils import thread_safe_singleton
+except ImportError:
+    from utils import thread_safe_singleton
 
 preview_promt = '''
 -----------------------------------------------------

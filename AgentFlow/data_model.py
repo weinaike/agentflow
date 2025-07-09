@@ -56,7 +56,7 @@ class LoopModeEnum(str, Enum):
 class LoopDependParam(BaseModel):
     dependencies: List[str]
     mode: LoopModeEnum = Field(LoopModeEnum.LOOP_ITERATION, description="Loop mode: Concurrent or Iteration")
-    prompt: str = Field(None, description="Prompt for the loop")
+    prompt: str = Field('', description="Prompt for the loop")
 
 # TaskItem 用于描述 并发或迭代任务的数据格式
 class TaskItem(BaseModel):
@@ -277,7 +277,7 @@ class SolutionParam(BaseModel):
     description: str    # 项目描述，针对整个项目的描述，具体的需求在requirement中描述
     workspace_path: str
     llm_config: str
-    codebase: RepositoryParam
+    codebase: Union[RepositoryParam, str]
     flows: List[flowNodeParam] = []
     backup_dir: str = None # 数据备份/缓存目录
     requirement: Optional[str] = None   # 项目需求描述，用于替换工作流描述中的{requirement}

@@ -2,6 +2,36 @@ from .code_tool import *
 from .file_tool import *
 from .uml_tool import *
 from .shell_tool import *
+from autogen_ext.tools.mcp import mcp_server_tools
+from autogen_ext.tools.mcp import StdioServerParams, StreamableHttpServerParams, SseServerParams
+from autogen_ext.tools.mcp import StdioMcpToolAdapter
+from typing import List
+from rich.console import Console as RichConsole
+
+def print_tools(tools: List[StdioMcpToolAdapter]) -> None:
+    """Print available MCP tools and their parameters in a formatted way."""
+    console = RichConsole()
+    console.print("\n[bold blue]📦 Loaded MCP Tools:[/bold blue]\n")
+
+    for tool in tools:
+        # Tool name and description
+        console.print(f"[bold green]🔧 {tool.schema.get('name', 'Unnamed Tool')}[/bold green]")
+        if description := tool.schema.get('description'):
+            console.print(f"[italic]{description}[/italic]\n")
+
+        # Parameters section
+        if params := tool.schema.get('parameters'):
+            console.print("[yellow]Parameters:[/yellow]")
+            if properties := params.get('properties', {}):
+                required_params = params.get('required', [])
+                for prop_name, prop_details in properties.items():
+                    required_mark = "[red]*[/red]" if prop_name in required_params else ""
+                    param_type = prop_details.get('type', 'any')
+                    console.print(f"  • [cyan]{prop_name}{required_mark}[/cyan]: {param_type}")
+                    if param_desc := prop_details.get('description'):
+                        console.print(f"    [dim]{param_desc}[/dim]")
+        console.print("─" * 60 + "\n")
+
 
 # Define a mapping of tool names to functions
 tool_mapping = {
@@ -45,13 +75,22 @@ tool_mapping = {
     "query_important_functions": query_important_functions,
     "extract_inter_class_relationship_from_uml": extract_inter_class_relationship_from_uml,
     "show_dir_content": show_dir_content,
+    "get_environment": get_environment,
+    "write_file": write_file,
+    "read_file": read_file,
+    "list_directory": list_directory,
+    "get_working_directory": get_working_directory,
+    "run_command": run_command,
 }
 
+mcp_tool_mapping = {}
 
-def tools_description()->str:
-    description = []
-    for tool_name, tool_func in tool_mapping.items():
-        description.append(f"{tool_name}: {tool_func.__doc__}")
-    return '\n'.join(description)
+async def register_mcp_tools(param: Union[StdioServerParams, StreamableHttpServerParams, SseServerParams]):
+    tools = await mcp_server_tools(param)
+    print_tools(tools)
+    for tool in tools:
+        mcp_tool_mapping[tool.schema['name']] = tool        
 
-# __all__ = ["tool_mapping"]
+
+
+# __all__ = ["tool_mapping", "mcp_tool_mapping", "register_mcp_tools", "AST"]

@@ -18,7 +18,8 @@ dependencies = [
     "toml",
     "graphviz",
     "libclang",
-    "pylint"
+    "pylint",
+    "mcp"
 ]
 
 keywords = ["agent", "workflow", "automation", "python"]

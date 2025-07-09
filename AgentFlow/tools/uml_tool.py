@@ -26,6 +26,48 @@ def parse_yml_content(yml_file_content):
     return compilation_database_dir, path
 
 
+def read_plantuml_file(puml_file_name:Annotated[str, "The path to the PlantUML file"]) -> str:
+    """读取PlantUML文件内容，并将其中的类标签替换为类名"""
+
+
+    with open(puml_file_name, 'r') as file:
+        lines = file.readlines()
+
+    # 定义正则表达式模式
+    pattern = re.compile(r'(enum|class|abstract)\s+"[^"]+"\s+as\s+\w+')
+
+    # 处理每一行，过滤掉匹配的行
+    new_lines = [line for line in lines if not pattern.match(line) or '<' in line]
+
+    filter = [line for line in lines if pattern.match(line) and '<' not in line]
+
+    class_label = dict()
+    for line in filter:
+        # class "FrameData" as C_0013329636936515615170
+        # 通过正则表达式，提取 FrameData 和 C_0013329636936515615170
+        match = re.search(r'(enum|class|abstract)\s+"([^"]+)"\s+as\s+\w+', line)
+        if match:
+            class_name = match.group(2)
+        else:
+            print('not match')
+        label = re.search(r'as\s+(\w+)', line).group(1)   
+        class_label[label] = class_name
+
+    # 将标签替换为类名
+    # class C_0013329636936515615170 替换为 class "FrameData"
+    for i, line in enumerate(new_lines):
+        for label, class_name in class_label.items():
+            new_lines[i] = new_lines[i].replace(label, f'{class_name}')
+
+    # 将处理后的内容写回文件
+    with open(puml_file_name, 'w') as file:
+        file.writelines(new_lines)
+
+    content = ''.join(new_lines)
+    return content
+
+
+
 def generate_cpp_uml(project_path:Annotated[str, "../path/to/project"], yml_file_content:Annotated[str,""], build_method:Annotated[str,"cmake or make"]) ->str:
     """
     generate_cpp_uml函数生成UML类图中包含以下步骤:
@@ -47,6 +89,39 @@ def generate_cpp_uml(project_path:Annotated[str, "../path/to/project"], yml_file
 
     example:
         uml_content = generate_cpp_uml("/home/jiangbo/project/", yml_file_content)
+
+
+    yml_file_content 配置文件内容示例:
+    ```yaml
+    # compilation_database_dir 编译路径使用绝对路径,即compile_commands.json所在路径
+    # 对于cmake编译方法，CMakeList.txt下一级的build目录下， 对于mkae构建模式，一般与makefile同级
+    compilation_database_dir: /home/jiangbo/project/build
+    # output_directory 类图输出使用绝对路径
+    output_directory: /home/jiangbo/project/build/diagrams
+    diagrams:
+    # 类图名称， 根据需要调整
+    main_class_diagram:
+        # 类图类型，固定为class
+        type: class
+        glob:
+        # 一个路径仅能够包含一个*通配符
+        # glob字段可多行, 需保证包含所有.cpp源文件，不需要包含.h头文件与.cu核函数文件; 
+        - /home/jiangbo/project/src/*.cpp
+        - /home/jiangbo/project/src/math/*.cpp
+        # 使用命名空间，有助于提升类图的可读性
+        include:
+        namespaces:
+            - xxx
+        # exclude 排除类图命名空间范围，例如std, boost可以简化类图
+        exclude:
+        namespaces:
+            - std
+            - xxx
+        # 使用命名空间，有助于提升类图的可读性
+        using_namespace:
+        - xxx
+    ```
+
     """
 
     build_path, puml_path = parse_yml_content(yml_file_content)
@@ -90,60 +165,14 @@ def generate_cpp_uml(project_path:Annotated[str, "../path/to/project"], yml_file
     if '[error] ' in uml_result.stdout:
         return uml_result.stdout + "\n配置出错，请检查\nglob: 配置的路径应该是绝对路径, 同时仅需源文件，无需.h头文件 与.cu核函数文件 "
     ## 解析 yml_file_content， 提取 output_directory 以及 class_diagram 的配置
-    try:
-        with open(puml_path, 'r') as f:
-            uml_content = f.read()
+    try:        
+        uml_content = read_plantuml_file(puml_path)
         if not uml_content:
             return f"{puml_path}中生成UML类图内容为空，请检查配置文件"
     except FileNotFoundError:
-        return "f{puml_path} file not found"
+        return f"run generate_cpp_uml fail. output {puml_path} file not found"
     content = f"clang-uml的配置文件：{conf_path}, \n生成UML类图成功，存于{puml_path}\nUML类图部分内容如下，详细内容查看源文件：\n{uml_content[:500]}\n"
     return content
-
-
-
-def read_plantuml_file(puml_file_name:Annotated[str, "The path to the PlantUML file"]) -> str:
-    """读取PlantUML文件内容，并将其中的类标签替换为类名"""
-
-
-    with open(puml_file_name, 'r') as file:
-        lines = file.readlines()
-
-    # 定义正则表达式模式
-    pattern = re.compile(r'(enum|class|abstract)\s+"[^"]+"\s+as\s+\w+')
-
-    # 处理每一行，过滤掉匹配的行
-    new_lines = [line for line in lines if not pattern.match(line) or '<' in line]
-
-    filter = [line for line in lines if pattern.match(line) and '<' not in line]
-
-    class_label = dict()
-    for line in filter:
-        # class "FrameData" as C_0013329636936515615170
-        # 通过正则表达式，提取 FrameData 和 C_0013329636936515615170
-        match = re.search(r'(enum|class|abstract)\s+"([^"]+)"\s+as\s+\w+', line)
-        if match:
-            class_name = match.group(2)
-        else:
-            print('not match')
-        label = re.search(r'as\s+(\w+)', line).group(1)   
-        class_label[label] = class_name
-
-    # 将标签替换为类名
-    # class C_0013329636936515615170 替换为 class "FrameData"
-    for i, line in enumerate(new_lines):
-        for label, class_name in class_label.items():
-            new_lines[i] = new_lines[i].replace(label, f'{class_name}')
-
-    # 将处理后的内容写回文件
-    with open(puml_file_name+'_new.puml', 'w') as file:
-        file.writelines(new_lines)
-
-    with open(puml_file_name+'_new.puml', 'r') as file:
-        content = file.read()
-    return content
-
-
 
 def generate_python_uml(project_path:Annotated[str, "../path/to/project"], backup_dir:Annotated[str, "../path/to/backup_dir"]) ->str:
     """
@@ -348,7 +377,8 @@ def extract_Inheritance_classes_from_uml(puml_file_name:Annotated[str, "UML类�
 
 
 
-def extract_inter_class_relationship_from_uml(puml_file_name:Annotated[str, "UML类图文件"],  class_list:Annotated[List[str], "类名列表"]) -> str:
+def extract_inter_class_relationship_from_uml(puml_file_name:Annotated[str, "UML类图文件"],  
+                                              class_list:Annotated[List[str], "类名列表"]) -> str:
     """
     extract_inter_class_relationship_from_uml 函数提取UML类图中的给定类之间的关系
 

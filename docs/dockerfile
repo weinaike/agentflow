@@ -1,0 +1,104 @@
+# 优化后的Dockerfile
+FROM ubuntu:22.04
+
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Asia/Shanghai \
+    PATH=/usr/local/cuda/bin:$PATH \
+    PYTHONIOENCODING=utf-8 \
+    LANG=C.UTF-8
+
+# 创建非root用户
+# RUN groupadd -r agentflow && useradd -r -g agentflow agentflow
+
+# 配置镜像源和安装基础包（合并减少层数）
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.aliyun.com/ubuntu/|g' /etc/apt/sources.list && \
+    sed -i 's|http://security.ubuntu.com/ubuntu/|http://mirrors.aliyun.com/ubuntu/|g' /etc/apt/sources.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        # 基础工具
+        wget tar cmake build-essential vim git-all tree \
+        strace gdb pstack libssl-dev \
+        # Python相关
+        python3-dev python3-pip \
+        # LLVM
+        llvm-15-dev \
+        # 科学计算库
+        libeigen3-dev libfftw3-dev \
+        gsl-bin libgsl-dev libomp5 \
+        # AgentFlow需要的包
+        graphviz software-properties-common \
+        # GPG工具（PPA需要）
+        gnupg2 gpg-agent \
+        # SSH服务（可选）
+        openssh-server && \
+    # 清理缓存
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# 添加PPA源并安装clang-uml
+RUN gpg-agent --daemon && \
+    add-apt-repository -y ppa:bkryza/clang-uml && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends clang-uml && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 配置pip镜像源
+RUN pip3 config set global.index-url http://mirrors.aliyun.com/pypi/simple/ && \
+    pip3 config set global.trusted-host mirrors.aliyun.com && \
+    python3 -m pip install --upgrade pip
+
+# 分层安装Python包（利用构建缓存）
+# 基础包
+RUN pip3 install --no-cache-dir pybind11 setuptools
+
+# 科学计算包
+RUN pip3 install --no-cache-dir \
+    numpy scipy matplotlib ipython pandas \
+    emcee==2.2.1 astropy numexpr
+
+# AgentFlow相关包
+RUN pip3 install --no-cache-dir \
+    autogen-agentchat \
+    autogen-ext[openai,azure] \
+    toml graphviz pydotplus libclang pylint mcp
+
+# 其他专用包
+RUN pip3 install --no-cache-dir mem0ai
+
+# 配置SSH（如果需要）
+RUN if [ -f /etc/ssh/sshd_config ]; then \
+        mkdir -p /var/run/sshd && \
+        echo "PermitRootLogin yes" >> /etc/ssh/sshd_config; \
+    fi
+
+# 创建应用目录
+WORKDIR /app
+
+# 复制应用代码 调试阶段， 先映射， 后续可以改为COPY
+# COPY AgentFlow/tools .
+
+
+# 配置环境
+RUN echo 'alias python=python3' >> /etc/bash.bashrc && \
+    printf "\nset fileencodings=utf-8,ucs-bom,gb18030,gbk,gb2312,cp936,latin1\nset encoding=utf-8\nset termencoding=utf-8\n" >> /etc/vim/vimrc
+
+# 更改工作目录所有者
+# RUN chown -R agentflow:agentflow /workspace
+
+# 切换到非root用户
+# USER agentflow
+
+
+
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python3 --version || exit 1
+
+# 默认命令
+# CMD ["/bin/bash"]
+CMD ["python3", "/app/mcp_server.py"]

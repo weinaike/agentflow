@@ -4,3 +4,4 @@ toml
 graphviz
 libclang
 pylint
+mcp

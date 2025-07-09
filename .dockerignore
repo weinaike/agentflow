@@ -1,0 +1,10 @@
+AgentFlow.egg-info
+__pycache__
+workspace
+logs
+*.pyc
+*.pyo
+studio
+.vscode
+example
+

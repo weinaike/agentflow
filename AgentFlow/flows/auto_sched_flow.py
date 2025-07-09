@@ -22,7 +22,6 @@ from copy import deepcopy
 from typing import  Dict, Union, List, Optional, AsyncGenerator, Union
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 class AutoSchedFlow(BaseFlow):
     def __init__(self, config: Union[Dict, AutoSchedFlowParam]):

@@ -1,8 +1,329 @@
 import os
 import subprocess
-from typing_extensions import Annotated
-from typing import Union, List
 import shutil
+from pathlib import Path
+from typing import Union, List, Dict, Any, Annotated
+import asyncio
+import logging
+import json
+
+try:
+    from .utils import thread_safe_singleton
+except ImportError:
+    from utils import thread_safe_singleton
+
+logger = logging.getLogger(__name__)
+
+@thread_safe_singleton
+class CommandExecutor:
+    """命令执行器"""
+    
+    def __init__(self, working_dir: str = "/workspace"):
+        self.working_dir = Path(working_dir)
+        self.working_dir.mkdir(parents=True, exist_ok=True)
+        self.current_dir = self.working_dir
+        
+    async def execute_command(self, command: str, timeout: int = 30) -> Dict[str, Any]:
+        """执行shell命令"""
+        try:
+            # 先分割命令
+            commands = self._split_compound_command(command)
+            
+            all_stdout = []
+            all_stderr = []
+            final_return_code = 0
+            
+            # 逐个执行命令
+            for cmd in commands:
+                cmd = cmd.strip()
+                if not cmd:
+                    continue
+                    
+                if cmd.startswith('cd '):
+                    # 处理cd命令
+                    result = await self._handle_cd_command(cmd)
+                    if result['stderr']:
+                        all_stderr.append(result['stderr'])
+                    if result['return_code'] != 0:
+                        final_return_code = result['return_code']
+                        # cd失败时，通常应该停止执行后续命令
+                        break
+                else:
+                    # 执行其他命令
+                    process = await asyncio.create_subprocess_shell(
+                        cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                        cwd=str(self.current_dir)
+                    )
+                    
+                    try:
+                        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+                        if stdout:
+                            all_stdout.append(stdout.decode('utf-8', errors='replace'))
+                        if stderr:
+                            all_stderr.append(stderr.decode('utf-8', errors='replace'))
+                        if process.returncode != 0:
+                            final_return_code = process.returncode
+                    except asyncio.TimeoutError:
+                        process.kill()
+                        await process.wait()
+                        all_stderr.append(f"Command '{cmd}' timed out after {timeout} seconds")
+                        final_return_code = -1
+                        break
+            
+            return {
+                "stdout": '\n'.join(all_stdout),
+                "stderr": '\n'.join(all_stderr),
+                "return_code": final_return_code,
+                "working_dir": str(self.current_dir),
+                "success": final_return_code == 0
+            }
+                
+        except Exception as e:
+            logger.error(f"Command execution error: {e}")
+            return {
+                "stdout": "",
+                "stderr": str(e),
+                "return_code": -1,
+                "working_dir": str(self.current_dir),
+                "success": False
+            }
+    
+    async def _handle_cd_command(self, command: str) -> Dict[str, Any]:
+        """处理cd命令"""
+        try:
+            path_part = command.strip()[3:].strip()  # 移除'cd '
+            if not path_part or path_part == '~':
+                new_dir = self.working_dir
+            else:
+                if path_part.startswith('/'):
+                    new_dir = Path(path_part)
+                else:
+                    new_dir = self.current_dir / path_part
+                new_dir = new_dir.resolve()
+            
+            # 检查目录是否存在
+            if new_dir.exists() and new_dir.is_dir():
+                self.current_dir = new_dir
+                return {
+                    "stdout": "",
+                    "stderr": "",
+                    "return_code": 0,
+                    "working_dir": str(self.current_dir),
+                    "success": True
+                }
+            else:
+                return {
+                    "stdout": "",
+                    "stderr": f"cd: {path_part}: No such file or directory",
+                    "return_code": 1,
+                    "working_dir": str(self.current_dir),
+                    "success": False
+                }
+        except Exception as e:
+            return {
+                "stdout": "",
+                "stderr": f"cd: {str(e)}",
+                "return_code": 1,
+                "working_dir": str(self.current_dir),
+                "success": False
+            }
+
+    def _split_compound_command(self, command: str) -> List[str]:
+        """分割复合命令，支持 ; && || 分隔符"""
+        # 这是一个简化的实现，实际的shell解析会更复杂
+        commands = []
+        current_cmd = ""
+        i = 0
+        
+        while i < len(command):
+            char = command[i]
+            
+            if char == ';':
+                commands.append(current_cmd.strip())
+                current_cmd = ""
+                i += 1
+            elif char == '&' and i + 1 < len(command) and command[i + 1] == '&':
+                commands.append(current_cmd.strip())
+                current_cmd = ""
+                i += 2
+            elif char == '|' and i + 1 < len(command) and command[i + 1] == '|':
+                commands.append(current_cmd.strip())
+                current_cmd = ""
+                i += 2
+            else:
+                current_cmd += char
+                i += 1
+        
+        if current_cmd.strip():
+            commands.append(current_cmd.strip())
+        
+        return commands
+
+
+
+async def run_command(command: str, timeout: int = 300) -> str:
+    """
+    执行shell命令
+    Args:
+        command (str): 要执行的shell命令
+        timeout (int): 超时时间（秒），默认300秒
+    Returns:
+        str: 命令执行结果的JSON字符串
+    """
+    logger.info(f"Executing command: {command}")
+    executor = CommandExecutor()
+    result = await executor.execute_command(command, timeout)
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+async def get_working_directory() -> str:
+    """
+    获取当前工作目录
+    Returns:
+        str: 当前工作目录路径
+    """
+    executor = CommandExecutor()
+    return str(executor.current_dir)
+
+
+async def list_directory(path: str = ".") -> str:
+    """
+    列出目录内容
+    Args:
+        path (str): 目录路径，默认为当前目录
+    Returns:
+        str: 目录内容的JSON字符串
+    """
+    executor = CommandExecutor()
+    try:
+        if path == ".":
+            target_path = executor.current_dir
+        elif path.startswith('/'):
+            target_path = Path(path)
+        else:
+            target_path = executor.current_dir / path
+            
+        if not target_path.exists():
+            return json.dumps({"error": f"Path does not exist: {path}"})
+            
+        if not target_path.is_dir():
+            return json.dumps({"error": f"Path is not a directory: {path}"})
+            
+        items = []
+        for item in sorted(target_path.iterdir()):
+            stat = item.stat()
+            items.append({
+                "name": item.name,
+                "type": "directory" if item.is_dir() else "file",
+                "size": stat.st_size,
+                "modified": stat.st_mtime,
+                "permissions": oct(stat.st_mode)[-3:]
+            })
+            
+        return json.dumps({
+            "path": str(target_path),
+            "items": items
+        }, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        logger.error(f"List directory error: {e}")
+        return json.dumps({"error": str(e)})
+
+
+async def read_file(file_path: str, encoding: str = "utf-8") -> str:
+    """
+    读取文件内容
+    Args:
+        file_path (str): 文件路径
+        encoding (str): 文件编码，默认utf-8
+    Returns:
+        str: 文件内容或错误信息的JSON字符串
+    """
+    executor = CommandExecutor()
+    try:
+        if file_path.startswith('/'):
+            target_path = Path(file_path)
+        else:
+            target_path = executor.current_dir / file_path
+            
+        if not target_path.exists():
+            return json.dumps({"error": f"File does not exist: {file_path}"})
+            
+        if not target_path.is_file():
+            return json.dumps({"error": f"Path is not a file: {file_path}"})
+            
+        with open(target_path, 'r', encoding=encoding) as f:
+            content = f.read()
+            
+        return json.dumps({
+            "file_path": str(target_path),
+            "content": content,
+            "size": len(content)
+        }, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        logger.error(f"Read file error: {e}")
+        return json.dumps({"error": str(e)})
+
+
+async def write_file(file_path: str, content: str, encoding: str = "utf-8") -> str:
+    """
+    写入文件内容
+    Args:
+        file_path (str): 文件路径
+        content (str): 文件内容
+        encoding (str): 文件编码，默认utf-8
+    Returns:
+        str: 操作结果的JSON字符串
+    """
+    try:
+        executor = CommandExecutor()
+        if file_path.startswith('/'):
+            target_path = Path(file_path)
+        else:
+            target_path = executor.current_dir / file_path
+            
+        # 创建父目录
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+            
+        with open(target_path, 'w', encoding=encoding) as f:
+            f.write(content)
+            
+        return json.dumps({
+            "file_path": str(target_path),
+            "message": "File written successfully",
+            "size": len(content)
+        }, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        logger.error(f"Write file error: {e}")
+        return json.dumps({"error": str(e)})
+
+
+async def get_environment() -> str:
+    """
+    获取环境信息
+    Returns:
+        str: 环境信息的JSON字符串
+    """
+    try:
+        executor = CommandExecutor()
+        return json.dumps({
+            "python_version": os.sys.version,
+            "platform": os.name,
+            "working_directory": str(executor.current_dir),
+            "environment_variables": dict(os.environ),
+            "path": os.environ.get('PATH', '').split(os.pathsep)
+        }, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"Get environment error: {e}")
+        return json.dumps({"error": str(e)})
+
+
+
+
 
 def run_shell_code(code:Annotated[str, "The shell code to run"], 
                    path:Annotated[str, "the directory to run the shell code"] = None) -> str:

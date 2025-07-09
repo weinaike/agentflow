@@ -36,6 +36,10 @@ cd agentflow
    pip install -e . 
    ```
 
+2. **MCP工具服务部署与websocket服务部署**：
+
+   - MCP 与 WebSocket服务：请参考 [docs/server_guide.md](./docs/server_guide.md)
+
 ### 项目结构与开发指引
 
 ## 使用说明
