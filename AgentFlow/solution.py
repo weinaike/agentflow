@@ -214,7 +214,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                     async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=False):
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
-                        if isinstance(msg, (BaseChatMessage)):
+                        if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
                             yield msg
                         elif isinstance(msg, Context):
                             context = msg
@@ -223,7 +223,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                     async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=True):
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
-                        if isinstance(msg, (BaseChatMessage)):
+                        if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
                             yield msg
                         elif isinstance(msg, Context):
                             context = msg
