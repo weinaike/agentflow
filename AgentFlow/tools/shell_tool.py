@@ -60,9 +60,17 @@ class CommandExecutor:
                     try:
                         stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
                         if stdout:
-                            all_stdout.append(stdout.decode('utf-8', errors='replace'))
+                            stdout_text = stdout.decode('utf-8', errors='replace')
+                            # 如果内容过长，只保留最后10000个字符
+                            if len(stdout_text) > 10000:
+                                stdout_text = '内容过长，仅显示最后10000个字符\n' + stdout_text[-10000:]
+                            all_stdout.append(stdout_text)
                         if stderr:
-                            all_stderr.append(stderr.decode('utf-8', errors='replace'))
+                            stderr_text = stderr.decode('utf-8', errors='replace')
+                            # 如果内容过长，只保留最后30000个字符
+                            if len(stderr_text) > 10000:
+                                stderr_text = '内容过长，仅显示最后10000个字符\n' + stderr_text[-10000:]
+                            all_stderr.append(stderr_text)
                         if process.returncode != 0:
                             final_return_code = process.returncode
                     except asyncio.TimeoutError:
@@ -232,11 +240,13 @@ async def list_directory(path: str = ".") -> str:
         return json.dumps({"error": str(e)})
 
 
-async def read_file(file_path: str, encoding: str = "utf-8") -> str:
+async def read_file(file_path: str, start_line: int = 1, end_line: int = None, encoding: str = "utf-8") -> str:
     """
-    读取文件内容
+    读取文件内容, 支持指定行范围(从1开始)；对于大文件，建议使用分页读取；
     Args:
         file_path (str): 文件路径
+        start_line (int): 起始行号，默认1（包含）
+        end_line (int): 结束行号，默认None（读取到文件末尾，包含）
         encoding (str): 文件编码，默认utf-8
     Returns:
         str: 文件内容或错误信息的JSON字符串
@@ -253,13 +263,45 @@ async def read_file(file_path: str, encoding: str = "utf-8") -> str:
             
         if not target_path.is_file():
             return json.dumps({"error": f"Path is not a file: {file_path}"})
-            
+        
+        # 参数验证
+        if start_line < 1:
+            start_line = 1
+        
+        if end_line is not None and end_line < start_line:
+            end_line = start_line
+
         with open(target_path, 'r', encoding=encoding) as f:
-            content = f.read()
+            lines = f.readlines()
             
+        total_lines = len(lines)
+        
+        # 如果起始行超出文件范围
+        if start_line > total_lines:
+            return json.dumps({
+                "file_path": str(target_path),
+                "total_lines": total_lines,               
+                "start_line": start_line,
+                "end_line": end_line,
+                "content": "",
+                "actual_lines_read": 0,
+                "message": f"start_line {start_line} exceeds file length {total_lines}"
+            }, ensure_ascii=False, indent=2)
+        
+        # 确定实际的结束行
+        actual_end_line = min(end_line, total_lines) if end_line is not None else total_lines
+        
+        # 提取指定行范围的内容（Python数组索引从0开始，所以要减1）
+        selected_lines = lines[start_line-1:actual_end_line]
+        content = ''.join(selected_lines)
+        
         return json.dumps({
             "file_path": str(target_path),
+            "total_lines": total_lines,
+            "start_line": start_line,
+            "end_line": actual_end_line,
             "content": content,
+            "actual_lines_read": len(selected_lines),
             "size": len(content)
         }, ensure_ascii=False, indent=2)
         
@@ -322,7 +364,23 @@ async def get_environment() -> str:
         return json.dumps({"error": str(e)})
 
 
-
+async def glob_search(pattern: str, path: str = '.') -> list:
+    """
+    使用glob模块在指定路径下查找匹配的文件或目录。
+    Args:
+        pattern (str): 匹配模式，如 '*.py'、'**/*.cpp' 等。
+        path (str): 搜索的起始目录，默认为当前目录。
+    Returns:
+        list: 匹配到的文件或目录的绝对路径列表。
+    Example:
+        glob_search('*.py', '/home/user/project')
+    """
+    import glob
+    search_path = os.path.join(path, pattern)
+    # recursive=True 支持 ** 通配符
+    results = glob.glob(search_path, recursive=True)
+    # 返回绝对路径
+    return [os.path.abspath(f) for f in results]
 
 
 def run_shell_code(code:Annotated[str, "The shell code to run"], 

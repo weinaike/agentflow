@@ -189,8 +189,9 @@ class LoopQuestionnaireNode(AgentNode):
                         summaries[f'task{task.id}'] = {"task": f'{task.id}: {task.content}' , "output": msg if msg is not None else "Error in executing task"}                        
                         yield TextMessage(content=json.dumps({f'task{task.id}': summaries[f'task{task.id}']}, ensure_ascii=False), source=role)
                     elif isinstance(msg, (BaseAgentEvent, BaseChatMessage)):
-                        msg.source = f'{self._node_param.flow_id}.{self._node_param.id}.{msg.source}'
-                        yield msg
+                        out_msg = copy.deepcopy.copy(msg)
+                        out_msg.source = f'{self._node_param.flow_id}.{self._node_param.id}.{out_msg.source}'
+                        yield out_msg
                 self._update_task(tasks)
         else:
             # 并发模式：每个任务流式执行，谁有新内容就yield谁
@@ -210,8 +211,9 @@ class LoopQuestionnaireNode(AgentNode):
                             summaries[f'task{task.id}'] = {"task": f'{task.id}: {task.content}' , "output": msg if msg is not None else "Error in executing task"}
                             yield TextMessage(content=json.dumps({f'task{task.id}': summaries[f'task{task.id}']}, ensure_ascii=False), source=role)
                         elif isinstance(msg, (BaseAgentEvent, BaseChatMessage)):
-                            msg.source = f'{self._node_param.flow_id}.{self._node_param.id}.{msg.source}'
-                            yield msg
+                            out_msg = copy.deepcopy.copy(msg)
+                            out_msg.source = f'{self._node_param.flow_id}.{self._node_param.id}.{out_msg.source}'
+                            yield out_msg
                         # 继续拉取下一个
                         anext_map[asyncio.create_task(streams[idx].__anext__())] = idx
                     except StopAsyncIteration:

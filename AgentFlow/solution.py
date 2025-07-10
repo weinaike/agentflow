@@ -26,14 +26,13 @@ def load_config(config_file: str) -> SolutionParam:
         config = f.read()
     config = toml.loads(config)
 
-    
+    if 'backup_dir' not in config:
+        config['backup_dir'] = os.path.join(config['workspace_path'], 'cache')
     codebase = config['codebase'] if 'codebase' in config else {}
     if isinstance(codebase, str):
-        config['description'] += f"\n\n** 项目必要信息**"
-        config['description'] += f"** 代码库路径 ** : {codebase}\n"
-        if 'backup_dir' not in config:
-            config['backup_dir'] = os.path.join(config['workspace_path'], 'cache')
-        config['description'] += f"\n** 项目文件备份目录 (backup_dir) ** : {config['backup_dir']}\n"
+        config['description'] += f"\n** 项目必要信息**\n"
+        config['description'] += f"** 项目代码库路径 ** : {codebase}\n"
+
     elif isinstance(codebase, dict):
         
         config['description'] += f"\n\n** 项目必要信息**"
@@ -49,9 +48,7 @@ def load_config(config_file: str) -> SolutionParam:
             config['description'] += f"** 编译与构建目录 ** : {codebase['build_path']}\n"
         if 'namespace' in codebase:
             config['description'] += f"** 命名空间 ** : {codebase['namespace']}\n"
-
-        if 'backup_dir' not in config:
-            config['backup_dir'] = os.path.join(config['workspace_path'], 'cache')
+            
         config['description'] += f"\n** 项目文件备份目录 (backup_dir) ** : {config['backup_dir']}\n"
     return SolutionParam(**config)
 
@@ -132,7 +129,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                 output_filters =  [
                     lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
                 ]
-                # ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_file, load=True)
+                ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_file, load=True)
     def set_input_func(self, input_func: Callable):
         """
         Set the input function for the solution.

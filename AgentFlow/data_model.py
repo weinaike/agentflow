@@ -10,7 +10,7 @@ from autogen_core import CancellationToken
 ############### llm_config  ################
 
 class ModelEnum(str, Enum):
-    DEFAULT = "gpt-4o"
+    DEFAULT = "claude"
     GPT4O = "gpt-4o"
     O1MINI = "o1-mini"
     CLAUDE = "claude"

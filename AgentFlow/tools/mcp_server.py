@@ -45,9 +45,12 @@ app.add_tool(get_dir_structure_with_tree_cmd)
 app.add_tool(run_python_code)
 app.add_tool(run_shell_code)
 app.add_tool(read_file_content)
+app.add_tool(create_ast)
+app.add_tool(get_ast_status)
+app.add_tool(glob_search)
 
 @app.custom_route("/health", methods=["GET"])
-async def health_check(request) -> Response:
+async def health_check() -> Response:
     """健康检查端点"""
     return JSONResponse({
         "status": "healthy",
@@ -56,7 +59,7 @@ async def health_check(request) -> Response:
     })
 
 @app.custom_route("/api/tools", methods=["GET"])
-async def list_available_tools(request) -> Response:
+async def list_available_tools() -> Response:
     """列出所有可用的工具"""
     tools = await app.list_tools()
     return JSONResponse({

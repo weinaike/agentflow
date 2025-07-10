@@ -81,6 +81,9 @@ tool_mapping = {
     "list_directory": list_directory,
     "get_working_directory": get_working_directory,
     "run_command": run_command,
+    "create_ast": create_ast,
+    "get_ast_status": get_ast_status,
+    "glob_search": glob_search,
 }
 
 mcp_tool_mapping = {}

@@ -15,8 +15,64 @@ import json
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+async def create_ast(src_dir: Annotated[str, "The source code directory path."],
+               header_dirs: Annotated[List[str], "The list of directories with header files."],
+               namespaces: Annotated[List[str], "The list of namespaces."],
+               project_root_path: Annotated[str, "The project root path."]) -> str:
+    """
+    创建C++代码的抽象语法树（AST），并将其存储在指定的缓存文件中。
+    
+    Args:
+        src_dir (str): 源代码目录路径。
+        header_dirs (List[str]): 包含头文件的目录列表。
+        namespaces (List[str]): 命名空间列表, 查询代码文件，获取cpp项目中自定义命名空间。
+        project_root_path (str): 项目根目录地址。
+
+    Returns:
+        AST: 返回创建的AST对象。
+    """
+
+    if not os.path.exists(src_dir):
+        return f"Source directory '{src_dir}' does not exist."
+    if not os.path.exists(project_root_path):
+        return f"Project root path '{project_root_path}' does not exist."
+
+    ast = AST()
+    header_dirs.append(src_dir)
+    dir_list = header_dirs
+
+    output_filters =  [
+        lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
+    ]
+    cache_dir = f'{project_root_path}/.ast_cache/'
+    try:
+        await ast.create_cache(src_dir=src_dir, 
+                        include_dir=dir_list, 
+                        namespaces=namespaces, 
+                        parsing_filters=output_filters, 
+                        cache_file=cache_dir,
+                        load=True)
+    except Exception as e:
+        logger.error(f"Failed to create AST cache: {e}")
+        return f"Failed to create AST cache: {e}"
+    return f"AST created successfully. Cache directory: {cache_dir}"
+
+async def get_ast_status() -> str:
+    """
+    获取C++代码的抽象语法树（AST）的状态信息。
+    
+    Returns:
+        str: 返回AST的状态信息。
+    """
+    ast = AST()
+    if hasattr(ast, 'cache_dir'):
+        return f"AST cache exists at {ast.cache_dir}."
+    else:
+        return "AST cache does not exist. Please create AST first using create_ast function."
    
-def find_definition(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
+async def find_definition(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                     class_name:Annotated[str, "The class name to which the function or variable belongs."] = None) -> dict:
     """
     该方法已过时，请使用fetch_source_code方法。
@@ -33,7 +89,7 @@ def find_definition(symbol:Annotated[str, "The name of the function or variable 
     ast = AST()
     return ast.find_definition(symbol, class_name)
 
-def find_declaration(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
+async def find_declaration(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                      class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
     '''
     该方法已过时，请使用fetch_source_code方法。
@@ -50,7 +106,7 @@ def find_declaration(symbol:Annotated[str, "The name of the function or variable
     ast = AST()
     return ast.find_declaration(symbol, class_name)
 
-def fetch_source_code(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
+async def fetch_source_code(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                      class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
     '''
     查询函数及其调用的相关代码。该方法相对于find_declaration/find_definition的优点是可以一次查询到全部相关的代码，减少查询次数。建议使用该方法查询代码。
@@ -96,7 +152,7 @@ def fetch_source_code_snippet(symbol:Annotated[str, "The name of the function or
 
     return ast.fetch_source_code(symbol, class_name, filters=output_filters, with_header=False)
 
-def get_call_graph(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
+async def get_call_graph(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                      class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
     '''
     通过C++代码的抽象语法树，查询函数的调用图。
@@ -113,7 +169,7 @@ def get_call_graph(symbol:Annotated[str, "The name of the function or variable t
 
 
 
-def query_right_name(names:Annotated[List[str], "The names of the functions that needs to be queried."])-> dict:
+async def query_right_name(names:Annotated[List[str], "The names of the functions that needs to be queried."])-> dict:
     '''
     基于C++代码的抽象语法树，对列表中的函数名(可能不准确)进行查询， 获取准确的函数名。
     例如： 
@@ -162,7 +218,7 @@ def query_right_name(names:Annotated[List[str], "The names of the functions that
     return name_map
 
 
-def query_important_functions(functions:Annotated[List[str], "The names of the functions that needs to be queried."])-> List[str]:
+async def query_important_functions(functions:Annotated[List[str], "The names of the functions that needs to be queried."])-> List[str]:
     '''
     该函数将分析输入函数的所有依赖函数，将这些依赖绘制为调用图，分析调用图中的关键节点，即：被多个函数调用的中间函数或者基础函数， 形成重要函数列表
     例如：

@@ -19,6 +19,7 @@ from typing import  Callable, Dict, Union, List, Optional, AsyncGenerator, Union
 import os
 import logging
 import json
+import copy as deepcopy
 from abc import ABC, abstractmethod
 logger = logging.getLogger(__name__)
 
@@ -287,14 +288,16 @@ class AgentNode(BaseNode) :
         try:
             async for msg in self.execute_stream(context):
                 if isinstance(msg, (BaseAgentEvent, BaseChatMessage)):
-                    msg.source = f"{self._node_param.flow_id}.{self._node_param.id}.{msg.source}"
-                    yield msg
+                    out_msg = deepcopy.copy(msg)
+                    out_msg.source = f"{self._node_param.flow_id}.{self._node_param.id}.{msg.source}"
+                    yield out_msg
 
                 if isinstance(msg, Response):
-                    result = msg.chat_message
+                    out_msg = deepcopy.copy(msg)
+                    result = out_msg.chat_message
                     result.source = f"{self._node_param.flow_id}.{self._node_param.id}.{result.source}"
                     await self.set_NodeOutput(result.content)
-                    yield msg
+                    yield out_msg
                     
 
         except Exception as e:

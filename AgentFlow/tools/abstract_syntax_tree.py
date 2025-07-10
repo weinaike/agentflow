@@ -397,7 +397,7 @@ class AST:
         ]
         self.cuda_src_directory = os.path.abspath("./cuda_kernels")
 
-    def create_cache(self, src_dir:str, include_dir:list, *, namespaces=["galsim"], parsing_filters=[], cache_file='cached_ast_dir', load=True, cuda_src_dir=None):
+    async def create_cache(self, src_dir:str, include_dir:list, *, namespaces=["galsim"], parsing_filters=[], cache_file='cached_ast_dir', load=True, cuda_src_dir=None):
         assert all([callable(filter) for filter in parsing_filters]), "filters must be callable!"
         self.directory = src_dir 
         self.include = include_dir
