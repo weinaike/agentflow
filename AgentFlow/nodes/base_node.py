@@ -47,7 +47,7 @@ class BaseNode(ABC, ComponentBase[BaseModel]):
 
 
     @abstractmethod
-    async def run_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage], None]:
+    async def run_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response], None]:
         pass
 
     @abstractmethod
@@ -184,7 +184,7 @@ class AgentNode(BaseNode) :
         NotImplementedError("AgentNode execute method must be implemented")
 
 
-    async def execute_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | TaskResult | Response], None]:
+    async def execute_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response], None]:
         NotImplementedError("AgentNode execute_stream method must be implemented")
 
     def create_agent(self, agent_param: AgentParam, llm_config_file: str) -> AssistantAgent:
@@ -286,11 +286,16 @@ class AgentNode(BaseNode) :
     async def run_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response], None]:
         try:
             async for msg in self.execute_stream(context):
-                if isinstance(msg, (BaseAgentEvent, BaseChatMessage, Response)):
+                if isinstance(msg, (BaseAgentEvent, BaseChatMessage)):
+                    msg.source = f"{self._node_param.flow_id}.{self._node_param.id}.{msg.source}"
                     yield msg
 
                 if isinstance(msg, Response):
-                    await self.set_NodeOutput(msg.chat_message.content)
+                    result = msg.chat_message
+                    result.source = f"{self._node_param.flow_id}.{self._node_param.id}.{result.source}"
+                    await self.set_NodeOutput(result.content)
+                    yield msg
+                    
 
         except Exception as e:
             logger.exception(f"Error in node {self._node_param.id}: {e}")

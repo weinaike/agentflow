@@ -96,7 +96,7 @@ class AutoSchedFlow(BaseFlow):
     
 
     async def run_stream(self, context: Context, specific_node: list[str] = [], flow_execute: bool = True
-                          ) -> AsyncGenerator[Union[BaseAgentEvent, BaseChatMessage, Context], None]:
+                          ) -> AsyncGenerator[Union[BaseAgentEvent, BaseChatMessage, Response, Context], None]:
         await self.before_run(context, specific_node)
 
         context.flow_description[self._flow_param.flow_id] = self._flow_param.description  
@@ -108,7 +108,7 @@ class AutoSchedFlow(BaseFlow):
                 break
             self._draw_flow_graph(highlight_node_id=node_id)
             async for msg in node.run_stream(context):
-                if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
                     yield msg
                 elif isinstance(msg, Context):
                     context = msg

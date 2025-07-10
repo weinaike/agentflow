@@ -9,7 +9,7 @@ from typing import AsyncGenerator, Callable, List, Optional, Sequence, Union
 import aiofiles
 import yaml
 from autogen_agentchat.agents import UserProxyAgent
-from autogen_agentchat.base import TaskResult
+from autogen_agentchat.base import TaskResult, Response
 from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
 from autogen_agentchat.teams import BaseGroupChat
 from autogen_core import EVENT_LOGGER_NAME, CancellationToken, ComponentModel
@@ -37,7 +37,7 @@ class TeamManager:
     """Manages team operations including loading configs and running teams"""
 
     def __init__(self):
-        self._team: Optional[BaseGroupChat] = None
+        self._team: Optional[Union[BaseGroupChat, Solution]] = None
         self._run_context = RunContext()
 
     @staticmethod
@@ -77,7 +77,7 @@ class TeamManager:
         team_config: Union[str, Path, dict, ComponentModel],
         input_func: Optional[Callable] = None,
         env_vars: Optional[List[EnvironmentVariable]] = None,
-    ) -> BaseGroupChat:
+    ) -> Union[BaseGroupChat, Solution]:
         """Create team instance from config"""
         if isinstance(team_config, (str, Path)):
             config = await self.load_from_file(team_config)
@@ -113,6 +113,8 @@ class TeamManager:
         input_func: Optional[Callable] = None,
         cancellation_token: Optional[CancellationToken] = None,
         env_vars: Optional[List[EnvironmentVariable]] = None,
+        flow_id: Optional[str] = None,
+        node_ids: Optional[Sequence[str]] = None,
     ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | LLMCallEvent, BaseChatMessage, TeamResult], None]:
         """Stream team execution results"""
         start_time = time.time()
@@ -127,14 +129,38 @@ class TeamManager:
         try:
             team = await self._create_team(team_config, input_func, env_vars)
 
-            async for message in team.run_stream(task=task, cancellation_token=cancellation_token):
+            # Get the appropriate stream based on team type
+            if isinstance(team, BaseGroupChat):
+                stream = team.run_stream(task=task, cancellation_token=cancellation_token)
+            elif isinstance(team, Solution):
+                stream = team.run_stream(
+                    task=task,
+                    cancellation_token=cancellation_token,
+                    specific_flow=[flow_id] if flow_id else [],
+                    specific_node=node_ids if node_ids else [],
+                )
+            else:
+                return
+
+            # Process messages from the stream
+            async for message in stream:
                 if cancellation_token and cancellation_token.is_cancelled():
                     break
 
                 if isinstance(message, TaskResult):
-                    yield TeamResult(task_result=message, usage="", duration=time.time() - start_time)
-                else:
-                    yield message
+                    yield TeamResult(task_result=message, usage="solution", duration=time.time() - start_time)
+                # elif isinstance(message, BaseAgentEvent):
+                #     yield message
+                elif isinstance(message, BaseChatMessage):
+                    source = message.source
+                    s_flow_id, s_node_id, s_role = source.split('.')   
+                    if s_role == 'assistant':
+                        yield message
+                elif isinstance(message, Response) and isinstance(team, Solution):                    
+                    # Ensure Response messages are properly formatted
+                    result = TaskResult(messages=[message.chat_message], stop_reason='')
+                    source = message.chat_message.source                
+                    yield TeamResult(task_result=result, usage=source, duration=time.time() - start_time)
 
                 # Check for any LLM events
                 while not llm_event_logger.events.empty():

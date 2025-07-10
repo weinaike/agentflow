@@ -121,7 +121,7 @@ class LoopFlow(BaseFlow):
         return tasks    
     
     async def run_stream(self, context, specific_node = [], flow_execute = True
-                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Context], None]:
+                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response | Context], None]:
         if os.path.exists(self.tasks_file):
             with open(self.tasks_file) as f:
                 tasks = [TaskItem(**obj) for obj in json.load(f)]
@@ -139,7 +139,10 @@ class LoopFlow(BaseFlow):
             flow:BaseFlow = self.create_internal_flow(config)
 
             async for msg in flow.run_stream(context, specific_node, flow_execute):
-                if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
+                    names = msg.chat_message.source.split('.')
+                    names[0] = self._flow_param.flow_id
+                    msg.chat_message.source = '.'.join(names)
                     yield msg
                 elif isinstance(msg, Context):
                     context = msg

@@ -170,7 +170,7 @@ class LoopQuestionnaireNode(AgentNode):
     async def run(self, context:Context) -> None:
         await Console(self.run_stream(context), output_stats=True)
 
-    async def run_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage], None]:
+    async def run_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response], None]:
         if os.path.exists(self.tasks_file):
             with open(self.tasks_file, 'r') as f:
                 tasks = [TaskItem(**obj) for obj in json.load(f)]
@@ -179,15 +179,17 @@ class LoopQuestionnaireNode(AgentNode):
             self._update_task(tasks)
 
         summaries = dict()
+        role = f'{self._node_param.flow_id}.{self._node_param.id}.system'
         # 顺序模式：每个任务执行完就yield
         if self._loop_param.mode == LoopModeEnum.LOOP_ITERATION:
             for task in tasks:
                 #result = await execute_task(task, context, self._node_param)
                 async for msg in execute_task_stream(task, context, self._node_param):
                     if isinstance(msg, (str, type(None))):
-                        summaries[f'task{task.id}'] = {"task": f'{task.id}: {task.content}' , "output": msg if msg is not None else "Error in executing task"}
-                        yield TextMessage(content=json.dumps({f'task{task.id}': summaries[f'task{task.id}']}, ensure_ascii=False), source="system")
+                        summaries[f'task{task.id}'] = {"task": f'{task.id}: {task.content}' , "output": msg if msg is not None else "Error in executing task"}                        
+                        yield TextMessage(content=json.dumps({f'task{task.id}': summaries[f'task{task.id}']}, ensure_ascii=False), source=role)
                     elif isinstance(msg, (BaseAgentEvent, BaseChatMessage)):
+                        msg.source = f'{self._node_param.flow_id}.{self._node_param.id}.{msg.source}'
                         yield msg
                 self._update_task(tasks)
         else:
@@ -206,8 +208,9 @@ class LoopQuestionnaireNode(AgentNode):
                         msg = fut.result()
                         if isinstance(msg, (str, type(None))):
                             summaries[f'task{task.id}'] = {"task": f'{task.id}: {task.content}' , "output": msg if msg is not None else "Error in executing task"}
-                            yield TextMessage(content=json.dumps({f'task{task.id}': summaries[f'task{task.id}']}, ensure_ascii=False), source="system")
+                            yield TextMessage(content=json.dumps({f'task{task.id}': summaries[f'task{task.id}']}, ensure_ascii=False), source=role)
                         elif isinstance(msg, (BaseAgentEvent, BaseChatMessage)):
+                            msg.source = f'{self._node_param.flow_id}.{self._node_param.id}.{msg.source}'
                             yield msg
                         # 继续拉取下一个
                         anext_map[asyncio.create_task(streams[idx].__anext__())] = idx

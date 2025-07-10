@@ -9,7 +9,7 @@ import json
 import logging
 from typing import Callable, Dict, List, Union, Sequence, Optional
 from typing import AsyncGenerator
-from autogen_agentchat.base import TaskResult
+from autogen_agentchat.base import TaskResult, Response
 from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, TextMessage, UserMessage
 from autogen_core.models import CreateResult
 from autogen_ext.models.openai import OpenAIChatCompletionClient
@@ -176,7 +176,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
     async def run_stream(self, task: str | BaseChatMessage | Sequence[BaseChatMessage] | None = None,
                          cancellation_token: Optional[CancellationToken] = None,
                          specific_flow: list[str] = [], specific_node: list[str] = []
-                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | TaskResult], None]:
+                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | TaskResult | Response], None]:
         if task is not None and ((len(specific_flow) == 0) or (len(specific_node) == 0)) and not self._init:        
             try:
                 msg = UserMessage(content="##本方案的配置参数如下：\n{}\n\n ##现在用户如下指令:\n {}\n\n##请以json格式输出需要执行的flow与node, 格式：{{flow_id:[], node_id:[]}}； ps: 1. 如果用户没有特别指定，则默认运行全部flow与node;2. node_id与flow_id独立输出， 不要出现'flow1_node1'这类节点ID ".format(self._souluton_param, task), source="user")
@@ -214,7 +214,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                     async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=False):
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
-                        if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                        if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
                             yield msg
                         elif isinstance(msg, Context):
                             context = msg
@@ -223,7 +223,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                     async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=True):
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
-                        if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                        if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
                             yield msg
                         elif isinstance(msg, Context):
                             context = msg
@@ -243,6 +243,10 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
         """
         Convert the current solution to a configuration object.
         """
+        flow_config = []
+        for flow in self.flows:
+            flow_config.append(flow._flow_param)
+        self._souluton_param.flows = flow_config
         return self._souluton_param
     
     @classmethod

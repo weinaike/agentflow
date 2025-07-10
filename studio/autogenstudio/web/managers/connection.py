@@ -83,7 +83,8 @@ class WebSocketManager:
             return False
 
     async def start_stream(
-        self, run_id: int, task: str | ChatMessage | Sequence[ChatMessage] | None, team_config: Dict
+        self, run_id: int, task: str | ChatMessage | Sequence[ChatMessage] | None, team_config: Dict, 
+        flow_id: Optional[str] = None, node_ids: Optional[Sequence[str]] = None
     ) -> None:
         """Start streaming task execution with proper run management"""
         if run_id not in self._connections or run_id in self._closed_connections:
@@ -115,6 +116,8 @@ class WebSocketManager:
                     input_func=input_func,
                     cancellation_token=cancellation_token,
                     env_vars=env_vars,
+                    flow_id=flow_id,
+                    node_ids=node_ids,
                 ):
                     if cancellation_token.is_cancelled() or run_id in self._closed_connections:
                         logger.info(f"Stream cancelled or connection closed for run {run_id}")

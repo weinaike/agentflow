@@ -278,7 +278,7 @@ class SolutionParam(BaseModel):
     workspace_path: str
     llm_config: str
     codebase: Union[RepositoryParam, str]
-    flows: List[flowNodeParam] = []
+    flows: List[Union[flowDetailParam, flowNodeParam]] = []
     backup_dir: str = None # 数据备份/缓存目录
     requirement: Optional[str] = None   # 项目需求描述，用于替换工作流描述中的{requirement}
     requirement_flow: Optional[List[str]] = None # 需求对应的工作流ID

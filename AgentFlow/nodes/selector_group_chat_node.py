@@ -95,7 +95,7 @@ class SelectorGroupChatNode(AgentNode):
 
 
     
-    async def execute_stream(self, context:Context) ->  AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | TaskResult | Response], None]:
+    async def execute_stream(self, context:Context) ->  AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage  | Response], None]:
         content = self.gen_context(context)
         cancellation_token = context.cancellation_token if context.cancellation_token else self.cancellation_token
 

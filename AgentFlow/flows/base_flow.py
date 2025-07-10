@@ -42,7 +42,7 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
 
     @abstractmethod
     async def run_stream(self, context: Context, specific_node: list[str] = [], flow_execute : bool = True
-                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Context], None]:
+                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response | Context], None]:
         pass
 
 

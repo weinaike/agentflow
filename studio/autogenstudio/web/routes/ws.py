@@ -191,11 +191,13 @@ async def run_websocket(
                         if isinstance(team_config, dict) and "id" in team_config:
                             # 这种模式，team 团队是预置的， 通过id查询数据库获取Team
                             team_response = db.get(Team, filters={"id": team_config["id"]}, return_json=True)
+                            flow_id = team_config.get("flow_id")
+                            node_ids = team_config.get("node_id", [])
 
                             if team_response.status and team_response.data:
                                 team = team_response.data[0]
                                 # 使用数据库中的team配置
-                                asyncio.create_task(ws_manager.start_stream(run_id, task, team["component"]))
+                                asyncio.create_task(ws_manager.start_stream(run_id, task, team["component"], flow_id=flow_id, node_ids=node_ids))
                             else:
                                 logger.error(f"Team with id {team_config['id']} not found")
                                 await websocket.send_json(

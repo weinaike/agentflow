@@ -4,6 +4,7 @@ from .base_flow import BaseFlow
 
 from typing import  Dict, Union, List, Optional, AsyncGenerator, Union
 from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
+from autogen_agentchat.base import Response
 import os
 import json
 import logging
@@ -91,7 +92,7 @@ class SequentialFlow(BaseFlow):
         return context
 
     async def run_stream(self, context: Context, specific_node: list[str] = [], flow_execute: bool = True
-                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Context], None]:
+                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage| Response | Context], None]:
         await self.before_run(context, specific_node)
         context.flow_description[self._flow_param.flow_id] = self._flow_param.description
         for node_id in self._topological_order:
@@ -100,7 +101,7 @@ class SequentialFlow(BaseFlow):
             assert node is not None
             if self.should_node_run(node_id, specific_node, flow_execute):
                 async for msg in node.run_stream(context):
-                    if isinstance(msg, (BaseChatMessage, BaseAgentEvent)):
+                    if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
                         yield msg
                     elif isinstance(msg, Context):
                         context = msg
