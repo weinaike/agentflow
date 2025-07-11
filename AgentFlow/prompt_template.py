@@ -166,6 +166,10 @@ Before providing your final summary, wrap your analysis in `&lt;analysis&gt;` ta
 ## Summary Structure
 
 Your summary must include these sections in order, following the exact format below:
+<Tag name='overall_goal'>
+    <!-- A single, concise sentence describing the user's high-level objective. -->
+    <!-- Example: "Refactor the authentication service to use a new JWT library." -->
+</Tag>
 
 <Tag name='analysis'>
     [Chronological Review: Walk through conversation phases: initial request → exploration → implementation → debugging → current state]

@@ -1,0 +1,29 @@
+type = "Agent"
+task = "构建当前代码库开发环境(主要针对c/cpp代码构建)"
+
+[manager]
+max_turns = 5
+mode = 'ReflectiveTeam'
+questions = [
+    '查询该代码库项目的开发环境相关内容（系统环境，项目开发语言，编译工具链，版本控制，依赖管理方法，项目代码构建方法）',
+    '针对c/cpp代码开展最小化单版本构建：包含环境配置，最小依赖安装，编译构建)',
+    ]
+participants = ["assistant"]
+use_check = true
+
+[[agents]]
+name = "assistant"
+tools = ["run_command", "read_file","get_environment","glob_search"]
+system_prompt = '''
+角色：开发环境构建工程师
+查询系统环境与代码库的依赖信息；安装配置开发环境
+
+环境搭建过程中， 遇到问题，自行使用工具解决， 不要试图询问用户。
+例如：
+1. 找不到常用的系统工具，可以先安装工具再使用
+2. 找不到特定的非通用的工具，根据实际情况自行分析。
+3. 执行脚本或者工具遇到问题，查询帮助文档、man内容、'-h --help 参数'等有助于解决问题。
+    - 例如'./configure'构建出错时， 执行'./configure -h'获取帮助信息，实现准确配置
+
+'''
+model = 'claude'

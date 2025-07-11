@@ -1,0 +1,38 @@
+{
+  "provider": "AgentFlow.solution.Solution",
+  "component_type": "solution",
+  "version": 2,
+  "component_version": 2,
+  "description": null,
+  "label": "Solution",
+  "config": {
+    "project_name": "C/CPP项目开发环境构建",
+    "project_id": "crow",
+    "description": "\n** 项目必要信息**\n** 项目代码库路径 ** : /root/project\n",
+    "workspace_path": "workspace/crow",
+    "llm_config": "docs/OAI_CONFIG_LIST.json",
+    "codebase": "/root/project",
+    "flows": [
+      {
+        "flow_name": "开发环境搭建",
+        "flow_id": "flow1",
+        "config": "workflows/buildAgent/flow_build/flow_build.toml",
+        "previous_flows": [],
+        "workspace_path": "workspace/crow/flow1",
+        "backup_dir": "workspace/crow/cache",
+        "llm_config": "docs/OAI_CONFIG_LIST.json",
+        "flow_type": "SEQUENTIAL",
+        "description": "### c/c++开发环境搭建\n该流程的目的是帮助项目成员快速搭建开发环境。\n主要包括以下内容：环境配置、工具安装、编译测试等内容。\n已知信息如下\n1. 该项目的实际运行环境是Linux操作系统\n2. 该项目已运行于docker环境下, 可以自由对系统进行必要的修改\n3. 系统中已安装必要的工具如gcc、g++、make, cmake等\n",
+        "nodes": [
+          {
+            "name": "开发环境搭建",
+            "id": "node2",
+            "inputs": [],
+            "config": "node2_build.toml"
+          }
+        ]
+      }
+    ],
+    "backup_dir": "workspace/crow/cache"
+  }
+}

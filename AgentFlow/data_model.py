@@ -139,6 +139,7 @@ class AgentModeEnum(str, Enum):
     SelectorGroupChat = "SelectorGroupChat"
     SwarmGroupChat = "SwarmGroupChat"
     MagenticOne = "MagenticOne"
+    ReflectiveTeam = "ReflectiveTeam"  # 反思团队模式, 需要多轮问答和总结
 
 # ManagerParam 用于描述 AgentNodeParam 的 manager 参数
 class ManagerParam(BaseModel):
@@ -298,10 +299,10 @@ class RoleTypeEnum(str, Enum):
     ExecustionTeam = "ExecustionTeam"
     SummaryAgent = "SummaryAgent"
 class CheckResult(BaseModel):
-    result: CheckTypeEnum 
+    result: CheckTypeEnum = Field(..., description="任务完成情况的总体结论")
     reason: str  = Field(..., description="the reason for the result, if failed, give the reason and the suggestion")
     abstract: str = Field(..., description="总结任务处理过程的重要信息形成过程摘要")
     todo: List[str] = Field([], description="改进代办事项")
-    next_role: RoleTypeEnum = Field(RoleTypeEnum.SummaryAgent, description="需要重写交付物，下一个角色为SummaryAgent； 多次失败后，交付物需要重新执行，角色为ExecustionTeam")
+    next_role: RoleTypeEnum = Field(RoleTypeEnum.SummaryAgent, description="下一步角色, 用于指示下一步的处理角色。角色选择依据。 SummaryAgent无法使用工具，仅能输出结果，ExecustionTeam可以使用工具获取环境的反馈")
 
 

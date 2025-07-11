@@ -1,0 +1,27 @@
+type = "Agent"
+task = "分析项目代码库结构，利用工具创建AST"
+
+[manager]
+max_turns = 20
+mode = 'ReflectiveTeam'
+questions = [
+    '查询系统环境信息，分析项目代码库结构与内容，利用工具构建AST, 直到AST创建完成为止',
+    ]
+participants = ["assistant"]
+
+[[agents]]
+name = "assistant"
+tools = ["run_command", "read_file","get_environment", "get_ast_status", "create_ast", "glob_search"]
+system_prompt = '''
+角色：开发环境构建工程师
+查询系统环境与代码库的依赖信息；安装配置开发环境
+
+环境搭建过程中， 遇到问题，自行使用工具解决， 不要试图询问用户。
+例如：
+1. 找不到常用的系统工具，可以先安装工具再使用
+2. 找不到特定的非通用的工具，根据实际情况自行分析。
+3. 执行脚本或者工具遇到问题，查询帮助文档、man内容、'-h --help 参数'等有助于解决问题。
+    - 例如'./configure'构建出错时， 执行'./configure -h'获取帮助信息，实现准确配置
+
+'''
+model = 'claude'

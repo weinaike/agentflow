@@ -8,6 +8,7 @@ from autogen_agentchat.ui import Console
 from ..data_model import flowDetailParam, Context, get_model_config, ModelEnum, NodeCheckList
 from ..nodes import NodeFactory, BaseNode
 from ..tools.utils import get_json_content
+from ..prompt_template import *
 
 import os
 from graphviz import Digraph
@@ -92,7 +93,12 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
                 node_config.update(node.model_dump())
                 node_config['output'] = {"address": os.path.join(node.workspace_path, node.config.replace('toml', 'md')),
                                           "description": node.name}  
-                prompt += f"### {node.id} {node.name}\n- 节点职责:{node_config['task']}\n- 节点执行结果的总结提示词：'''{node_config['manager']['summary_prompt']}'''\n\n"
+                if 'summary_prompt' not in node_config['manager']:
+                    node_config['manager']['summary_prompt'] = SUMMARY_USER_PROMPT
+                    prompt += f"### {node.id} {node.name}\n- 节点职责:{node_config['task']}\n"
+                else:
+                    prompt += f"### {node.id} {node.name}\n- 节点职责:{node_config['task']}\n- 节点执行结果的总结提示词：'''{node_config['manager']['summary_prompt']}'''\n\n"
+
                 node_configs.append(node_config)
                 if 'use_check' in node_config['manager'] and node_config['manager']['use_check']:
                     use_check = True
@@ -137,7 +143,7 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
             if nodechecklist is not None:                
                 for node_check in nodechecklist.nodes:
                     if node_check.node_id == node_config['id']:
-                        node_config['manager']['summary_prompt'] = node_check.summary_prompt
+                        node_config['manager']['summary_prompt'] += node_check.summary_prompt
                         node_config['manager']['check_items'] = node_check.check_items
                         break
             

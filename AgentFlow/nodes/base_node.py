@@ -24,8 +24,7 @@ from abc import ABC, abstractmethod
 logger = logging.getLogger(__name__)
 
 
-from ..prompt_template import BACKGROUND_TEMPLATE, MIDDLE_TEMPLATE, CONTEXT_TEMPLATE, \
-      SYSTEM_TEMPLATE, SUMMARY_SYSTEM_PROMPT, CHECK_SYSTEM_PROMPT, CHECK_TEMPLATE 
+from ..prompt_template import *
 
 
 class BaseNode(ABC, ComponentBase[BaseModel]):
@@ -116,10 +115,7 @@ class AgentNode(BaseNode) :
             self.user_proxy_agent = UserProxyAgent(name='user', description='A human Checker')
             check_param = AgentParam(name = 'checker', system_prompt = CHECK_SYSTEM_PROMPT, model = ModelEnum.DEEPSEEKR1)
             self.check_agent = self.create_agent(check_param, self._node_param.llm_config)
-            self.check_team = RoundRobinGroupChat(participants = [self.check_agent], 
-                                            termination_condition = self.termination_condition,
-                                            max_turns=self._node_param.manager.max_turns,
-                                            ) 
+            
         self.response:str = None
 
     def set_input_func(self, input_func: Optional[Callable]) -> None:
@@ -136,22 +132,20 @@ class AgentNode(BaseNode) :
     async def gen_check_result(self, history: List[ChatMessage], cancellation_token: Optional[CancellationToken] = None) -> AsyncGenerator[Union[CheckResult| BaseAgentEvent | BaseChatMessage], None]:
 
         content = f"### 当前节点工作目标：\n{self._node_param.task}\n-----\n"
-        content += f"### 当前节点的预交付物内容：\n{history[-1].content}\n-----\n"
-        content += f"现在需要完成以下任务：首先总结当前节点工作过程的重要内容，形成过程摘要。"
-        content += f"\n然后需要根据检查清单，逐项检测当前节点工作是否符合要求。当前节点的检查清单如下：\n"
+        content += f"### 当前节点的预交付物内容（过程摘要或总结结论）：\n{history[-1].content}\n-----\n"
+        content += f"\n逐项检测当前节点工作是否符合要求。当前节点的检查清单如下：\n"
         for item in self._node_param.manager.check_items:    
             content += f"检测项{item.item_id}: {item.item_content}\n"
-        content += f"最后，总结检查结果，对于不符合要求的地方，给出改进方案（代办事项）。并决定由谁完成改进方案。（对于预交付物的修改，由SummaryAgent完成，若需要更多上下文信息由ExecutionTeam完成）\n [注意：重要说明：检查与总结都围绕检查清单开展，对于不再清单内的内容不作为检查项。不需要优化]\n"
+        content += f"最后，总结检查结果，对于不符合要求的地方，给出改进方案（代办事项）。并决定由谁完成改进方案。（对于预交付物的内容修改，由SummaryAgent完成，若需要获取更多上下文信息由ExecutionTeam完成）\n [注意：重要说明：检查与总结都围绕检查清单开展，对于不在清单内的内容不作为检查项。不需要优化]\n"
         msgs: List[ChatMessage] = []
         msgs.extend(history)
         msgs.append(TextMessage(content=content, source="user"))
         print(f"\n*************{self._node_param.flow_id}.{self._node_param.id} :check*************\n", flush=True)
         check_response = await Console(self.check_agent.on_messages_stream(messages=msgs, 
                                                         cancellation_token=cancellation_token),
-                                                        output_stats=True)
-        yield check_response.chat_message
+                                                        output_stats=True)        
+        ## 检查结果格式化
         check_result :CheckResult = None
-
         format_prompt = CHECK_TEMPLATE.format(type=CheckResult.model_json_schema().__str__())   
 
         if hasattr(self, "_input_func") and self._input_func:
@@ -164,10 +158,11 @@ class AgentNode(BaseNode) :
                     UserMessage(content=human_response.chat_message.content, source="user"),
                     UserMessage(content=format_prompt, source="user")]    
         else:
+            yield check_response.chat_message
             print("No input function set for user proxy agent, using default format prompt")
             msgs = [UserMessage(content=check_response.chat_message.content,source='user'), 
-                    UserMessage(content=format_prompt, source="user")]    
-
+                    UserMessage(content=format_prompt, source="user")]
+        
         while True:
             ret:CreateResult = await self._model_client.create(messages= msgs)   
             try: 

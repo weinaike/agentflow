@@ -1,0 +1,13 @@
+project_name = "C/CPP项目开发环境构建"
+project_id = "crow"
+description = ''
+workspace_path = "workspace/crow"
+llm_config = "docs/OAI_CONFIG_LIST.json"
+
+codebase = '/root/project'
+
+[[flows]]
+flow_name = "开发环境搭建"
+flow_id = "flow1"
+config = "workflows/buildAgent/flow_build/flow_build.toml"
+previous_flows = []

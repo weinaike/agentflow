@@ -171,19 +171,19 @@ class CommandExecutor:
 
 
 
-async def run_command(command: str, timeout: int = 300) -> str:
+async def run_command(command: str, timeout: int = 300) -> Dict[str, Any]:
     """
     执行shell命令
     Args:
         command (str): 要执行的shell命令
         timeout (int): 超时时间（秒），默认300秒
     Returns:
-        str: 命令执行结果的JSON字符串
+        Dict[str, Any]: 命令执行结果的字典
     """
     logger.info(f"Executing command: {command}")
     executor = CommandExecutor()
     result = await executor.execute_command(command, timeout)
-    return json.dumps(result, ensure_ascii=False, indent=2)
+    return result
 
 
 async def get_working_directory() -> str:
@@ -196,13 +196,13 @@ async def get_working_directory() -> str:
     return str(executor.current_dir)
 
 
-async def list_directory(path: str = ".") -> str:
+async def list_directory(path: str = ".") -> Dict[str, Any]:
     """
     列出目录内容
     Args:
         path (str): 目录路径，默认为当前目录
     Returns:
-        str: 目录内容的JSON字符串
+        Dict[str, Any]: 目录内容的字典
     """
     executor = CommandExecutor()
     try:
@@ -214,10 +214,10 @@ async def list_directory(path: str = ".") -> str:
             target_path = executor.current_dir / path
             
         if not target_path.exists():
-            return json.dumps({"error": f"Path does not exist: {path}"})
+            return {"error": f"Path does not exist: {path}"}
             
         if not target_path.is_dir():
-            return json.dumps({"error": f"Path is not a directory: {path}"})
+            return {"error": f"Path is not a directory: {path}"}
             
         items = []
         for item in sorted(target_path.iterdir()):
@@ -230,17 +230,17 @@ async def list_directory(path: str = ".") -> str:
                 "permissions": oct(stat.st_mode)[-3:]
             })
             
-        return json.dumps({
+        return {
             "path": str(target_path),
             "items": items
-        }, ensure_ascii=False, indent=2)
+        }
         
     except Exception as e:
         logger.error(f"List directory error: {e}")
-        return json.dumps({"error": str(e)})
+        return {"error": str(e)}
 
 
-async def read_file(file_path: str, start_line: int = 1, end_line: int = None, encoding: str = "utf-8") -> str:
+async def read_file(file_path: str, start_line: int = 1, end_line: int = None, encoding: str = "utf-8") -> Dict[str, Any]:
     """
     读取文件内容, 支持指定行范围(从1开始)；对于大文件，建议使用分页读取；
     Args:
@@ -249,7 +249,7 @@ async def read_file(file_path: str, start_line: int = 1, end_line: int = None, e
         end_line (int): 结束行号，默认None（读取到文件末尾，包含）
         encoding (str): 文件编码，默认utf-8
     Returns:
-        str: 文件内容或错误信息的JSON字符串
+        Dict[str, Any]: 文件内容或错误信息的字典
     """
     executor = CommandExecutor()
     try:
@@ -259,10 +259,10 @@ async def read_file(file_path: str, start_line: int = 1, end_line: int = None, e
             target_path = executor.current_dir / file_path
             
         if not target_path.exists():
-            return json.dumps({"error": f"File does not exist: {file_path}"})
+            return {"error": f"File does not exist: {file_path}"}
             
         if not target_path.is_file():
-            return json.dumps({"error": f"Path is not a file: {file_path}"})
+            return {"error": f"Path is not a file: {file_path}"}
         
         # 参数验证
         if start_line < 1:
@@ -278,7 +278,7 @@ async def read_file(file_path: str, start_line: int = 1, end_line: int = None, e
         
         # 如果起始行超出文件范围
         if start_line > total_lines:
-            return json.dumps({
+            return {
                 "file_path": str(target_path),
                 "total_lines": total_lines,               
                 "start_line": start_line,
@@ -286,7 +286,7 @@ async def read_file(file_path: str, start_line: int = 1, end_line: int = None, e
                 "content": "",
                 "actual_lines_read": 0,
                 "message": f"start_line {start_line} exceeds file length {total_lines}"
-            }, ensure_ascii=False, indent=2)
+            }
         
         # 确定实际的结束行
         actual_end_line = min(end_line, total_lines) if end_line is not None else total_lines
@@ -295,7 +295,7 @@ async def read_file(file_path: str, start_line: int = 1, end_line: int = None, e
         selected_lines = lines[start_line-1:actual_end_line]
         content = ''.join(selected_lines)
         
-        return json.dumps({
+        return {
             "file_path": str(target_path),
             "total_lines": total_lines,
             "start_line": start_line,
@@ -303,14 +303,14 @@ async def read_file(file_path: str, start_line: int = 1, end_line: int = None, e
             "content": content,
             "actual_lines_read": len(selected_lines),
             "size": len(content)
-        }, ensure_ascii=False, indent=2)
+        }
         
     except Exception as e:
         logger.error(f"Read file error: {e}")
-        return json.dumps({"error": str(e)})
+        return {"error": str(e)}
 
 
-async def write_file(file_path: str, content: str, encoding: str = "utf-8") -> str:
+async def write_file(file_path: str, content: str, encoding: str = "utf-8") -> Dict[str, Any]:
     """
     写入文件内容
     Args:
@@ -318,7 +318,7 @@ async def write_file(file_path: str, content: str, encoding: str = "utf-8") -> s
         content (str): 文件内容
         encoding (str): 文件编码，默认utf-8
     Returns:
-        str: 操作结果的JSON字符串
+        Dict[str, Any]: 操作结果的字典
     """
     try:
         executor = CommandExecutor()
@@ -333,35 +333,122 @@ async def write_file(file_path: str, content: str, encoding: str = "utf-8") -> s
         with open(target_path, 'w', encoding=encoding) as f:
             f.write(content)
             
-        return json.dumps({
+        return {
             "file_path": str(target_path),
             "message": "File written successfully",
             "size": len(content)
-        }, ensure_ascii=False, indent=2)
+        }
         
     except Exception as e:
         logger.error(f"Write file error: {e}")
-        return json.dumps({"error": str(e)})
+        return {"error": str(e)}
 
 
-async def get_environment() -> str:
+async def get_environment() -> Dict[str, Any]:
     """
-    获取环境信息
+    获取详细的环境信息，包括系统信息、编译工具版本、硬件信息等
     Returns:
-        str: 环境信息的JSON字符串
+        Dict[str, Any]: 环境信息的字典
     """
     try:
         executor = CommandExecutor()
-        return json.dumps({
+        env_info = {
             "python_version": os.sys.version,
             "platform": os.name,
             "working_directory": str(executor.current_dir),
             "environment_variables": dict(os.environ),
             "path": os.environ.get('PATH', '').split(os.pathsep)
-        }, ensure_ascii=False, indent=2)
+        }
+        
+        # 定义要执行的命令列表
+        commands = {
+            # 基础工具位置检查
+            "tool_locations": "which gcc g++ make cmake git python python3 pip pip3 clang clang++ ninja autoconf automake libtool pkg-config gdb lldb valgrind 2>/dev/null || echo 'not found'",
+            
+            # 编译器版本信息
+            "gcc_version": "gcc --version 2>/dev/null || echo 'gcc not found'",
+            "gpp_version": "g++ --version 2>/dev/null || echo 'g++ not found'", 
+            "clang_version": "clang --version 2>/dev/null || echo 'clang not found'",
+            "clangpp_version": "clang++ --version 2>/dev/null || echo 'clang++ not found'",
+            
+            # 编译器标准支持检查
+            "gcc_standards": "echo | gcc -dM -E -x c++ - | grep __cplusplus 2>/dev/null || echo 'gcc c++ standard check failed'",
+            "gcc_supported_standards": "gcc -v --help 2>&1 | grep -E 'std=c\\+\\+' | head -5 2>/dev/null || echo 'gcc standards not available'",
+            "clang_standards": "echo | clang++ -dM -E -x c++ - | grep __cplusplus 2>/dev/null || echo 'clang c++ standard check failed'",
+            
+            # 构建工具版本
+            "cmake_version": "cmake --version 2>/dev/null || echo 'cmake not found'",
+            "make_version": "make --version 2>/dev/null || echo 'make not found'",
+            "ninja_version": "ninja --version 2>/dev/null || echo 'ninja not found'",
+            "autoconf_version": "autoconf --version 2>/dev/null || echo 'autoconf not found'",
+            "automake_version": "automake --version 2>/dev/null || echo 'automake not found'",
+            "libtool_version": "libtool --version 2>/dev/null || echo 'libtool not found'",
+            
+            # 包管理工具
+            "pkg_config_version": "pkg-config --version 2>/dev/null || echo 'pkg-config not found'",
+            "pkg_config_path": "pkg-config --variable pc_path pkg-config 2>/dev/null || echo 'PKG_CONFIG_PATH not available'",
+            
+            # 调试工具
+            "gdb_version": "gdb --version 2>/dev/null | head -1 || echo 'gdb not found'",
+            "lldb_version": "lldb --version 2>/dev/null || echo 'lldb not found'",
+            "valgrind_version": "valgrind --version 2>/dev/null || echo 'valgrind not found'",
+            
+            # 系统开发库检查
+            "installed_dev_packages": "dpkg -l | grep -E '(build-essential|libc6-dev|linux-headers|libstdc)' 2>/dev/null || rpm -qa | grep -E '(gcc|glibc-devel|kernel-headers|libstdc)' 2>/dev/null || echo 'dev packages check failed'",
+            
+            # CUDA环境检查（如果存在）
+            "nvcc_version": "nvcc --version 2>/dev/null || echo 'nvcc not found'",
+            "nvidia_smi": "nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader,nounits 2>/dev/null || echo 'nvidia-smi not available'",
+            "cuda_paths": "ls -la /usr/local/cuda* 2>/dev/null || echo 'CUDA installation not found'",
+            
+            # 链接器信息
+            "ld_version": "ld --version 2>/dev/null || echo 'ld not found'",
+            "ld_library_path": "echo $LD_LIBRARY_PATH",
+            "library_search_paths": "ldconfig -v 2>/dev/null | grep '^/' | head -10 || echo 'ldconfig failed'",
+            
+            # 系统信息
+            "git_version": "git --version 2>/dev/null || echo 'git not found'",
+            "system_info": "uname -a 2>/dev/null || echo 'uname not available'",
+            "os_release": "cat /etc/os-release 2>/dev/null || cat /etc/redhat-release 2>/dev/null || echo 'OS release info not available'",
+            "cpu_info": "lscpu | head -15 2>/dev/null || echo 'lscpu not available'",
+            "memory_info": "free -h 2>/dev/null || echo 'free command not available'",
+            "disk_info": "df -h 2>/dev/null || echo 'df command not available'",
+            
+            # 环境变量检查
+            "cc_env": "echo CC=$CC",
+            "cxx_env": "echo CXX=$CXX", 
+            "cflags_env": "echo CFLAGS=$CFLAGS",
+            "cxxflags_env": "echo CXXFLAGS=$CXXFLAGS",
+            "ldflags_env": "echo LDFLAGS=$LDFLAGS",
+            "cmake_prefix_path": "echo CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH",
+            
+            # 常用开发库检查
+            "opencv_check": "pkg-config --modversion opencv4 2>/dev/null || pkg-config --modversion opencv 2>/dev/null || echo 'OpenCV not found'",
+            "boost_check": "ls /usr/include/boost/version.hpp /usr/local/include/boost/version.hpp 2>/dev/null | head -1 || echo 'Boost headers not found'",
+            "eigen_check": "ls /usr/include/eigen3 /usr/local/include/eigen3 2>/dev/null | head -1 || echo 'Eigen3 not found'",
+            "openmp_check": "echo '#include <omp.h>' | gcc -x c -fopenmp -E - >/dev/null 2>&1 && echo 'OpenMP available' || echo 'OpenMP not available'",
+            
+            # 架构和特性支持
+            "cpu_features": "lscpu | grep -E '(Flags|Features)' 2>/dev/null || echo 'CPU features not available'",
+            "architecture": "uname -m 2>/dev/null || echo 'architecture not available'"
+        }
+        
+        # 并行执行所有命令
+        for key, cmd in commands.items():
+            try:
+                result = await executor.execute_command(cmd, timeout=10)
+                if result['success']:
+                    env_info[key] = result['stdout'].strip()
+                else:
+                    env_info[key] = f"Error: {result['stderr']}"
+            except Exception as e:
+                env_info[key] = f"Error executing command: {str(e)}"
+        
+        return env_info
+        
     except Exception as e:
         logger.error(f"Get environment error: {e}")
-        return json.dumps({"error": str(e)})
+        return {"error": str(e)}
 
 
 async def glob_search(pattern: str, path: str = '.') -> list:

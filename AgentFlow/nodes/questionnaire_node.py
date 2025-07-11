@@ -17,7 +17,7 @@ import os
 import copy
 logger = logging.getLogger(__name__)
 
-from ..prompt_template import TASK_TEMPLATE,REVISE_TEMPLATE
+from ..prompt_template import *
       
 class QuestionnaireNode(AgentNode):
     def __init__(self, config: Union[Dict, AgentNodeParam]):
@@ -121,12 +121,13 @@ class QuestionnaireNode(AgentNode):
             res : Response = await self.summary_agent.on_messages(messages=msgs, cancellation_token=cancellation_token)
             
             summary = copy.deepcopy(res)
+            print(f"\n*************{self._node_param.flow_id}.{self._node_param.id} : {i} summary *************\n", flush=True)
             yield summary.chat_message
             with open(self.state_file + f"_summary_{uuid}.md", "a") as f:
                 f.write(f"# {i}\n" + summary.chat_message.content + "\n")
-            print(f"\n*************{self._node_param.flow_id}.{self._node_param.id} : {i} summary *************\n{summary.chat_message.content}", flush=True)
+            
             await self.summary_agent.on_reset(cancellation_token)
-            msgs.append(summary.chat_message)            
+            msgs.append(summary.chat_message)
             if self.use_check:                
                 check_result : CheckResult = None
                 async for out in self.gen_check_result(msgs, cancellation_token=cancellation_token):

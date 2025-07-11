@@ -3,6 +3,7 @@ from ..data_model import ToolNodeParam, AgentNodeParam, NodeTypeEnum, AgentModeE
 from .questionnaire_node import QuestionnaireNode
 from .loop_questionnaire_node import LoopQuestionnaireNode
 from .selector_group_chat_node import SelectorGroupChatNode
+from .reflective_node import ReflectiveNode
 from typing import Union, Dict
 
 
@@ -23,6 +24,8 @@ class NodeFactory:
                 return LoopQuestionnaireNode(config)
             elif config.manager.mode == AgentModeEnum.SelectorGroupChat:
                 return SelectorGroupChatNode(config)
+            elif config.manager.mode == AgentModeEnum.ReflectiveTeam:
+                return ReflectiveNode(config)
             else:                          
                 NotImplementedError(f"Unknown agent mode: {config.manager.mode}")
         else:
