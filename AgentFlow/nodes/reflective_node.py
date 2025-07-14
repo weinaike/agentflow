@@ -127,6 +127,7 @@ class ReflectiveNode(QuestionnaireNode):
 
             await self.team.reset()
             results.clear()
+            questions = []
 
             if self.use_check and iter < max_iter - 1:
                 async for out in self._format_summary(summary, cancellation_token=cancellation_token):
@@ -134,7 +135,7 @@ class ReflectiveNode(QuestionnaireNode):
                         if out.result == 'PASS':
                             logger.info(f"Check result: {out.result}, no need to revise")
                             break
-                        questions = [','.join(out.todo)]
+                        questions = ['\n'.join(out.todo)]
                     else:
                         yield out
             else:

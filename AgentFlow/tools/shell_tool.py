@@ -20,7 +20,7 @@ class CommandExecutor:
     
     def __init__(self, working_dir: str = "/workspace"):
         self.working_dir = Path(working_dir)
-        self.working_dir.mkdir(parents=True, exist_ok=True)
+        # self.working_dir.mkdir(parents=True, exist_ok=True)
         self.current_dir = self.working_dir
         
     async def execute_command(self, command: str, timeout: int = 30) -> Dict[str, Any]:
@@ -139,35 +139,159 @@ class CommandExecutor:
             }
 
     def _split_compound_command(self, command: str) -> List[str]:
-        """分割复合命令，支持 ; && || 分隔符"""
-        # 这是一个简化的实现，实际的shell解析会更复杂
+        """分割复合命令，支持 ; && || & 分隔符，但保持heredoc、括号分组和转义的完整性"""
+        import re
+        
+        # 预处理：处理反斜杠续行
+        command = self._handle_line_continuation(command)
+        
+        # 检查是否包含heredoc语法
+        if '<<' in command:
+            heredoc_match = re.search(r'<<\s*[\'"]?(\w+)[\'"]?', command)
+            if heredoc_match:
+                delimiter = heredoc_match.group(1)
+                # 检查是否有完整的heredoc（包含结束标记）
+                if f'\n{delimiter}' in command or command.endswith(delimiter):
+                    # 找到heredoc的结束位置
+                    end_pattern = f'\n{delimiter}'
+                    end_pos = command.find(end_pattern)
+                    if end_pos != -1:
+                        heredoc_end = end_pos + len(end_pattern)
+                        
+                        # 分割heredoc之前的命令
+                        heredoc_start = command.find('<<')
+                        before_heredoc = command[:heredoc_start].rstrip()
+                        
+                        # 查找最后一个分隔符在heredoc之前
+                        split_positions = []
+                        for pattern, length in [('&&', 2), ('||', 2), (';', 1)]:
+                            pos = before_heredoc.rfind(pattern)
+                            if pos >= 0:
+                                split_positions.append((pos, length))
+                        
+                        # 构建命令列表
+                        commands = []
+                        if split_positions:
+                            split_pos, split_len = max(split_positions, key=lambda x: x[0])
+                            first_cmd = command[:split_pos].strip()
+                            if first_cmd:
+                                commands.append(first_cmd)
+                        
+                        # heredoc命令部分
+                        heredoc_cmd = command[:heredoc_end]
+                        if split_positions:
+                            split_pos, split_len = max(split_positions, key=lambda x: x[0])
+                            heredoc_cmd = command[split_pos + split_len:heredoc_end].strip()
+                        if heredoc_cmd:
+                            commands.append(heredoc_cmd)
+                        
+                        # heredoc之后的命令
+                        after_heredoc = command[heredoc_end:].strip()
+                        if after_heredoc:
+                            # 递归处理heredoc之后的命令
+                            after_commands = self._split_compound_command(after_heredoc)
+                            commands.extend(after_commands)
+                        
+                        return commands if commands else [command]
+                    else:
+                        return [command]
+        
+        # 主要的分割逻辑，支持括号分组
         commands = []
         current_cmd = ""
         i = 0
+        in_quotes = False
+        quote_char = None
+        paren_depth = 0
+        in_backticks = False
         
         while i < len(command):
             char = command[i]
             
-            if char == ';':
-                commands.append(current_cmd.strip())
-                current_cmd = ""
-                i += 1
-            elif char == '&' and i + 1 < len(command) and command[i + 1] == '&':
-                commands.append(current_cmd.strip())
-                current_cmd = ""
+            # 处理转义字符
+            if char == '\\' and i + 1 < len(command):
+                current_cmd += char + command[i + 1]
                 i += 2
-            elif char == '|' and i + 1 < len(command) and command[i + 1] == '|':
-                commands.append(current_cmd.strip())
-                current_cmd = ""
-                i += 2
-            else:
-                current_cmd += char
-                i += 1
+                continue
+            
+            # 处理反引号
+            if char == '`' and not in_quotes:
+                in_backticks = not in_backticks
+            
+            # 处理引号
+            if char in ['"', "'"] and not in_quotes and not in_backticks:
+                in_quotes = True
+                quote_char = char
+            elif char == quote_char and in_quotes:
+                in_quotes = False
+                quote_char = None
+            
+            # 处理括号深度（只在非引号且非反引号状态下）
+            if not in_quotes and not in_backticks:
+                if char == '(':
+                    paren_depth += 1
+                elif char == ')':
+                    paren_depth -= 1
+            
+            # 只在非引号、非反引号且非括号内部时进行分割
+            if not in_quotes and not in_backticks and paren_depth == 0:
+                if char == ';':
+                    if current_cmd.strip():
+                        commands.append(current_cmd.strip())
+                    current_cmd = ""
+                    i += 1
+                    continue
+                elif char == '&':
+                    if i + 1 < len(command) and command[i + 1] == '&':
+                        # 处理 &&
+                        if current_cmd.strip():
+                            commands.append(current_cmd.strip())
+                        current_cmd = ""
+                        i += 2
+                        continue
+                    elif i + 1 < len(command) and command[i + 1] == '>':
+                        # 处理 &> 重定向，不分割
+                        pass
+                    elif (i > 0 and command[i-1].isdigit()) or (i + 1 < len(command) and command[i+1].isdigit()):
+                        # 处理重定向中的 &，如 2>&1 或 &1，不分割
+                        pass
+                    else:
+                        # 检查是否是行尾的&（后台执行）
+                        remaining = command[i+1:].strip()
+                        if not remaining:
+                            # 行尾的&，是后台执行标记，包含在当前命令中
+                            pass
+                        else:
+                            # 中间的&，分割命令
+                            current_cmd += char
+                            if current_cmd.strip():
+                                commands.append(current_cmd.strip())
+                            current_cmd = ""
+                            i += 1
+                            continue
+                elif char == '|' and i + 1 < len(command) and command[i + 1] == '|':
+                    # 处理 ||
+                    if current_cmd.strip():
+                        commands.append(current_cmd.strip())
+                    current_cmd = ""
+                    i += 2
+                    continue
+            
+            current_cmd += char
+            i += 1
         
         if current_cmd.strip():
             commands.append(current_cmd.strip())
         
         return commands
+    
+    def _handle_line_continuation(self, command: str) -> str:
+        """处理反斜杠续行"""
+        # 将 \\\n 或 \\\r\n 替换为空格，表示续行
+        import re
+        # 处理 \\\n 和 \\\r\n 两种情况（注意：字符串中的\\表示一个反斜杠）
+        command = re.sub(r'\\\r?\n\s*', ' ', command)
+        return command
 
 
 
@@ -244,7 +368,7 @@ async def read_file(file_path: str, start_line: int = 1, end_line: int = None, e
     """
     读取文件内容, 支持指定行范围(从1开始)；对于大文件，建议使用分页读取；
     Args:
-        file_path (str): 文件路径
+        file_path (str): 文件绝对路径
         start_line (int): 起始行号，默认1（包含）
         end_line (int): 结束行号，默认None（读取到文件末尾，包含）
         encoding (str): 文件编码，默认utf-8
@@ -314,7 +438,7 @@ async def write_file(file_path: str, content: str, encoding: str = "utf-8") -> D
     """
     写入文件内容
     Args:
-        file_path (str): 文件路径
+        file_path (str): 文件具体对路径
         content (str): 文件内容
         encoding (str): 文件编码，默认utf-8
     Returns:
@@ -495,14 +619,10 @@ def run_shell_code(code:Annotated[str, "The shell code to run"],
         result = subprocess.run(code, shell=True, text=True, capture_output=True)
     else:
         result = subprocess.run(code, shell=True, text=True, capture_output=True, cwd=path)
-
-    if result.stderr:
-        return result.stderr
-    # 文本输出长度控制
-    if len(result.stdout) > 30000:
-        return '内容过长，仅显示最后10000个字符\n' + result.stdout[-30000:] 
-    else:
-        return result.stdout
+    output = {'stdout':result.stdout if len(result.stdout) < 10000 else result.stdout[-10000:], 
+              'stderr':result.stderr if len(result.stderr) < 10000 else result.stderr[-10000:], 
+              'returncode':result.returncode}
+    return json.dumps(output)
 
 
 
@@ -792,4 +912,18 @@ def file_backup(source: str, backup_dir: str) -> str:
 
 
 if __name__ == '__main__':
-    print(get_cpp_dir_structure('/home/wnk/code/GalSim/'))
+    # print(get_cpp_dir_structure('/home/wnk/code/GalSim/'))
+    # command = 'ls -l /home/wnk/code/GalSim/ && ls -l /home/wnk/code/GalSim/include/ && ls -l /home/wnk/code/GalSim/src/'
+
+    # command = 'ls -l /home/wnk/code/GalSim/ && ls -l /home/wnk/code/GalSim/include/ && ls -l /home/wnk/code/GalSim/src/'
+    json_str = '{"command":"cd /home/wnk/workspace \\u0026\\u0026 cat \\u003e simple_test.cpp \\u003c\\u003c \'EOF\'\\n#include \\u003ciostream\\u003e\\n#include \\"include/crow.h\\"\\n\\nint main() {\\n    crow::SimpleApp app;\\n    \\n    CROW_ROUTE(app, \\"/\\")([](){ \\n        return \\"Hello world\\"; \\n    });\\n    \\n    std::cout \\u003c\\u003c \\"Basic Crow test compiled successfully!\\" \\u003c\\u003c std::endl;\\n    return 0;\\n}\\nEOF"}'
+    json_data = json.loads(json_str)
+    command = json_data['command']
+    # print(command)
+    # executor = CommandExecutor()
+    # result = asyncio.run(executor.execute_command(command = command, timeout=30))
+    # print(result)
+    # # print(result['stdout'])
+    a = run_shell_code(command)
+    b = {'result': a}
+    print(json.dumps(b))
