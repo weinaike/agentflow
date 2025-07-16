@@ -41,7 +41,8 @@ def main():
             # )
             command_mcp_server = StreamableHttpServerParams(
                 url="http://localhost:8080/mcp",
-                headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN"}
+                headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN"},
+                sse_read_timeout = 3600,  # 设置SSE读取超时时间为1小时
             )
 
             await workflows.register_tools(command_mcp_server)

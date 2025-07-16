@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # MCP服务端容器
+  # MCP服务端容器 (集成 Filesystem MCP Server)
   mcp-server:
     build:
       context: .
@@ -16,7 +16,10 @@ services:
     volumes:
       # 挂载项目代码库
       - /home/wnk/code/agentflow/AgentFlow/tools:/app
-      - /media/wnk/projects/x265:/root/project/
+      - /media/wnk/projects/codon/:/root/project/
+      # Filesystem MCP Server 工作目录
+      - ./workspace:/app/workspace:rw
+      - ./logs:/app/filesystem-mcp-server/logs:rw
       # 如果需要访问宿主机的Docker socket (用于在容器内运行Docker命令)
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # 挂载CUDA目录
@@ -26,10 +29,10 @@ services:
       - RAG_MINIMUM_MESSAGE_LENGTH=5
       - HASH_LENGTH=8
       - CHROMADB_MAX_BATCH_SIZE=40000
-      - OPENAI_API_KEY=sk-E7gOgfTjf0tREnYXEa1767178b7f43499eBdA49389CdD905
-      - OPENAI_BASE_URL=https://api2.road2all.com/v1
-      - BING_API_KEY=d6d7d9b9edf74eeda368abf160cfae26
       - PYTHONPATH=/app
+      - CC=/usr/bin/gcc
+      - CXX=/usr/bin/g++
+      - CUDA_HOME=/usr/local/cuda
     working_dir: /root/project/
     stdin_open: true
     tty: true

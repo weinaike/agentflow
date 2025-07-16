@@ -261,6 +261,7 @@ Focus particularly on:
 - How these recent operations connect to the overall user goals
 
 Include all important tool calls and their results as part of the appropriate sections, with special emphasis on the most recent operations.
+请用中文回答。
 '''
 
 

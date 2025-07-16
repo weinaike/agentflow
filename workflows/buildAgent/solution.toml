@@ -1,7 +1,7 @@
 project_name = "C/CPP项目开发环境构建"
-project_id = "crow"
+project_id = "codon"
 description = ''
-workspace_path = "workspace/crow"
+workspace_path = "workspace/codon"
 llm_config = "docs/OAI_CONFIG_LIST.json"
 
 codebase = '/root/project'
