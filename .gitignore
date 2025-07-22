@@ -7,3 +7,5 @@ OAI_CONFIG_LIST*
 AgentFlow.egg-info
 logs
 examples
+memory_bank
+pagelogs

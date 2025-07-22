@@ -1,0 +1,16 @@
+project_name = "项目开发文档生成"
+project_id = "project_3"
+description = "为该项目生成项目说明文档和配置说明文档。"
+workspace_path = "workspace/guide"
+llm_config = "docs/OAI_CONFIG_LIST.json"
+
+codebase = "/root/project"
+
+
+[[flows]]
+flow_name = "项目说明文档生成"
+flow_id = "flow1"
+config = "workflows/guide/flow1_doc_gen/flow_doc_gen.toml"
+previous_flows = []
+
+

@@ -7,6 +7,7 @@ import os
 import toml
 import json
 import logging
+import re
 from typing import Callable, Dict, List, Union, Sequence, Optional
 from typing import AsyncGenerator
 from autogen_agentchat.base import TaskResult, Response
@@ -174,12 +175,34 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                          cancellation_token: Optional[CancellationToken] = None,
                          specific_flow: list[str] = [], specific_node: list[str] = []
                          ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | TaskResult | Response], None]:
+        Template = '''
+## 本方案的配置参数如下：
+{param}
+
+## 现在用户如下指令:
+{task}
+
+## 格式化输出
+请以json格式输出需要执行的flow与node, 格式：{{flow_id:[], node_id:[]}}
+ 
+## 请注意以下几点：
+1. 如果flow_id与node_id都为空，则表示执行全部工作流与节点;
+2. 如果用户没有特别指定，则默认运行全部flow与node; 
+2. node_id与flow_id独立输出，不要出现'flow1_node1'这类节点ID。
+
+'''
         if task is not None and ((len(specific_flow) == 0) or (len(specific_node) == 0)) and not self._init:        
             try:
-                msg = UserMessage(content="##本方案的配置参数如下：\n{}\n\n ##现在用户如下指令:\n {}\n\n##请以json格式输出需要执行的flow与node, 格式：{{flow_id:[], node_id:[]}}； ps: 1. 如果用户没有特别指定，则默认运行全部flow与node;2. node_id与flow_id独立输出， 不要出现'flow1_node1'这类节点ID ".format(self._souluton_param, task), source="user")
+                msg = UserMessage(content=Template.format(param = self._souluton_param, task=task), source="user")
                 ret: CreateResult = await self._model_client.create(messages=[msg], json_output=True)
                 print(f"根据task信息，需运行的Flow、Node: {ret.content}")
+                if 'json' in ret.content:    
+                    code_block_pattern = re.compile(rf'```json(.*?)```', re.DOTALL)
+                    json_blocks = code_block_pattern.findall(ret.content)
+                    ret.content = ''.join(json_blocks).strip()
+
                 output = RunParam(**json.loads(ret.content))
+
                 specific_flow = output.flow_id
                 specific_node = output.node_id
                 self._init = True

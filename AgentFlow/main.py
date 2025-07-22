@@ -5,7 +5,7 @@ import logging
 import asyncio
 import argparse
 from pathlib import Path
-
+import json
 from .solution import Solution
 
 logging.basicConfig(level=logging.WARNING)
@@ -28,8 +28,10 @@ def main():
 
     workflows = Solution(config_file)
     config = workflows.dump_component()
-    with open(config_file + '_component.json', 'w') as f:
-        json_str = config.model_dump_json(indent=2)
+    with open(config_file + '_component.json', 'w') as f:        
+        conf_json = config.model_dump(mode = 'json')
+        conf_json['label'] = workflows._souluton_param.project_name
+        json_str = json.dumps(conf_json, indent=4, ensure_ascii=False)
         f.write(json_str)
 
     if args.stream:

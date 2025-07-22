@@ -98,10 +98,10 @@ async def run_websocket(
         run = run_response.data[0]
         logger.info(f"Found run {run_id} with status {run.status}")
 
-        if run.status not in [RunStatus.CREATED, RunStatus.ACTIVE, RunStatus.STOPPED]:
-            logger.warning(f"Run {run_id} in invalid state: {run.status}")
-            await websocket.close(code=4003, reason="Run not in valid state")
-            return
+        # if run.status not in [RunStatus.CREATED, RunStatus.ACTIVE, RunStatus.STOPPED]:
+        #     logger.warning(f"Run {run_id} in invalid state: {run.status}")
+        #     await websocket.close(code=4003, reason="Run not in valid state")
+        #     return
 
         # Connect websocket (this handles acceptance internally)
         try:
@@ -197,7 +197,18 @@ async def run_websocket(
                             if team_response.status and team_response.data:
                                 team = team_response.data[0]
                                 # 使用数据库中的team配置
-                                asyncio.create_task(ws_manager.start_stream(run_id, task, team["component"], flow_id=flow_id, node_ids=node_ids))
+                                team_cfg = team["component"]
+                                if "mcp_port" in team_config:
+                                    team_cfg["mcp_port"] = team_config["mcp_port"]
+                                if "mcp_server" in team_config:
+                                    team_cfg["mcp_server"] = team_config["mcp_server"]
+                                if "mcp_token" in team_config:
+                                    team_cfg["mcp_token"] = team_config["mcp_token"]
+                                if "codebase" in team_config:
+                                    team_cfg["codebase"] = team_config["codebase"]
+                                team_cfg['run_id'] = run_id  # Pass run_id to team config
+
+                                asyncio.create_task(ws_manager.start_stream(run_id, task, team_cfg, flow_id=flow_id, node_ids=node_ids))
                             else:
                                 logger.error(f"Team with id {team_config['id']} not found")
                                 await websocket.send_json(

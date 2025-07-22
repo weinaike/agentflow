@@ -1,0 +1,13 @@
+project_name = "C/CPP项目代码库理解"
+project_id = "crow"
+description = ''
+workspace_path = "workspace/crow"
+llm_config = "docs/OAI_CONFIG_LIST.json"
+
+codebase = '/root/project'
+
+[[flows]]
+flow_name = "代码库理解"
+flow_id = "flow1"
+config = "workflows/comprehension/flow1_codebase_comprehension/flow_codebase_comprehension.toml"
+previous_flows = []

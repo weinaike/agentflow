@@ -1,0 +1,65 @@
+{
+    "provider": "AgentFlow.solution.Solution",
+    "component_type": "solution",
+    "version": 2,
+    "component_version": 2,
+    "description": null,
+    "label": "C/CPP项目代码库理解",
+    "config": {
+        "project_name": "C/CPP项目代码库理解",
+        "project_id": "crow",
+        "description": "\n** 项目必要信息**\n** 项目代码库路径 ** : /root/project\n",
+        "workspace_path": "workspace/crow",
+        "llm_config": "docs/OAI_CONFIG_LIST.json",
+        "codebase": "/root/project",
+        "flows": [
+            {
+                "flow_name": "代码库理解",
+                "flow_id": "flow1",
+                "config": "workflows/comprehension/flow1_codebase_comprehension/flow_codebase_comprehension.toml",
+                "previous_flows": [],
+                "workspace_path": "workspace/crow",
+                "backup_dir": "workspace/crow/cache",
+                "llm_config": "docs/OAI_CONFIG_LIST.json",
+                "flow_type": "SEQUENTIAL",
+                "description": "### 架构理解流程\n该流程的目的是帮助架构师\n1. 分析业务，理解项目的主要功能；\n2. 提炼实现核心功能的主要类或者模块，分析类或模块之间的关系； \n3. 提炼实现核心业务的主要流程，及其涉及的相关内容。\n\n",
+                "nodes": [
+                    {
+                        "name": "功能分析",
+                        "id": "node1",
+                        "inputs": [],
+                        "config": "node1_FunctionAnalysis.toml"
+                    },
+                    {
+                        "name": "概要分析",
+                        "id": "node2",
+                        "inputs": [
+                            "node1"
+                        ],
+                        "config": "node2_ConceptionAnalysis.toml"
+                    },
+                    {
+                        "name": "核心模块分析",
+                        "id": "node3",
+                        "inputs": [
+                            "node1",
+                            "node2"
+                        ],
+                        "config": "node3_CoreModule.toml"
+                    },
+                    {
+                        "name": "文档汇总",
+                        "id": "node4",
+                        "inputs": [
+                            "node1",
+                            "node2",
+                            "node3"
+                        ],
+                        "config": "node4_DocumentationSummary.toml"
+                    }
+                ]
+            }
+        ],
+        "backup_dir": "workspace/crow/cache"
+    }
+}

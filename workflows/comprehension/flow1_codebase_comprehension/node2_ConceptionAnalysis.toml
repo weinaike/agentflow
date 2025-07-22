@@ -1,0 +1,67 @@
+type = "Agent"
+task = '''采用clang-uml生成项目UML类图(PlantUML格式)'''
+
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+questions = [
+    "查询项目的目录结构，获知源文件位置，分析项目的构建方法(cmake or make)，编写clang-uml配置文件",
+    "调用generate_cpp_uml函数生成UML类图, 若出错，请修改配置文件后，重新生成",
+    "提取核心关键类(核心关键类指：类继承链的顶层或近顶层，实现重要功能的类，频繁被其他类使用的类)",
+]
+participants = ["assistant"]
+summary_prompt = '''
+总结以上对话内容，汇总输出以下内容，内容尽可能详细，因为最后哦仅保存该总结部分，所有上述对话都会被遗忘:
+1. 输出clang-uml配置文件与puml文件的备份路径
+
+2. 总结项目涉及的主要的类，详细描述它们之间的关系
+
+
+3. 以json格式输出，输出最核心关键类
+例如：```json{"CoreClasses": ["namespace::class1", "namespace::class2"]}```
+
+'''
+
+
+
+[[agents]]
+name = "assistant"
+tools = ["generate_cpp_uml", "get_cpp_dir_structure", 'extract_class_structure_from_uml','extract_inter_class_relationship_from_uml']
+system_prompt =  '''
+角色: 优秀的UML工程师
+职责: 编写clang-uml配置文件, 并调用函数生成项目完整的UML类图。分析UML类图。提取核心关键类。
+
+
+配置文件内容示例:
+```yaml
+# compilation_database_dir 编译路径使用绝对路径,即compile_commands.json所在路径
+# 对于cmake编译方法，CMakeList.txt下一级的build目录下， 对于mkae构建模式，一般与makefile同级
+compilation_database_dir: /home/jiangbo/project/build
+# output_directory 类图输出使用绝对路径
+output_directory: /home/jiangbo/project/build/diagrams
+diagrams:
+  # 类图名称， 根据需要调整
+  main_class_diagram:
+    # 类图类型，固定为class
+    type: class
+    glob:
+      # 一个路径仅能够包含一个*通配符
+      # glob字段可多行, 需保证包含所有.cpp源文件，不需要包含.h头文件与.cu核函数文件; 
+      - /home/jiangbo/project/src/*.cpp
+      - /home/jiangbo/project/src/math/*.cpp
+    # 使用命名空间，有助于提升类图的可读性
+    include:
+      namespaces:
+        - xxx
+    # exclude 排除类图命名空间范围，例如std, boost可以简化类图
+    exclude:
+      namespaces:
+        - std
+        - xxx
+    # 使用命名空间，有助于提升类图的可读性
+    using_namespace:
+      - xxx
+```
+
+
+'''

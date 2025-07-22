@@ -175,7 +175,15 @@
   "type": "start",
   "task": "What is the weather today?",
   "files": [],
-  "team_config": { "id": 1, "mcp_port": 8080 }
+  "team_config": { 
+    "id": 2,     
+    "codebase": "/root/project/xxx/",  
+    "flow_id":"flow1",
+    "node_id": ["node1", "node2"],
+    "mcp_port": 8080, 
+    "mcp_server": "127.0.0.1", 
+    "mcp_token": "your_token" 
+  }
 }</div>
                 </div>
 
@@ -224,29 +232,52 @@
                     <div class="code-block">{
   "type": "message",
   "data": {
-    "source": "agent",
+    "source": "flow1.node1.assistant",
+    "name": "功能分析",
     "content": "Processing your request...",
     "timestamp": "2024-01-01T12:00:00Z"
   }
 }</div>
                 </div>
 
-                <div class="message-type">
-                    <h3>Streaming Chunk <span class="badge">message_chunk</span></h3>
-                    <p><strong>Description:</strong> Streaming message chunks</p>
-                    <div class="code-block">{
-  "type": "message_chunk",
-  "data": { ... }
-}</div>
-                </div>
 
                 <div class="message-type">
                     <h3>Task Result <span class="badge">result</span></h3>
                     <p><strong>Description:</strong> Final task result</p>
                     <div class="code-block">{
   "type": "result",
+  "status": "partial",
+  "data": {
+    "task_result": {
+      "messages": [
+        {
+          "source": "flow1.node1.summary_agent",
+          "name": "功能分析"
+        }
+      ],
+      "stop_reason": "node completed"
+    },
+    "usage": "flow1.node1.summary_agent",
+    "duration": 28.257709503173828
+  },
+}</div>
+
+                    <div class="code-block">{
+  "type": "result",
   "status": "complete",
-  "data": { ... }
+  "data": {
+    "task_result": {
+      "messages": [
+        {
+          "source": "solution",
+          "name": "solution"
+        }
+      ],
+      "stop_reason": "task completed"
+    },
+    "usage": "solution",
+    "duration": 28.52797770500183
+  },
 }</div>
                 </div>
 

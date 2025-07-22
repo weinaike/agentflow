@@ -266,7 +266,7 @@ const AgentFlow: React.FC<AgentFlowProps> = ({ teamConfig, run }) => {
 
       // Add first message node if it exists
       if (messages.length > 0) {
-        const firstAgentConfig = teamConfig.config.participants.find(
+        const firstAgentConfig = teamConfig.config?.participants?.find(
           (p) => p.config.name === messages[0]?.source
         );
         nodeMap.set(
@@ -307,14 +307,14 @@ const AgentFlow: React.FC<AgentFlowProps> = ({ teamConfig, run }) => {
         }
 
         if (!nodeMap.has(nextMsg?.source)) {
-          const agentConfig = teamConfig.config.participants.find(
-            (p) => p.config.name === nextMsg.source
+          const agentConfig = teamConfig.config?.participants?.find(
+            (p) => p.config.name === nextMsg?.source
           );
           nodeMap.set(
-            nextMsg.source,
+            nextMsg?.source,
             createNode(
-              nextMsg.source,
-              nextMsg.source === "user" ? "user" : "agent",
+              nextMsg?.source,
+              nextMsg?.source === "user" ? "user" : "agent",
               agentConfig,
               false,
               run
@@ -487,7 +487,7 @@ const AgentFlow: React.FC<AgentFlowProps> = ({ teamConfig, run }) => {
 
   useEffect(() => {
     const { nodes: newNodes, edges: newEdges } = processMessages(
-      run.messages.map((m) => m.config)
+      (run?.messages || []).map((m) => m?.config).filter(Boolean)
     );
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
       newNodes,

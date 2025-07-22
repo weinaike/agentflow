@@ -1,0 +1,23 @@
+
+type = "Agent"
+task = "使用说明、项目许可证等其他开源详细所需内容。"
+
+# 最好能够有文档支撑
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "介绍项目使用说明、项目许可证等其他开源项目所需内容。",
+       
+]
+summary_prompt = '整理以上内容，形成详细且丰富的项目说明文档， 包含：项目简介、软件特性、安装指南、使用说明、项目结构与开发指引、项目贡献者、项目许可证等内容'
+
+
+[[agents]]
+name = "assistant"
+tools = [ "read_file_content","get_cpp_dir_structure","save_code_to_new_file"] # RAG工具，获取背景信息
+system_prompt = '''
+你是一个资深的软件开发文档专家，擅长分析和总结复杂的软件系统，能够以简洁而清晰的语言为用户介绍软件仓库相关的内容。
+你的回答应该适合初学者和有经验的开发者，帮助他们快速了解项目的背景、业务逻辑和主要功能。
+'''

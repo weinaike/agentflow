@@ -14,10 +14,10 @@ from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
 from autogen_agentchat.teams import BaseGroupChat
 from autogen_core import EVENT_LOGGER_NAME, CancellationToken, ComponentModel
 from autogen_core.logging import LLMCallEvent
-
+from autogen_ext.tools.mcp import StreamableHttpServerParams
 from ..datamodel.types import EnvironmentVariable, LLMCallEventMessage, TeamResult
 from ..web.managers.run_context import RunContext
-from AgentFlow import Solution
+from AgentFlow import Solution, solution
 logger = logging.getLogger(__name__)
 
 
@@ -97,11 +97,39 @@ class TeamManager:
                 if hasattr(agent, "input_func") and isinstance(agent, UserProxyAgent) and input_func:
                     agent.input_func = input_func
         elif config.get("component_type") == "solution":
+
+            if 'codebase' in config:
+                config['config']['codebase'] = config['codebase']
+                config['config']['description'] += f"\n** 项目必要信息**\n** 项目代码库路径 ** : {config['codebase']}\n"
+
+            if 'run_id' in config:
+                os.makedirs('workspace', exist_ok=True)
+                config['config']['workspace_path'] = f'workspace/{config["run_id"]}'
+                config['config']['backup_dir'] = f'workspace/{config["run_id"]}/cache'
+                config['config']['project_id'] = f'{config["run_id"]}'
+
             solution:Solution = Solution.load_component(config)
             if input_func:
                 logger.info("Setting input function for solution")
                 solution.set_input_func(input_func)
-            
+
+            if 'mcp_server' in config:
+                mcp_server = config['mcp_server']
+                mcp_port = config.get('mcp_port', 8080)
+                mcp_token = config.get('mcp_token', 'your_token')
+                command_mcp_server = StreamableHttpServerParams(
+                    url=f"http://{mcp_server}:{mcp_port}/mcp",
+                    headers={"Authorization": f"Bearer {mcp_token}"},
+                    sse_read_timeout=3600,  # Set SSE read timeout to 1 hour
+                )
+                await solution.register_tools(command_mcp_server)
+            else:
+                command_mcp_server = StreamableHttpServerParams(
+                        url="http://localhost:8080/mcp",
+                        headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN"},
+                    sse_read_timeout = 3600,  # 设置SSE读取超时时间为1小时
+                )
+                await solution.register_tools(command_mcp_server)
 
             self._team = solution
         return self._team
@@ -133,6 +161,7 @@ class TeamManager:
             if isinstance(team, BaseGroupChat):
                 stream = team.run_stream(task=task, cancellation_token=cancellation_token)
             elif isinstance(team, Solution):
+
                 stream = team.run_stream(
                     task=task,
                     cancellation_token=cancellation_token,
@@ -158,14 +187,14 @@ class TeamManager:
                         yield message
                 elif isinstance(message, Response) and isinstance(team, Solution):                    
                     # Ensure Response messages are properly formatted
-                    result = TaskResult(messages=[message.chat_message], stop_reason='')
-                    source = message.chat_message.source                
+                    result = TaskResult(messages=[message.chat_message], stop_reason='node completed')
+                    source = message.chat_message.source
                     yield TeamResult(task_result=result, usage=source, duration=time.time() - start_time)
 
                 # Check for any LLM events
                 while not llm_event_logger.events.empty():
                     event = await llm_event_logger.events.get()
-                    yield event
+                    # yield event
         finally:
             # Cleanup - remove our handler
             if llm_event_logger in logger.handlers:

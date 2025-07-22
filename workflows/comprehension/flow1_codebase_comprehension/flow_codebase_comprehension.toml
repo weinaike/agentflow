@@ -1,0 +1,40 @@
+flow_name = "架构理解"
+flow_type = "SEQUENTIAL"
+description =  '''
+
+### 架构理解流程
+该流程的目的是帮助架构师
+1. 分析业务，理解项目的主要功能；
+2. 提炼实现核心功能的主要类或者模块，分析类或模块之间的关系； 
+3. 提炼实现核心业务的主要流程，及其涉及的相关内容。
+
+'''
+
+# 总体了解项目功能与基本输入输出内容
+[[nodes]]
+id = "node1"
+name = "功能分析"
+inputs = []
+config = "node1_FunctionAnalysis.toml"
+
+# 通过uml分析类之间的关系，提取核心类
+[[nodes]]
+id = "node2"
+name = "概要分析"
+inputs = ['node1']
+config = "node2_ConceptionAnalysis.toml"
+
+# 逐个分析核心类，提取核心成员， 核心方法，以及其派生关系
+[[nodes]]
+id = "node3"
+name = "核心模块分析"
+inputs = ['node1', "node2"]
+config = "node3_CoreModule.toml"
+
+# 汇总内容，形成系统架构分析报告
+[[nodes]]
+id = "node4"
+name = "文档汇总"
+inputs = ["node1", "node2", "node3"]
+config = "node4_DocumentationSummary.toml"
+

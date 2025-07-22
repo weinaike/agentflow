@@ -1,0 +1,55 @@
+{
+    "provider": "AgentFlow.solution.Solution",
+    "component_type": "solution",
+    "version": 2,
+    "component_version": 2,
+    "description": null,
+    "label": "项目开发文档生成",
+    "config": {
+        "project_name": "项目开发文档生成",
+        "project_id": "project_3",
+        "description": "为该项目生成项目说明文档和配置说明文档。\n** 项目必要信息**\n** 项目代码库路径 ** : /root/project\n",
+        "workspace_path": "workspace/guide",
+        "llm_config": "docs/OAI_CONFIG_LIST.json",
+        "codebase": "/root/project",
+        "flows": [
+            {
+                "flow_name": "项目说明文档生成",
+                "flow_id": "flow1",
+                "config": "workflows/guide/flow1_doc_gen/flow_doc_gen.toml",
+                "previous_flows": [],
+                "workspace_path": "workspace/guide",
+                "backup_dir": "workspace/guide/cache",
+                "llm_config": "docs/OAI_CONFIG_LIST.json",
+                "flow_type": "SEQUENTIAL",
+                "description": "### 项目说明文档生成\n该流程的目的是帮助项目成员快速生成项目说明文档。\n主要生成以下内容：项目简介、软件特性、安装指南、使用说明、项目结构与开发指引、项目贡献者、项目许可证等内容。\n",
+                "nodes": [
+                    {
+                        "name": "架构介绍",
+                        "id": "node1",
+                        "inputs": [],
+                        "config": "node1_architect_analysis.toml"
+                    },
+                    {
+                        "name": "安装配置介绍",
+                        "id": "node2",
+                        "inputs": [
+                            "node1"
+                        ],
+                        "config": "node2_install.toml"
+                    },
+                    {
+                        "name": "开发文档",
+                        "id": "node3",
+                        "inputs": [
+                            "node1",
+                            "node2"
+                        ],
+                        "config": "node3_instruction.toml"
+                    }
+                ]
+            }
+        ],
+        "backup_dir": "workspace/guide/cache"
+    }
+}

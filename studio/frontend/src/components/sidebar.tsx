@@ -102,7 +102,7 @@ const Sidebar = ({ link, meta, isMobile }: SidebarProps) => {
     if (navItem) {
       setHeader({
         title: navItem.name,
-        breadcrumbs: navItem.breadcrumbs,
+        breadcrumbs: navItem.breadcrumbs ?? [],
       });
     } else if (path === "/settings") {
       setHeader({

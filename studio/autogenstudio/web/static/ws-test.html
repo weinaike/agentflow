@@ -266,38 +266,43 @@
                     <label>⚙️ Team Configuration:</label>
                     <div class="team-config-section">
                         <div class="form-group">
-                            <label for="teamId">Team ID:</label>
+                            <label for="teamId">Team ID (required):</label>
                             <input type="number" id="teamId" placeholder="Enter team ID" value=1>
                         </div>
                         
                         <div class="form-group">
-                            <label for="ossEndpoint">OSS Endpoint:</label>
-                            <input type="text" id="ossEndpoint" placeholder="Enter OSS endpoint URL">
+                            <label for="codebase">Codebase Path (required):</label>
+                            <input type="text" id="codebase" placeholder="Enter codebase path" value="/root/project/">
                         </div>
                         
                         <div class="form-group">
-                            <label for="bucketName">Bucket Name:</label>
-                            <input type="text" id="bucketName" placeholder="Enter OSS bucket name">
+                            <label for="flowId">Flow ID (optional):</label>
+                            <input type="text" id="flowId" placeholder="Enter flow ID">
                         </div>
                         
                         <div class="form-group">
-                            <label for="mcpServer">MCP Server:</label>
-                            <input type="text" id="mcpServer" placeholder="Enter MCP server address">
+                            <label for="nodeId">Node IDs (optional, comma-separated):</label>
+                            <input type="text" id="nodeId" placeholder="node1,node2,node3">
                         </div>
                         
                         <div class="form-group">
-                            <label for="mcpPort">MCP Port:</label>
-                            <input type="number" id="mcpPort" placeholder="Enter MCP port" value="8080">
+                            <label for="mcpServer">MCP Server (optional):</label>
+                            <input type="text" id="mcpServer" placeholder="Enter MCP server address" value="10.15.49.70">
                         </div>
                         
                         <div class="form-group">
-                            <label for="mcpToken">MCP Token:</label>
+                            <label for="mcpPort">MCP Port (optional):</label>
+                            <input type="number" id="mcpPort" placeholder="Enter MCP port">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="mcpToken">MCP Token (optional):</label>
                             <input type="text" id="mcpToken" placeholder="Enter MCP access token">
                         </div>
                         
                         <div class="form-group">
-                            <label for="llmConfig">LLM Config (JSON):</label>
-                            <textarea id="llmConfig" rows="3" placeholder='{"model": "gpt-4", "temperature": 0.7}'></textarea>
+                            <label for="llmConfig">LLM Config (JSON, optional):</label>
+                            <textarea id="llmConfig" rows="3" placeholder='{"claude": {"model": "claude-3-sonnet-20240229", "api_key": "your-key", "base_url": "https://api.anthropic.com"}}'></textarea>
                         </div>
                     </div>
                 </div>
@@ -506,17 +511,27 @@
             
             // 获取所有配置字段
             const teamId = document.getElementById('teamId').value;
-            const ossEndpoint = document.getElementById('ossEndpoint').value;
-            const bucketName = document.getElementById('bucketName').value;
+            const codebase = document.getElementById('codebase').value;
+            const flowId = document.getElementById('flowId').value;
+            const nodeId = document.getElementById('nodeId').value;
             const mcpServer = document.getElementById('mcpServer').value;
             const mcpPort = document.getElementById('mcpPort').value;
             const mcpToken = document.getElementById('mcpToken').value;
             const llmConfig = document.getElementById('llmConfig').value;
             
-            // 只添加非空字段
+            // 添加必需字段
             if (teamId) teamConfig.id = parseInt(teamId);
-            if (ossEndpoint) teamConfig.oss_endpoint = ossEndpoint;
-            if (bucketName) teamConfig.bucket_name = bucketName;
+            if (codebase) teamConfig.codebase = codebase;
+            
+            // 添加可选字段
+            if (flowId) teamConfig.flow_id = flowId;
+            if (nodeId) {
+                // 处理逗号分隔的节点ID
+                const nodeIds = nodeId.split(',').map(id => id.trim()).filter(id => id);
+                if (nodeIds.length > 0) {
+                    teamConfig.node_id = nodeIds;
+                }
+            }
             if (mcpServer) teamConfig.mcp_server = mcpServer;
             if (mcpPort) teamConfig.mcp_port = parseInt(mcpPort);
             if (mcpToken) teamConfig.mcp_token = mcpToken;

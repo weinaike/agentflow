@@ -58,6 +58,8 @@ class WebSocketManager:
             duration=0,
         ).model_dump()
 
+        self._name_dict: Dict[int, Dict[str,str]] = {}
+
     def _get_stop_message(self, reason: str) -> dict:
         return TeamResult(
             task_result=TaskResult(messages=[TextMessage(source="user", content=reason)], stop_reason=reason),
@@ -108,6 +110,8 @@ class WebSocketManager:
                     run.status = RunStatus.ACTIVE
                     self.db_manager.upsert(run)
 
+                self._name_dict[run_id] = self._get_name_dict(team_config)
+
                 input_func = self.create_input_func(run_id)
 
                 async for message in team_manager.run_stream(
@@ -123,7 +127,7 @@ class WebSocketManager:
                         logger.info(f"Stream cancelled or connection closed for run {run_id}")
                         break
 
-                    formatted_message = self._format_message(message)
+                    formatted_message = self._format_message(message, run_id)
                     if formatted_message:
                         await self._send_message(run_id, formatted_message)
 
@@ -341,7 +345,7 @@ class WebSocketManager:
 
             await self._update_run(run_id, RunStatus.ERROR, team_result=error_result, error=str(error))
 
-    def _format_message(self, message: Any) -> Optional[dict]:
+    def _format_message(self, message: Any, run_id:int) -> Optional[dict]:
         """Format message for WebSocket transmission
 
         Args:
@@ -352,6 +356,7 @@ class WebSocketManager:
         """
 
         try:
+            print(f"Message type: {type(message)}")
             if isinstance(message, MultiModalMessage):
                 message_dump = message.model_dump()
 
@@ -371,10 +376,24 @@ class WebSocketManager:
                 return {"type": "message", "data": message_dump}
 
             elif isinstance(message, TeamResult):
+                msg = message.task_result.messages[0] if message.task_result.messages else None
+                data = message.model_dump()
+                
+                status = 'complete'
+                if len(self._name_dict[run_id]) > 0 :
+                    source = msg.source
+                    itmes = source.split('.')
+                    if len(itmes) == 3 :
+                        data['task_result']["messages"][0]['name'] = self._name_dict[run_id][f'{itmes[0]}.{itmes[1]}']
+                        status = 'partial'
+                    else:
+                        data['task_result']["messages"][0]['name'] = 'solution'
+                        status = 'complete'
+
                 return {
                     "type": "result",
-                    "data": message.model_dump(),
-                    "status": "complete",
+                    "data": data,
+                    "status": status,
                 }
             elif isinstance(message, ModelClientStreamingChunkEvent):
                 return {"type": "message_chunk", "data": message.model_dump()}
@@ -382,6 +401,7 @@ class WebSocketManager:
             elif isinstance(
                 message,
                 (
+                    BaseChatMessage,
                     TextMessage,
                     StopMessage,
                     HandoffMessage,
@@ -390,7 +410,13 @@ class WebSocketManager:
                     LLMCallEventMessage,
                 ),
             ):
-                return {"type": "message", "data": message.model_dump()}
+                data = message.model_dump()
+                if len(self._name_dict[run_id]) > 0:
+                    source = data['source']
+                    itmes = source.split('.')
+                    if len(itmes) > 1:
+                        data["name"] = self._name_dict[run_id][f'{itmes[0]}.{itmes[1]}']
+                return {"type": "message", "data": data}
 
             return None
 
@@ -492,3 +518,21 @@ class WebSocketManager:
     def active_runs(self) -> set[int]:
         """Get set of runs with active cancellation tokens"""
         return set(self._cancellation_tokens.keys())
+
+    def _get_name_dict(self, team_config:Dict)->Dict[str, str]:
+        """Extract name dictionary from team configuration"""
+        name_dict = {}
+        if team_config.get("component_type") == "solution":
+            config = team_config.get("config", {})
+            flows = config.get("flows", {})
+            for flow in flows:
+                flow_id = flow.get("flow_id", 'Unnamed Flow')
+                flow_name = flow.get("flow_name", 'Unnamed Flow')                
+                nodes = flow.get("nodes", {})
+                for node in nodes:
+                    node_id = node.get("id", 'Unnamed Node')
+                    node_name = node.get("name", 'Unnamed Node')
+                    name_dict[f'{flow_id}.{node_id}'] = node_name
+
+        return name_dict
+        

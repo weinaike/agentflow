@@ -10,7 +10,7 @@ from autogen_core import CancellationToken
 ############### llm_config  ################
 
 class ModelEnum(str, Enum):
-    DEFAULT = "claude"
+    DEFAULT = "gpt-4o"
     GPT4O = "gpt-4o"
     O1MINI = "o1-mini"
     CLAUDE = "claude"
@@ -106,10 +106,10 @@ class NodeParam(BaseModel):
     inputs: list[str] = list()   # 节点ID
     config: str
     # 以下内容无需主动配置   
-    llm_config: str = None # 不配置则使用工作流配置
-    workspace_path: str = None # 可以不配置，默认使用工作流路径   
-    backup_dir: str = None # 数据备份/缓存目录  
-    flow_id: str = None   
+    llm_config: Optional[str] = None # 不配置则使用工作流配置
+    workspace_path: Optional[str] = None # 可以不配置，默认使用工作流路径
+    backup_dir: Optional[str] = None # 数据备份/缓存目录
+    flow_id: Optional[str] = None
     output: Optional[NodeOutput] = None
 
 

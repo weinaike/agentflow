@@ -1,0 +1,24 @@
+
+type = "Agent"
+task = "总体了解项目，熟悉项目的核心业务， 归纳实现业务的主要方法与流程"
+
+# 最好能够有文档支撑
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "该算法库的总体介绍",
+    "该算法库的主要功能介绍",
+    "其输入是什么？ 输出是什么? 中间包含哪些过程",
+]
+summary_prompt = '整理以上内容，形成详细且丰富的业务分析文档'
+
+
+[[agents]]
+name = "assistant"
+tools = ['glob_search','read_file','run_command' ] # RAG工具，获取背景信息
+system_prompt = '''
+你是一个资深的软件开发文档专家，擅长分析和总结复杂的软件系统，能够以简洁而清晰的语言为用户介绍软件仓库相关的内容。
+你的回答应该适合初学者和有经验的开发者，帮助他们快速了解项目的背景、业务逻辑和主要功能。
+'''

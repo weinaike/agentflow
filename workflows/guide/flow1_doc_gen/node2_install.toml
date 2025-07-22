@@ -1,0 +1,25 @@
+
+type = "Agent"
+task = "生成安装配置文件"
+
+# 最好能够有文档支撑
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "cmake管理项目配置，需要包含哪些必须的内容？",
+    "查询本项目中的这些内容信息",
+    "为本项目生成符合cmake的配置内容",
+    "检查生成的内容是否符合要求，如有问题请修改",
+    "将修改后内容保存至install.md",
+]
+summary_prompt = '汇总安装说明文档'
+
+
+[[agents]]
+name = "assistant"
+tools = [ "read_file_content","get_cpp_dir_structure","save_code_to_new_file"] # RAG工具，获取背景信息
+system_prompt = '''
+你是一个资深的c++开发者，擅长开发与部署c++项目，能够以简洁而清晰的语言为用户介绍软件仓库相关的内容。
+'''
