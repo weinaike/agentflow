@@ -220,7 +220,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
             logger.error("Only one flow can be specified for execution")
             return
         
-
+        last_response: Response = None
         context= Context(project_description=self._souluton_param.description)
         context.cancellation_token = cancellation_token
         if self.input_func:
@@ -235,6 +235,8 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
                         if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
+                            if isinstance(msg, Response):
+                                last_response = msg
                             yield msg
                         elif isinstance(msg, Context):
                             context = msg
@@ -244,6 +246,8 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
                         if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
+                            if isinstance(msg, Response):
+                                last_response = msg
                             yield msg
                         elif isinstance(msg, Context):
                             context = msg
@@ -254,8 +258,13 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
             # 可在此处添加清理逻辑，如需要
             pass
         
+        output_content = "Solution execution completed."
+        # 最后一个节点内容
+        if last_response is not None:
+            output_content = last_response.chat_message.content if isinstance(last_response.chat_message, TextMessage) else "Solution execution completed."        
+
         yield TaskResult(
-            messages=[TextMessage(content="Solution execution completed.", source="solution")],
+            messages=[TextMessage(content=output_content, source="solution")],
             stop_reason= "task completed",
         )
 
