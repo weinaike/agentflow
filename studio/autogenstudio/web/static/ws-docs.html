@@ -232,10 +232,12 @@
                     <div class="code-block">{
   "type": "message",
   "data": {
+    "id": "9e6f9f2c-9766-4734-b65a-af149aa17874",
+    "created_at": "2025-07-23T01:52:11.783630+00:00",
     "source": "flow1.node1.assistant",
     "name": "功能分析",
     "content": "Processing your request...",
-    "timestamp": "2024-01-01T12:00:00Z"
+    "type": "TextMessage",
   }
 }</div>
                 </div>
@@ -251,14 +253,23 @@
     "task_result": {
       "messages": [
         {
+          "id": "673349a2-ca2b-4da0-8fe7-a07518eda6e1",
           "source": "flow1.node1.summary_agent",
+          "models_usage": {
+            "prompt_tokens": 5428,
+            "completion_tokens": 1049
+          },
+          "metadata": {},
+          "created_at": "2025-07-23T01:52:20.279239+00:00",
+          "content": "# Codon项目业务分析文档\n\n## 项目总体介绍\n\n......",
+          "type": "TextMessage",
           "name": "功能分析"
         }
       ],
       "stop_reason": "node completed"
     },
     "usage": "flow1.node1.summary_agent",
-    "duration": 28.257709503173828
+    "duration": 27.859392881393433
   },
 }</div>
 
@@ -269,8 +280,11 @@
     "task_result": {
       "messages": [
         {
+          "id": "558e96b2-b8c2-4efa-b7ec-a26be2d6c8a7",
           "source": "solution",
           "name": "solution"
+          "content": "Solution execution completed.",
+          "type": "TextMessage",
         }
       ],
       "stop_reason": "task completed"

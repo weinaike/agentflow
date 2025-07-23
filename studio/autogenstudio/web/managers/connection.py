@@ -376,8 +376,9 @@ class WebSocketManager:
                 return {"type": "message", "data": message_dump}
 
             elif isinstance(message, TeamResult):
-                msg = message.task_result.messages[0] if message.task_result.messages else None
+                msg:TextMessage = message.task_result.messages[0] if message.task_result.messages else None
                 data = message.model_dump()
+                data['task_result']["messages"][0] = msg.model_dump() if msg else {}
                 
                 status = 'complete'
                 if len(self._name_dict[run_id]) > 0 :

@@ -32,7 +32,7 @@
         .left-panel {
             width: 450px;
             border-right: 1px solid #e0e0e0;
-            padding: 20px;
+            padding: 10px;
             background: #fafafa;
             overflow-y: auto;
         }
@@ -239,7 +239,7 @@
                         <button onclick="connect()" id="connectBtn">Connect</button>
                         <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
                         <button onclick="ping()" id="pingBtn" disabled>Ping</button>
-                        <button onclick="createTestRun()" id="createTestBtn">Create Test Run</button>
+                        <button onclick="createTestRun()" id="createTestBtn">Create Run ID</button>
                     </div>
                 </div>
                 
@@ -267,7 +267,7 @@
                     <div class="team-config-section">
                         <div class="form-group">
                             <label for="teamId">Team ID (required):</label>
-                            <input type="number" id="teamId" placeholder="Enter team ID" value=1>
+                            <input type="number" id="teamId" placeholder="Enter team ID" value=2>
                         </div>
                         
                         <div class="form-group">
@@ -277,12 +277,12 @@
                         
                         <div class="form-group">
                             <label for="flowId">Flow ID (optional):</label>
-                            <input type="text" id="flowId" placeholder="Enter flow ID">
+                            <input type="text" id="flowId" placeholder="Enter flow ID" value="flow1">
                         </div>
                         
                         <div class="form-group">
                             <label for="nodeId">Node IDs (optional, comma-separated):</label>
-                            <input type="text" id="nodeId" placeholder="node1,node2,node3">
+                            <input type="text" id="nodeId" placeholder="node1,node2,node3" value="node1">
                         </div>
                         
                         <div class="form-group">
@@ -292,7 +292,7 @@
                         
                         <div class="form-group">
                             <label for="mcpPort">MCP Port (optional):</label>
-                            <input type="number" id="mcpPort" placeholder="Enter MCP port">
+                            <input type="number" id="mcpPort" placeholder="Enter MCP port" value="8080">
                         </div>
                         
                         <div class="form-group">
