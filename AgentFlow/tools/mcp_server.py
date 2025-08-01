@@ -19,7 +19,7 @@ from file_tool import *
 # 配置日志
 logger = logging.getLogger(__name__)
 
-app = FastMCP('agentflow-mcp-server', version='1.0.0')
+app = FastMCP(name = 'agentflow-mcp-server')
 
 app.add_tool(generate_cpp_uml)
 app.add_tool(extract_class_structure_from_uml)
