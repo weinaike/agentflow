@@ -18,7 +18,7 @@
                 "flow_id": "flow1",
                 "config": "workflows/guide/flow1_doc_gen/flow_doc_gen.toml",
                 "previous_flows": [],
-                "workspace_path": "workspace/guide",
+                "workspace_path": "workspace/guide/flow1",
                 "backup_dir": "workspace/guide/cache",
                 "llm_config": "docs/OAI_CONFIG_LIST.json",
                 "flow_type": "SEQUENTIAL",

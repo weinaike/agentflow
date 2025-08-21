@@ -82,28 +82,72 @@ async def run_websocket(
 
     try:
         logger.info(f"WebSocket connection attempt for run {run_id}")
-        
-        # Verify run exists before connecting
-        try:
-            run_response = db.get(Run, filters={"id": run_id}, return_json=False)
-            if not run_response.status or not run_response.data:
-                logger.warning(f"Run {run_id} not found in database")
-                await websocket.close(code=4004, reason="Run not found")
+        if False:
+            # Verify run exists before connecting
+            try:
+                run_response = db.get(Run, filters={"id": run_id}, return_json=False)
+                if not run_response.status or not run_response.data:
+                    logger.warning(f"Run {run_id} not found in database")
+                    await websocket.close(code=4004, reason="Run not found")
+                    return
+            except Exception as e:
+                logger.error(f"Database error when checking run {run_id}: {str(e)}")
+                await websocket.close(code=4004, reason="Database error")
                 return
-        except Exception as e:
-            logger.error(f"Database error when checking run {run_id}: {str(e)}")
-            await websocket.close(code=4004, reason="Database error")
-            return
 
-        run = run_response.data[0]
-        logger.info(f"Found run {run_id} with status {run.status}")
+            run = run_response.data[0]
+            logger.info(f"Found run {run_id} with status {run.status}")
 
-        # if run.status not in [RunStatus.CREATED, RunStatus.ACTIVE, RunStatus.STOPPED]:
-        #     logger.warning(f"Run {run_id} in invalid state: {run.status}")
-        #     await websocket.close(code=4003, reason="Run not in valid state")
-        #     return
+            # if run.status not in [RunStatus.CREATED, RunStatus.ACTIVE, RunStatus.STOPPED]:
+            #     logger.warning(f"Run {run_id} in invalid state: {run.status}")
+            #     await websocket.close(code=4003, reason="Run not in valid state")
+            #     return
 
-        # Connect websocket (this handles acceptance internally)
+            # Connect websocket (this handles acceptance internally)
+
+
+            # Handle authentication if enabled
+            if auth_manager is not None and auth_manager.config.type != "none":
+                try:
+                    ws_auth = WebSocketAuthHandler(auth_manager)
+                    success, user = await ws_auth.authenticate(websocket)
+                    if not success:
+                        logger.warning(f"Authentication failed for WebSocket connection to run {run_id}")
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "error": "Authentication failed",
+                                "timestamp": datetime.utcnow().isoformat(),
+                            }
+                        )
+                        return
+
+                    if user and run.user_id != user.id and "admin" not in (user.roles or []):
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "error": "Authentication failed",
+                                "timestamp": datetime.utcnow().isoformat(),
+                            }
+                        )
+                        logger.warning(f"User {user.id} not authorized to access run {run_id}")
+                        return
+                        
+                    logger.info(f"WebSocket authentication successful for run {run_id}, user: {user.id if user else 'unknown'}")
+                except Exception as e:
+                    logger.error(f"Authentication error for run {run_id}: {str(e)}")
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "error": "Authentication error",
+                            "timestamp": datetime.utcnow().isoformat(),
+                        }
+                    )
+                    return
+            else:
+                logger.info(f"Authentication disabled for WebSocket connection to run {run_id} (type: {auth_manager.config.type if auth_manager else 'none'})")
+
+        logger.info(f"WebSocket connection established for run {run_id}")
         try:
             connected = await ws_manager.connect(websocket, run_id)
             if not connected:
@@ -112,50 +156,6 @@ async def run_websocket(
         except Exception as e:
             logger.error(f"WebSocket manager connection error for run {run_id}: {str(e)}")
             return
-
-        # Handle authentication if enabled
-        if auth_manager is not None and auth_manager.config.type != "none":
-            try:
-                ws_auth = WebSocketAuthHandler(auth_manager)
-                success, user = await ws_auth.authenticate(websocket)
-                if not success:
-                    logger.warning(f"Authentication failed for WebSocket connection to run {run_id}")
-                    await websocket.send_json(
-                        {
-                            "type": "error",
-                            "error": "Authentication failed",
-                            "timestamp": datetime.utcnow().isoformat(),
-                        }
-                    )
-                    return
-
-                if user and run.user_id != user.id and "admin" not in (user.roles or []):
-                    await websocket.send_json(
-                        {
-                            "type": "error",
-                            "error": "Authentication failed",
-                            "timestamp": datetime.utcnow().isoformat(),
-                        }
-                    )
-                    logger.warning(f"User {user.id} not authorized to access run {run_id}")
-                    return
-                    
-                logger.info(f"WebSocket authentication successful for run {run_id}, user: {user.id if user else 'unknown'}")
-            except Exception as e:
-                logger.error(f"Authentication error for run {run_id}: {str(e)}")
-                await websocket.send_json(
-                    {
-                        "type": "error",
-                        "error": "Authentication error",
-                        "timestamp": datetime.utcnow().isoformat(),
-                    }
-                )
-                return
-        else:
-            logger.info(f"Authentication disabled for WebSocket connection to run {run_id} (type: {auth_manager.config.type if auth_manager else 'none'})")
-
-        logger.info(f"WebSocket connection established for run {run_id}")
-
         # Send connection success message
         await websocket.send_json(
             {

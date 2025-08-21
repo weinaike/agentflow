@@ -220,9 +220,13 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
             logger.error("Only one flow can be specified for execution")
             return
         
+        
         last_response: Response = None
-        context= Context(project_description=self._souluton_param.description)
+        context = Context(project_description=self._souluton_param.description)
         context.cancellation_token = cancellation_token
+        if task is not None:
+            context.goal = task
+            
         if self.input_func:
             context.input_func = self.input_func
         try:

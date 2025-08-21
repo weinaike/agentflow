@@ -163,20 +163,24 @@ async def get_websocket_test_page():
 
 # Debug endpoint to create a test run
 @app.post("/debug/create-test-run")
-async def create_test_run():
+async def create_test_run(request_body: dict):
     """Create a test run for WebSocket testing"""
     try:
         from .deps import get_db
         from ..datamodel import Run, RunStatus, Session
         
+        # Get run_id from request body, default to 1
+        run_id = request_body.get("run_id", 1)
+        session_id = run_id  # Use same ID for session for simplicity
+        
         db = await get_db()
         
         # First, create a test session if it doesn't exist
-        existing_session = db.get(Session, filters={"id": 1}, return_json=False)
+        existing_session = db.get(Session, filters={"id": session_id}, return_json=False)
         if not existing_session.status or not existing_session.data:
             test_session = Session(
-                id=1,
-                name="Test Session",
+                id=session_id,
+                name=f"Test Session {session_id}",
                 user_id="test_user",
                 team_id=None
             )
@@ -189,17 +193,17 @@ async def create_test_run():
         
         # Create a test run
         test_run = Run(
-            id=1,
-            session_id=1,
+            id=run_id,
+            session_id=session_id,
             user_id="test_user",
             status=RunStatus.CREATED,
-            task={"content": "Test task", "source": "user"},
+            task={"content": f"Test task {run_id}", "source": "user"},
             team_result=None,
             error_message=None
         )
         
         # Check if run already exists
-        existing_run = db.get(Run, filters={"id": 1}, return_json=False)
+        existing_run = db.get(Run, filters={"id": run_id}, return_json=False)
         if not existing_run.status or not existing_run.data:
             result = db.upsert(test_run)
             if result.status:
@@ -207,8 +211,8 @@ async def create_test_run():
                     "status": True,
                     "message": "Test run created successfully",
                     "data": {
-                        "run_id": 1,
-                        "session_id": 1,
+                        "run_id": run_id,
+                        "session_id": session_id,
                         "user_id": "test_user"
                     }
                 }
@@ -222,8 +226,8 @@ async def create_test_run():
                 "status": True,
                 "message": "Test run already exists",
                 "data": {
-                    "run_id": 1,
-                    "session_id": 1,
+                    "run_id": run_id,
+                    "session_id": session_id,
                     "user_id": "test_user"
                 }
             }

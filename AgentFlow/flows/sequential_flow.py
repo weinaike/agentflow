@@ -96,6 +96,10 @@ class SequentialFlow(BaseFlow):
         await self.before_run(context, specific_node)
         context.flow_description[self._flow_param.flow_id] = self._flow_param.description
         for node_id in self._topological_order:
+            if context.cancellation_token and context.cancellation_token.is_cancelled():
+                logger.info(f"Flow {self.id} cancelled, stop running.")
+                break
+            
             self._draw_flow_graph(highlight_node_id=node_id)
             node = self.get_node(node_id)
             assert node is not None
@@ -103,8 +107,6 @@ class SequentialFlow(BaseFlow):
                 async for msg in node.run_stream(context):
                     if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
                         yield msg
-                    elif isinstance(msg, Context):
-                        context = msg
             else:
                 logger.info(f"Skip node {self.id}.{node_id}")
 
@@ -113,4 +115,5 @@ class SequentialFlow(BaseFlow):
                 self.process.terminate()
                 self.process = None
         await self.after_run(context)
+        yield context
 

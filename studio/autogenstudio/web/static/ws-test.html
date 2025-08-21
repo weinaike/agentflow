@@ -441,12 +441,23 @@
         
         async function createTestRun() {
             try {
-                addMessage('Creating test run...', 'system', 'received');
+                const runIdInput = document.getElementById('runId').value;
+                if (!runIdInput) {
+                    addMessage('Please enter a run ID first', 'error', 'received');
+                    return;
+                }
+                
+                const runId = parseInt(runIdInput);
+                addMessage(`Creating test run with ID: ${runId}...`, 'system', 'received');
+                
                 const response = await fetch('/debug/create-test-run', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({
+                        run_id: runId
+                    })
                 });
                 
                 const result = await response.json();

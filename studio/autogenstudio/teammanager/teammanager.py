@@ -10,7 +10,7 @@ import aiofiles
 import yaml
 from autogen_agentchat.agents import UserProxyAgent
 from autogen_agentchat.base import TaskResult, Response
-from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
+from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, ToolCallSummaryMessage,TextMessage
 from autogen_agentchat.teams import BaseGroupChat
 from autogen_core import EVENT_LOGGER_NAME, CancellationToken, ComponentModel
 from autogen_core.logging import LLMCallEvent
@@ -181,10 +181,18 @@ class TeamManager:
                 # elif isinstance(message, BaseAgentEvent):
                 #     yield message
                 elif isinstance(message, BaseChatMessage):
+                    if isinstance(message, ToolCallSummaryMessage):
+                        names = []
+                        for result in message.results:
+                            names.append(result.name)
+                        text = "".join([f"调用工具：{name}  \n" for name in names])
+                        message = TextMessage(content=text, source=message.source)
+                    
                     source = message.source
-                    s_flow_id, s_node_id, s_role = source.split('.')   
-                    if s_role == 'assistant':
-                        yield message
+                    if '.' in source:
+                        s_flow_id, s_node_id, s_role = source.split('.')   
+                        if s_role == 'assistant':
+                            yield message
                 elif isinstance(message, Response) and isinstance(team, Solution):                    
                     # Ensure Response messages are properly formatted
                     result = TaskResult(messages=[message.chat_message], stop_reason='node completed')
