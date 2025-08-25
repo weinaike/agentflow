@@ -109,7 +109,7 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
         
         
         nodechecklist:NodeCheckList = None
-        if use_check:
+        if False:#use_check:
             checklist_file_path = os.path.join(flow_param.backup_dir, f'{flow_param.flow_id}_checklist.json')
             if os.path.exists(checklist_file_path):
                 with open(checklist_file_path, 'r') as f:
@@ -119,7 +119,7 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
                 format_prompt = f"将以上结果以json格式输出。```json\ncontent\n```,具体各内容字段要求：{NodeCheckList.model_json_schema().__str__()}\n请特别注意字段规则，特别是引号规则，避免json解析出错的情况"
 
                 
-                llm_config = get_model_config(flow_param.llm_config, ModelEnum.GPT4O)
+                llm_config = get_model_config(flow_param.llm_config, ModelEnum.DEFAULT)
                 model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
                 agent = AssistantAgent(name='Designer', model_client=model_client)
                 await Console(agent.on_messages_stream([TextMessage(content=prompt, source = 'user')],CancellationToken()) )

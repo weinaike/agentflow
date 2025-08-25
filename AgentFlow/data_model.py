@@ -10,7 +10,7 @@ from autogen_core import CancellationToken
 ############### llm_config  ################
 
 class ModelEnum(str, Enum):
-    DEFAULT = "gpt-4o"
+    DEFAULT = "glm"
     GPT4O = "gpt-4o"
     O1MINI = "o1-mini"
     CLAUDE = "claude"
@@ -162,6 +162,7 @@ class AgentNodeParam(NodeParam):
     type: Literal[NodeTypeEnum.AGENT]
     manager : ManagerParam
     agents : List[AgentParam] = list()   
+    description: Optional[str] = None  # 节点描述
 
 
 class RunParam(BaseModel):
@@ -178,6 +179,7 @@ class Context(BaseModel):
     node_output: Dict[str, NodeOutput] = dict()
     input_func: Optional[Callable] = None  # 输入函数，用于获取用户输入
     cancellation_token: Optional[CancellationToken] = None
+    goal: Optional[str] = None  # 目标描述，用于指导工作流执行
     
     def get_node_output(self, flow_id : str, node_id: str) -> NodeOutput:
         key = f'{flow_id}.{node_id}'

@@ -91,13 +91,15 @@ class QuestionnaireNode(AgentNode):
                 this_task = content + TASK_TEMPLATE.format(task=self._node_param.task, question=question)
             else:
                 this_task = TASK_TEMPLATE.format(task=self._node_param.task, question=question)
-            async for msg in self.team.run_stream(task=this_task, cancellation_token = cancellation_token):
-                if isinstance(msg, (BaseAgentEvent, BaseChatMessage)):
-                    yield msg
+            try:
+                async for msg in self.team.run_stream(task=this_task, cancellation_token = cancellation_token):
+                    if isinstance(msg, (BaseAgentEvent, BaseChatMessage)):
+                        yield msg
 
-                if isinstance(msg, TaskResult):
-                   results.append(copy.deepcopy(msg)) 
-
+                    if isinstance(msg, TaskResult):
+                        results.append(copy.deepcopy(msg)) 
+            except Exception as e:
+                print(f"Error in executing task: {e}", flush=True)
         summary : Response = None
 
         # 生成随机的uuid字符串
