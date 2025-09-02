@@ -6,6 +6,7 @@ from autogen_agentchat.ui import Console
 from autogen_agentchat.messages import ChatMessage, TextMessage
 
 from ..tools import extract_code_blocks
+from ..tools.utils import JsonHandler
 from .questionnaire_node import QuestionnaireNode
 from .base_node import AgentNode
 from ..data_model import AgentNodeParam, Context, AgentParam, TaskItem, LoopModeEnum
@@ -167,5 +168,5 @@ class LoopQuestionnaireNode(AgentNode):
         summary_state = await self.summary_agent.save_state()
         state = {"planner": plan_state, "summary": summary_state, "response": self.response}
         with open(self.state_file, "w") as f:
-            json.dump(state, f, ensure_ascii=False, indent=4)
+            json.dump(state, f, ensure_ascii=False, indent=4, cls=JsonHandler)
         return state

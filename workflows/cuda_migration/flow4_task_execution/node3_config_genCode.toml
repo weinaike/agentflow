@@ -29,7 +29,7 @@ questions = [
 [[agents]]
 name = "assistant"
 tools = ["find_definition", "find_declaration", "read_file_content", "get_cpp_dir_structure"]
-#model = "deepseek"
+model = "claude-sonnet-4"
 system_prompt =  '''
 角色：软件工程师
 职责：
