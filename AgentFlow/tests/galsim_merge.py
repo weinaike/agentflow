@@ -16,6 +16,8 @@ import subprocess
 import time
 from tempfile import NamedTemporaryFile
 
+attempts = {1: 'first', 2: 'second', 3: 'third', 4: 'fourth', 5: 'fifth', 6: 'sixth', 7: 'seventh', 8: 'eighth', 9: 'ninth', 10: 'tenth', 11: 'eleventh', 12: 'twelfth'}
+
 def extract_code_blocks(content, language='yaml'):   
     """Regular expression to match code blocks"""
 
@@ -31,7 +33,7 @@ def extract_code_blocks(content, language='yaml'):
 class Generator:
     def __init__(self, config):
         self.config = config
-        self.llm_config = get_model_config(self.config, ModelEnum.GEMINI_25_FLASH)
+        self.llm_config = get_model_config(self.config, ModelEnum.GPT4O)
         self.default_system_prompt = None 
 
     async def __call__(self, func, system_prompt=None, loop_times=1):
@@ -40,7 +42,18 @@ class Generator:
         model_client = OpenAIChatCompletionClient(**self.llm_config.model_dump())
         assistant = AssistantAgent(name="code_generator", model_client=model_client, system_message=system_prompt or self.default_system_prompt)
         code_blocks = []
-        for _ in range(loop_times):
+        try:
+            st = asyncio.get_event_loop().time()
+            response = await Console(assistant.on_messages_stream(messages=msgs, cancellation_token=CancellationToken()))
+            et = asyncio.get_event_loop().time()
+            print(f"It costs {et-st:.3f} seconds to generate code; prompt_tokens: {response.chat_message.models_usage.prompt_tokens}; completion_tokens: {response.chat_message.models_usage.completion_tokens}")
+            code_blocks = extract_code_blocks(response.chat_message.content, ["cpp","diff"])
+        except Exception as e:
+            print(e)
+
+        for i in range(1, loop_times):
+            feedback = f"It's difficult for me to determine whether your code is correct, and it's also hard to judge the effect of the optimization. Please regenerate the code according to the task requirements. You may modify the code generated last time; of course, if you feel the previous code is quite perfect, you can directly output the same code as last time. I will choose the best version from your multiple generated code submissions. If many generated codes are identical, that will give me an indication that these could be optimal. Remember, ‌this is the {attempts[i+1]} time‌ you're completing this task."
+            msgs = [TextMessage(content=feedback, source="user")]
             try:
                 st = asyncio.get_event_loop().time()
                 response = await Console(assistant.on_messages_stream(messages=msgs, cancellation_token=CancellationToken()))
@@ -140,6 +153,27 @@ def TEST_complete_input_complete_output():
     result = asyncio.run(generator(msgs, GENERATE_COMPLETE_CODE_SYSTEM_PROMPT))
     print(result)
 
+def TEST_complete_input_complete_output_cumulative_messages():
+    ast = AST()
+    src = "/home/jiangbo/GalSim/src"
+    include = ["/home/jiangbo/GalSim/include", "/home/jiangbo/GalSim/include/galsim", "/home/jiangbo/GalSim/src"]
+    namespaces = ["galsim"]
+    cache_file = "/home/jiangbo/agentflow/workspace/galsim7/cache"
+    dir_list = [src]
+    if include:
+        dir_list.extend(include)
+    output_filters =  [
+        lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
+    ]
+    ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_file, load=True)
+
+    code = ast.fetch_source_code(symbol="shoot", scope="galsim::Nearest", filters=output_filters, with_header=True, requires_whole_target_file=True)
+
+    generator = Generator("/home/jiangbo/agentflow/docs/OAI_CONFIG_LIST.json")
+    msgs = "### Input\n\n" + code
+    result = asyncio.run(generator(msgs, GENERATE_COMPLETE_CODE_SYSTEM_PROMPT, 12))
+    print(result)
+
 def TEST_complete_input_diff_output():
     ast = AST()
     src = "/home/jiangbo/GalSim/src"
@@ -159,6 +193,36 @@ def TEST_complete_input_diff_output():
     generator = Generator("/home/jiangbo/agentflow/docs/OAI_CONFIG_LIST.json")
     msgs = "### Input\n\n" + code
     result = asyncio.run(generator(msgs, system_prompt=GENERATE_UNIFIED_DIFF_SYSTEM_PROMPT))
+    print(result)
+    with NamedTemporaryFile(mode="wt", delete=False) as f:
+        f.write(result[0])
+        f.flush() # This is required, otherwise the file is still empty when the `patch` command is executed
+        command = f"patch -o /tmp/new.cpp /home/jiangbo/GalSim/src/Interpolant.cpp {f.name}"
+        print(f"running command `{command}'")
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        print(result.stdout)
+        if result.returncode != 0:
+            print(f"Error with errno: {result.returncode}\n{result.stderr}")
+
+def TEST_complete_input_diff_output_cumulative_messages():
+    ast = AST()
+    src = "/home/jiangbo/GalSim/src"
+    include = ["/home/jiangbo/GalSim/include", "/home/jiangbo/GalSim/include/galsim", "/home/jiangbo/GalSim/src"]
+    namespaces = ["galsim"]
+    cache_file = "/home/jiangbo/agentflow/workspace/galsim7/cache"
+    dir_list = [src]
+    if include:
+        dir_list.extend(include)
+    output_filters =  [
+        lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
+    ]
+    ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_file, load=True)
+
+    code = ast.fetch_source_code(symbol="shoot", scope="galsim::Nearest", filters=output_filters, with_header=True, requires_whole_target_file=True)
+
+    generator = Generator("/home/jiangbo/agentflow/docs/OAI_CONFIG_LIST.json")
+    msgs = "### Input\n\n" + code
+    result = asyncio.run(generator(msgs, GENERATE_UNIFIED_DIFF_SYSTEM_PROMPT, 12))
     print(result)
     with NamedTemporaryFile(mode="wt", delete=False) as f:
         f.write(result[0])
@@ -208,6 +272,28 @@ def TEST_complete_input_snippet_output():
     complete_code = asyncio.run(merger(msgs, MERGE_CODE_SNIPPETS_SYSTEM_PROMPT))
     print(complete_code)
 
+def TEST_complete_input_snippet_output_cumulative_messages():
+    ast = AST()
+    src = "/home/jiangbo/GalSim/src"
+    include = ["/home/jiangbo/GalSim/include", "/home/jiangbo/GalSim/include/galsim", "/home/jiangbo/GalSim/src"]
+    namespaces = ["galsim"]
+    cache_file = "/home/jiangbo/agentflow/workspace/galsim7/cache"
+    dir_list = [src]
+    if include:
+        dir_list.extend(include)
+    output_filters =  [
+        lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
+    ]
+    ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_file, load=True)
+
+    complete_code = ast.fetch_source_code(symbol="shoot", scope="galsim::Nearest", filters=output_filters, with_header=True, requires_whole_target_file=True)
+
+    generator = Generator("/home/jiangbo/agentflow/docs/OAI_CONFIG_LIST.json")
+    merger = Merger("/home/jiangbo/agentflow/docs/OAI_CONFIG_LIST.json")
+    msgs = "### Input\n\n" + complete_code
+    result = asyncio.run(generator(msgs, GENERATE_CODE_SNIPPET_SYSTEM_PROMPT, 10))
+    print(result)
+
 def TEST_snippet_input_snippet_output():
     ast = AST()
     src = "/home/jiangbo/GalSim/src"
@@ -246,8 +332,33 @@ def TEST_snippet_input_snippet_output():
     complete_code = asyncio.run(merger(msgs, MERGE_CODE_SNIPPETS_SYSTEM_PROMPT))
     print(complete_code)
 
+def TEST_snippet_input_snippet_output_cumulative_messages():
+    ast = AST()
+    src = "/home/jiangbo/GalSim/src"
+    include = ["/home/jiangbo/GalSim/include", "/home/jiangbo/GalSim/include/galsim", "/home/jiangbo/GalSim/src"]
+    namespaces = ["galsim"]
+    cache_file = "/home/jiangbo/agentflow/workspace/galsim7/cache"
+    dir_list = [src]
+    if include:
+        dir_list.extend(include)
+    output_filters =  [
+        lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
+    ]
+    ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_file, load=True)
+
+    complete_code = ast.fetch_source_code(symbol="shoot", scope="galsim::Nearest", filters=output_filters, with_header=True, requires_whole_target_file=False)
+
+    generator = Generator("/home/jiangbo/agentflow/docs/OAI_CONFIG_LIST.json")
+    merger = Merger("/home/jiangbo/agentflow/docs/OAI_CONFIG_LIST.json")
+    msgs = "### Input\n\n" + complete_code
+    result = asyncio.run(generator(msgs, GENERATE_CODE_SNIPPET_SYSTEM_PROMPT, 10))
+    print(result)
+
 if __name__ == '__main__':
     #TEST_complete_input_complete_output()
-    TEST_complete_input_diff_output()
+    #TEST_complete_input_diff_output()
     #TEST_complete_input_snippet_output()
     #TEST_snippet_input_snippet_output()
+    #TEST_complete_input_complete_output_cumulative_messages()
+    #TEST_complete_input_diff_output_cumulative_messages()
+    TEST_complete_input_snippet_output_cumulative_messages()

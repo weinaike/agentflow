@@ -69,3 +69,32 @@ def get_json_content(data:str) -> dict:
     json_blocks = code_block_pattern.findall(data)
     json_content = json.loads(''.join(json_blocks))
     return json_content
+
+from json import JSONEncoder
+from datetime import datetime
+class JsonHandler(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return {"__datetime__": obj.isoformat()}
+        return super().default(obj)    
+
+    @staticmethod
+    def deserialize(dct):    
+        if "__datetime__" in dct:
+            return datetime.fromisoformat(dct["__datetime__"])  
+        return dct
+
+if __name__ == '__main__':
+    result = {
+        "name": "alice",
+        "grade": [98, 97],
+        "date": datetime.now()
+    }
+
+    res = json.dumps(result, cls=JsonHandler)
+
+    #res = json.loads(res, object_hook=JsonHandler.deserialize)
+    res = json.loads(res)
+    print(res)
+
+    print(f"equal? {result == res}")

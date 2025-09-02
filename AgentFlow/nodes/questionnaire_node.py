@@ -9,7 +9,7 @@ from autogen_core.models import CreateResult,UserMessage
 
 from .base_node import AgentNode
 from ..data_model import AgentNodeParam, Context, CheckResult, AgentParam, ModelEnum
-from ..tools.utils import get_json_content
+from ..tools.utils import get_json_content, JsonHandler
 import re
 from typing import Union, Dict,List
 import logging
@@ -183,5 +183,5 @@ class QuestionnaireNode(AgentNode):
         summary_state = await self.summary_agent.save_state()
         state = {"team": team_state, "summary": summary_state, "response": self.response}
         with open(self.state_file, "w") as f:
-            json.dump(state, f, ensure_ascii=False, indent=4)
+            json.dump(state, f, ensure_ascii=False, indent=4, cls=JsonHandler)
         return state

@@ -6,7 +6,6 @@ import time
 import numpy as np
 from typing import Union, List
 from collections import deque
-from transformers import AutoTokenizer
 try:
     from .utils import thread_safe_singleton
 except:
@@ -380,6 +379,7 @@ class AST:
         self.index_cuda_args = [
             '-std=c++14',
             '-xcuda',
+            '-fsyntax-only',
             '-D__CUDA__',
             '-DENABLE_CUDA',
             '--cuda-gpu-arch=sm_60',
@@ -414,12 +414,14 @@ class AST:
         self.cache_dir = cache_file
         os.makedirs(self.cache_dir, exist_ok=True)
         
-        print("正在解析源代码，请耐心等待……", flush=True)
+        st = time.time()
+        print("Parsing code ... Please wait a moment", flush=True)
         if load:
             self.load_symbol_tables()
         else:    
             self.build_symbol_tables()
-        print("解析源代码完成", flush=True)
+        et = time.time()
+        print(f"Parsing code completed: It takes {et-st: .3f} seconds", flush=True)
 
     def get_header_files(self, directory):
         header_files = []
@@ -683,7 +685,7 @@ class AST:
 
         return None        
 
-    def fetch_code_snippet_from_file(self, file_name, method_defs):
+    def fetch_code_snippet_from_file(self, file_name, method_defs, requires_whole_target_file=False):
         file_contents = []
         code_snippet = ""
         with open(file_name) as f:
@@ -691,26 +693,29 @@ class AST:
         lineno_width = len(str(len(file_contents)))
 
         line_nos = set() #记录所有需要的行号，然后从file_contents中提取对应的代码行
-        for method_def in method_defs:
-            if method_def.get_num_template_arguments() > 0:
-                parent = method_def.semantic_parent
-                for child in parent.get_children():
-                    if child.location == method_def.location:
-                        method_def = child
-                        break
-            line_nos.update([line - 1 for line in range(method_def.extent.start.line, method_def.extent.end.line+1)])
-            lexical_parent = method_def.lexical_parent
-            while lexical_parent and lexical_parent.kind != CursorKind.TRANSLATION_UNIT:
-                if lexical_parent.kind == CursorKind.NAMESPACE:
-                    children = sorted([child for child in lexical_parent.get_children()], key=lambda cursor: cursor.location.line)
-                    if children:
-                        first_child = children[0]
-                        line_nos.update([line-1 for line in range(lexical_parent.extent.start.line, first_child.extent.start.line)])
-                        line_nos.add(lexical_parent.extent.end.line-1)
-                    else:
-                        line_no.update([line-1 for line in range(lexical_parent.extent.start.line, lexical_parent.extent.end.line+1)])    
-                lexical_parent = lexical_parent.lexical_parent    
-        line_nos = sorted(line_nos)        
+        if requires_whole_target_file:
+            line_nos = np.arange(len(file_contents)).tolist()
+        else:    
+            for method_def in method_defs:
+                if method_def.get_num_template_arguments() > 0:
+                    parent = method_def.semantic_parent
+                    for child in parent.get_children():
+                        if child.location == method_def.location:
+                            method_def = child
+                            break
+                line_nos.update([line - 1 for line in range(method_def.extent.start.line, method_def.extent.end.line+1)])
+                lexical_parent = method_def.lexical_parent
+                while lexical_parent and lexical_parent.kind != CursorKind.TRANSLATION_UNIT:
+                    if lexical_parent.kind == CursorKind.NAMESPACE:
+                        children = sorted([child for child in lexical_parent.get_children()], key=lambda cursor: cursor.location.line)
+                        if children:
+                            first_child = children[0]
+                            line_nos.update([line-1 for line in range(lexical_parent.extent.start.line, first_child.extent.start.line)])
+                            line_nos.add(lexical_parent.extent.end.line-1)
+                        else:
+                            line_no.update([line-1 for line in range(lexical_parent.extent.start.line, lexical_parent.extent.end.line+1)])    
+                    lexical_parent = lexical_parent.lexical_parent    
+            line_nos = sorted(line_nos)        
         line_contents = np.array(file_contents)[line_nos]
         for line_no, line_content in zip(line_nos, line_contents):
             code_snippet += str(line_no+1).rjust(lineno_width) + ": " + line_content
@@ -901,7 +906,7 @@ class AST:
 
         return self.format_code_snippets(code_snippets)
         
-    def fetch_source_code(self, symbol, scope, type=None, filters=[], with_header=True):
+    def fetch_source_code(self, symbol, scope, type=None, filters=[], with_header=True, requires_whole_target_file=False):
         #提取scope::method_or_func有关的代码
         assert all([callable(filter) for filter in filters]), "filters must be callable!"
         method_or_func_def = self.find_definition_by_name(name=symbol, scope=scope, type=type)
@@ -911,6 +916,7 @@ class AST:
         method_deps = []
         code_snippets = {}
         code_methods = {}
+        target_file_names = set([method_def.location.file.name for method_def in method_or_func_def])
         if method_or_func_def:
             method_deps = self.find_dependence(method_or_func_def, filters)
 
@@ -936,7 +942,7 @@ class AST:
 
             for file_name, method_defs in code_methods.items():
                 sorted_method_defs = sorted(method_defs, key=lambda method_def: method_def.extent.start.line)
-                code_snippets[file_name] = self.fetch_code_snippet_from_file(file_name, sorted_method_defs)  
+                code_snippets[file_name] = self.fetch_code_snippet_from_file(file_name, sorted_method_defs, requires_whole_target_file and file_name in target_file_names)  
 
         return self.format_code_snippets(code_snippets)
 
@@ -1035,6 +1041,7 @@ if __name__ == "__main__":
     ast = AST()
     ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_dir, load=use_cache)
 
+    from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained("/home/jiangbo/models")
     scope_methods = [
         "galsim::PhotonArray::setFrom",

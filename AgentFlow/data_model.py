@@ -12,12 +12,23 @@ from autogen_agentchat.base import TaskResult
 class ModelEnum(str, Enum):
     DEFAULT = "gpt-4o"
     GPT4O = "gpt-4o"
+    GPT41 = "gpt-4.1"
+    GPT4OMINI = "gpt-4o-mini"
     O1MINI = "o1-mini"
-    CLAUDE = "claude"
-    DOUBAO = "doubao"
-    MINIMAX = "minimax"
+
+    CLAUDE_35_SONNET = "claude-3-5-sonnet"
+    CLAUDE_37_SONNET = "claude-3-7-sonnet"
+    CLAUDE_OPUS_4 = "claude-opus-4"
+    CLAUDE_SONNET_4 = "claude-sonnet-4"
+
+    GEMINI_25_PRO = "gemini-2.5-pro"
+    GEMINI_25_FLASH = "gemini-2.5-flash"
+
     DEEPSEEKV3 = "deepseek-v3"
     DEEPSEEKR1 = "deepseek-r1"
+
+    DOUBAO = "doubao"
+    MINIMAX = "minimax"
 
 
 class ModelCapabilities(BaseModel):

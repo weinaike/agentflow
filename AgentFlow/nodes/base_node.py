@@ -8,6 +8,7 @@ from autogen_agentchat.base import TaskResult, Response
 
 from ..data_model import NodeParam, AgentNodeParam, ToolNodeParam, AgentParam, NodeOutput,Context, get_model_config, ModelEnum
 from ..tools import tool_mapping
+from ..tools.utils import JsonHandler
 
 from typing import Union, Dict, List
 import os
@@ -129,7 +130,7 @@ class AgentNode(BaseNode) :
         summary_state = await self.summary_agent.save_state()
         state = {"team": None, "summary": summary_state}
         with open(self.state_file, "w") as f:
-            json.dump(state, f, ensure_ascii=False, indent=4)
+            json.dump(state, f, ensure_ascii=False, indent=4, cls=JsonHandler)
         return state
     
     def get_NodeOutput(self) -> NodeOutput:
