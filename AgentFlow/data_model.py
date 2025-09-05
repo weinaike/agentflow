@@ -3,6 +3,7 @@ from typing import Literal, Optional, Union, Dict, List, Callable
 from enum import Enum
 from .prompt_template import CONTEXT_TEMPLATE
 import json
+import os
 from autogen_agentchat.base import TaskResult
 from autogen_core import CancellationToken
 
@@ -35,16 +36,39 @@ class ModelConfig(BaseModel):
 
 
 def get_model_config(model_config_file: str, type:ModelEnum = ModelEnum.DEFAULT) -> ModelConfig:
-    with open(model_config_file, 'r') as f:
-        config = f.read()
+    try:
+        with open(model_config_file, 'r') as f:
+            config = f.read()
+        
+        model_dict : dict = json.loads(config)
+
+        for key, value in model_dict.items():
+            if key == type:
+                return ModelConfig(**value)
+
+        # 如果在配置文件中找不到指定的模型类型，返回默认配置
+        print(f"Model {type} not found in the config file {model_config_file}, using default config")
+        
+    except (FileNotFoundError, json.JSONDecodeError, IOError) as e:
+        # 配置文件读取失败时，返回默认配置
+        print(f"Failed to read config file {model_config_file}: {e}, using default config")
     
-    model_dict : dict = json.loads(config)
-
-    for key, value in model_dict.items():
-        if key == type:
-            return ModelConfig(**value)
-
-    assert False, f"Model {type} not found in the config file {model_config_file}"
+    # 返回默认配置
+    default_capabilities = ModelCapabilities(
+        vision=False,
+        function_calling=True,
+        json_output=True,
+        structured_output=False
+    )
+    
+    default_config = ModelConfig(
+        model=os.getenv("DEFAULT_MODEL", "glm-4.5"),
+        api_key=os.getenv("OPENAI_API_KEY", ""),
+        base_url=os.getenv("OPENAI_BASE_URL", ""),
+        model_capabilities=default_capabilities
+    )
+    
+    return default_config
 
 
 ###################### 循环并发或迭代任务 ######################
