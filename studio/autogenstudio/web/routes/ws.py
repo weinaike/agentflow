@@ -209,6 +209,36 @@ async def run_websocket(
                                 team_cfg['run_id'] = run_id  # Pass run_id to team config
 
                                 asyncio.create_task(ws_manager.start_stream(run_id, task, team_cfg, flow_id=flow_id, node_ids=node_ids))
+                            elif team_response.status is False: ## 没有数据库，或者数据库中无数据，则直接从文件中读取智能体配置文件
+                                team_cfg = {}
+                                if team_config["id"] == 2: # 2 代表代码库理解智能体
+                                    with open('workflows/comprehension/solution.toml_component.json') as f:
+                                        team_cfg = json.load(f)
+                                elif team_config["id"] == 3: # 3 代表开发文档生成智能体
+                                    with open('workflows/guide/solution.toml_component.json') as f:
+                                        team_cfg = json.load(f)
+                                else:
+                                    logger.error(f"Team with id {team_config['id']} not found")
+                                    await websocket.send_json(
+                                        {
+                                            "type": "error",
+                                            "error": f"Team with id {team_config['id']} not found",
+                                            "timestamp": datetime.utcnow().isoformat(),
+                                        }
+                                    )
+                                    continue
+
+                                if "mcp_port" in team_config:
+                                    team_cfg["mcp_port"] = team_config["mcp_port"]
+                                if "mcp_server" in team_config:
+                                    team_cfg["mcp_server"] = team_config["mcp_server"]
+                                if "mcp_token" in team_config:
+                                    team_cfg["mcp_token"] = team_config["mcp_token"]
+                                if "codebase" in team_config:
+                                    team_cfg["codebase"] = team_config["codebase"]
+                                team_cfg['run_id'] = run_id  # Pass run_id to team config
+
+                                asyncio.create_task(ws_manager.start_stream(run_id, task, team_cfg, flow_id=flow_id, node_ids=node_ids))
                             else:
                                 logger.error(f"Team with id {team_config['id']} not found")
                                 await websocket.send_json(
