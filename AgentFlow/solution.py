@@ -191,29 +191,34 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
 2. node_id与flow_id独立输出，不要出现'flow1_node1'这类节点ID。
 
 '''
-        if task is not None and ((len(specific_flow) == 0) or (len(specific_node) == 0)) and not self._init:        
-            try:
-                msg = UserMessage(content=Template.format(param = self._souluton_param, task=task), source="user")
-                ret: CreateResult = await self._model_client.create(messages=[msg], json_output=True)
-                print(f"根据task信息，需运行的Flow、Node: {ret.content}")
-                if 'json' in ret.content:    
-                    code_block_pattern = re.compile(rf'```json(.*?)```', re.DOTALL)
-                    json_blocks = code_block_pattern.findall(ret.content)
-                    ret.content = ''.join(json_blocks).strip()
+        if task is not None and ((len(specific_flow) == 0) or (len(specific_node) == 0)) and not self._init:    
+            count = 0
+            while True:                
+                try:
+                    msg = UserMessage(content=Template.format(param = self._souluton_param, task=task), source="user")
+                    ret: CreateResult = await self._model_client.create(messages=[msg], json_output=True)
+                    print(f"根据task信息，需运行的Flow、Node: {ret.content}")
+                    if 'json' in ret.content:    
+                        code_block_pattern = re.compile(rf'```json(.*?)```', re.DOTALL)
+                        json_blocks = code_block_pattern.findall(ret.content)
+                        ret.content = ''.join(json_blocks).strip()
 
-                output = RunParam(**json.loads(ret.content))
+                    output = RunParam(**json.loads(ret.content))
 
-                specific_flow = output.flow_id
-                specific_node = output.node_id
-                self._init = True
-                logger.info(f"_model_client create Specific flows: {specific_flow}, Specific nodes: {specific_node}")
-            except Exception as e:
-                logger.error(f"Error during model client create: {e}\n{traceback.format_exc()}")
-                yield TaskResult(
-                    messages=[TextMessage(content="Error during configuring param.", source="solution")],
-                    stop_reason="error",
-                )
-                return
+                    specific_flow = output.flow_id
+                    specific_node = output.node_id
+                    self._init = True
+                    logger.info(f"_model_client create Specific flows: {specific_flow}, Specific nodes: {specific_node}")
+                    break
+                except Exception as e:
+                    logger.error(f"Error during model client create: {e}\n{traceback.format_exc()}")
+                    count += 1
+                    if count > 3:
+                        yield TaskResult(
+                            messages=[TextMessage(content="Error during configuring param.", source="solution")],
+                            stop_reason="error",
+                        )
+                        return
 
         if  isinstance(specific_node, list) and len(specific_node) > 0 and \
             isinstance(specific_flow, list) and len(specific_flow) > 1:
