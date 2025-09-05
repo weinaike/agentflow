@@ -11,6 +11,15 @@ AgentFlow是一个基于Python语言开发的智能体工作流构建框架。�
 - **高度扩展性**：流程和节点可通过继承扩展，支持自定义功能的集成。
 - **信息共享与管理**：采用上下文机制在执行期间共享信息和状态，提高信息流的效率。
 
+## 项目内容
+该项目下包含3个主要部分：
+- **AgentFlow**：核心框架代码，包含工作流和节点的定义与管理。（./AgentFlow/）
+- **MCP工具容器**：提供多种预置工具的Docker容器 （./docker-compose.yml）
+- **Websocket**：服务端与后端交互的WebSocket服务（./studio/）
+
+
+
+
 ### 安装指南
 
 1. **克隆项目**：
@@ -19,26 +28,37 @@ AgentFlow是一个基于Python语言开发的智能体工作流构建框架。�
 git clone https://github.com/weinaike/agentflow.git
 cd agentflow
 ```
-2. **安装依赖项**：
 
-   - uml分析依赖clang-uml
-   ```bash
-   sudo add-apt-repository ppa:bkryza/clang-uml
-   sudo apt update
-   sudo apt install clang-uml
-   ```
+2. **安装AgentFlow**： 
+```bash
+pip install -r requirements.txt
+#或者可编辑安装，调用pyproject.toml安装
+pip install -e . 
+```
 
-   - python包依赖
+3.  **WebSocket服务**：    
+```bash
+cd studio 
+pip install -e . 
+```
+   - 启动服务
+```bash
+cd ..
+autogenstudio serve --host 0.0.0.0 --port 8084
+```
 
-   ```bash
-   pip install -r requirements.txt
-   #或者可编辑安装，调用pyproject.toml安装
-   pip install -e . 
-   ```
+注意： WebSocket服务 内部会调用Agentflow，因而两者的python包依赖需要保持一致。
+而且启动WebSocket服务，要求在该项目根目录启动
 
-2. **MCP工具服务部署与websocket服务部署**：
+WebSocket服务启动后，智能体要正常工作，需要配置模型与API_KEY等环境变量，
+- DEFAULT_MODEL=glm-4.5(默认模型)
+- OPENAI_API_KEY=your_api_key
+- OPENAI_BASE_URL=https://api.openai.com/v1 (需要提供模型服务地址)
 
-   - MCP 与 WebSocket服务：请参考 [docs/server_guide.md](./docs/server_guide.md)
+4. **MCP工具容器**：
+
+   - MCP工具容器：参考 docker-compose.yml
+   - 该工具容器要求独立部署，与AgentFlow和WebSocket服务可以分开部署
 
 ### 项目结构与开发指引
 
