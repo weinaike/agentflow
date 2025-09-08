@@ -15,7 +15,9 @@ AgentFlow是一个基于Python语言开发的智能体工作流构建框架。�
 该项目下包含3个主要部分：
 - **AgentFlow**：核心框架代码，包含工作流和节点的定义与管理。（./AgentFlow/）
 - **MCP工具容器**：提供多种预置工具的Docker容器 （./docker-compose.yml）
-- **Websocket**：服务端与后端交互的WebSocket服务（./studio/）
+- **Websocket**：智能体服务端与后端交互的WebSocket服务（./studio/）
+   - studio中包含多个内容: autogenstudio智能体服务端，frontend前端界面，和一些预置的工具文档
+   - Websocket放置在 ./studio/autogenstudio/cli.py
 
 
 
