@@ -5,11 +5,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 ARG PYPI_REPOSITORY=https://pypi.tuna.tsinghua.edu.cn/simple
 # https://mirrors.aliyun.com/pypi/simple
 
-ARG REQUIREMENTS_TXT_PATH=requirements.txt
+ARG REQUIREMENTS_TXT_PATH=requirement.txt
 ARG STUDIO_REQUIREMENTS_TXT_PATH=studio/requirements.txt
 ARG PYPI_TIMEOUT=15
 
-COPY $REQUIREMENTS_TXT_PATH ./requirements.txt
+COPY $REQUIREMENTS_TXT_PATH ./requirement.txt
 COPY $STUDIO_REQUIREMENTS_TXT_PATH ./studio/requirements.txt
 #COPY $REQUIREMENTS_TXT_PATH /tmp/requirements.txt
 #COPY $STUDIO_REQUIREMENTS_TXT_PATH /tmp/studio/requirements.txt
@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -i $PYPI_REPOSITORY packaging
 
 #WORKDIR /app/studio
 #RUN pip install --no-cache-dir -i $PYPI_REPOSITORY -r /tmp/studio/requirements.txt
-RUN pip install --no-cache-dir -i $PYPI_REPOSITORY -r requirements.txt \
+RUN pip install --no-cache-dir -i $PYPI_REPOSITORY -r requirement.txt \
     && pip install --no-cache-dir -i $PYPI_REPOSITORY -r studio/requirements.txt
 
 ARG SRC_PATH=./
