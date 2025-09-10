@@ -5,6 +5,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ARG PYPI_REPOSITORY=https://pypi.tuna.tsinghua.edu.cn/simple
 # https://mirrors.aliyun.com/pypi/simple
 
+WORKDIR /app
+
 ARG REQUIREMENTS_TXT_PATH=requirement.txt
 ARG STUDIO_REQUIREMENTS_TXT_PATH=studio/requirements.txt
 ARG PYPI_TIMEOUT=15
@@ -27,7 +29,5 @@ RUN pip install --no-cache-dir -i $PYPI_REPOSITORY -r requirement.txt \
 ARG SRC_PATH=./
 COPY $SRC_PATH /app/
 COPY --chmod=755 container/entrypoint.sh /app/entrypoint.sh
-
-WORKDIR /app
 
 CMD ["/app/entrypoint.sh"]
