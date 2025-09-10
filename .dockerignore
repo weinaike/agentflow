@@ -4,7 +4,6 @@ workspace
 logs
 *.pyc
 *.pyo
-studio
 .vscode
 example
 
