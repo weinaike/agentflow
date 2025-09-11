@@ -187,7 +187,9 @@ class TeamManager:
                             names.append(result.name)
                         text = "".join([f"调用工具：{name}  \n" for name in names])
                         message = TextMessage(content=text, source=message.source)
-                    
+                    elif isinstance(message, TextMessage):
+                        content = message.content.replace('TERMINATE', '')
+                        message = TextMessage(content=content, source=message.source)
                     source = message.source
                     if '.' in source:
                         s_flow_id, s_node_id, s_role = source.split('.')   
@@ -195,7 +197,12 @@ class TeamManager:
                             yield message
                 elif isinstance(message, Response) and isinstance(team, Solution):                    
                     # Ensure Response messages are properly formatted
-                    result = TaskResult(messages=[message.chat_message], stop_reason='node completed')
+                    msg = message.chat_message
+                    if isinstance(msg, TextMessage):
+                        content = msg.content.replace('TERMINATE', '')
+                        msg.content = content
+
+                    result = TaskResult(messages=[msg], stop_reason='node completed')
                     source = message.chat_message.source
                     yield TeamResult(task_result=result, usage=source, duration=time.time() - start_time)
 
