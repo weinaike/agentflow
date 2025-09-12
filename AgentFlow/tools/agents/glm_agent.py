@@ -39,9 +39,10 @@ class GlmAgent:
             model="glm-4.5",
             messages=messages,
             thinking={
-                "type": "disabled",    # 启用深度思考模式
+                #"type": "disabled",    # 启用深度思考模式
+                "type": "enabled",    # 启用深度思考模式
             },
-            max_tokens=4096,          # 最大输出tokens
+            max_tokens=16384,          # 最大输出tokens
             temperature=0.1           # 控制输出的随机性
         )   
 

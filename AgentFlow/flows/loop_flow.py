@@ -55,7 +55,7 @@ class LoopFlow(BaseFlow):
             self._update_tasks(tasks)
 
         for i, task in enumerate(tasks):
-            if task.id not in [4, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]:
+            if task.id not in [12]:
                 continue
             config = self._config_tranfer(self._config, f'task_{i}', task.content)
             

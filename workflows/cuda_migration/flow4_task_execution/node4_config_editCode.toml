@@ -9,16 +9,19 @@ summary_prompt = '''汇总所有迁移代码的编辑结果'''
 max_turns = 10
 mode = 'Questionnaire'
 participants = ["assistant"]
-questions = [
-    "将生成的CUDA迁移代码，依次写入到代码库中: 首先，调用read_file_content读取原始文件内容，如果提示文件不存在，表明需要创建这个文件，直接调用file_edit_save_to_file工具，将代码写入到文件；如果能够成功读取到原始的文件内容，你需要将修改内容合并到原有代码，合并时需要充分考虑代码间的逻辑，不要丢弃原文件中的#include语句、代码注释和未修改片断，最后通过file_edit_save_to_file将合并后的代码写回到原文件。",
-]
+#questions = [
+#    "将生成的CUDA迁移代码，依次写入到代码库中: 首先，调用read_file_content读取原始文件内容，如果提示文件不存在，表明需要创建这个文件，直接调用file_edit_save_to_file工具，将代码写入到文件；如果能够成功读取到原始的文件内容，你需要将修改内容合并到原有代码，合并时需要充分考虑代码间的逻辑，不要丢弃原文件中的#include语句、代码注释和未修改片断，最后通过file_edit_save_to_file将合并后的代码写回到原文件。",
+#]
 
+questions = [
+    "将生成的CUDA迁移代码，依次写入到代码库中。对于diff格式的内容，调用file_edit_patch_file将unified diff内容更新到原文件中；对于非diff格式的内容，首先调用read_file_content读取原始文件内容，如果提示文件不存在，则直接调用file_edit_save_to_file将代码内容写入文件(文件会变新建)，如文件已经存在，你需要基于语义将代码合并，然后通过file_edit_save_to_file将合并后的代码写入文件。",
+]
 
 
 
 [[agents]]
 name = "assistant"
-tools = ["get_cpp_dir_structure", "read_file_content", "file_edit_save_to_file"]
+tools = ["get_cpp_dir_structure", "read_file_content", "file_edit_save_to_file", "file_edit_patch_file"]
 system_prompt =  '''
 角色：软件工程师
 职责：
@@ -30,7 +33,7 @@ system_prompt =  '''
 3. 写入代码必须完整，不能包含未实现的内容
 4. 写入代码与原仓库格式兼容
 5. 原有的注释、日志输出等尽可能地保持不变。
-5. 编辑完成后，记得保存，以免编辑丢失
+5. 编辑完成后，记得保存，以免编辑丢失。通过工具file_edit_patch_file将unified diff格式的内容应用到原始文件，通过工具file_edit_save_to_file将文件写入并覆盖指定的文件。
 
 重要：
 对于编辑后的缺陷反馈，需要及时回复，以实现正确编辑。

@@ -3,6 +3,7 @@ from AgentFlow.tools.project_base import ProjectBase
 from AgentFlow.tools.cpp_project import CppProject
 from AgentFlow.tools.agents.glm_agent import GlmAgent
 
+import re
 import json
 import time
 from pathlib import Path
@@ -18,8 +19,9 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
     {
         "qualified_name": "<the original function name>",
         "unique_id": "<the original unique_id>",
-        "runs_on": ["cpu"],
-        "signature": "__host__ <original sigature of the function>",
+        "runs_on": 0,
+        "requires_translation": 0,
+        "signature": "<original sigature of the function>",
         "comment": "use the original code directly",
         "calls": ["func", ...]
     }
@@ -28,7 +30,8 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
     {
         "qualified_name": "<the original function name>",
         "unique_id": "<the original unique_id>",
-        "runs_on": ["cpu", "gpu"],
+        "runs_on": 2,
+        "requires_translation": 1,
         "signature": "__host__ __device__ <original sigature of the function>",
         "comment": "The new version of the function suports cpu and cuda. Use the __CUDA_ARCH__ macro to switch cpu/gpu code if necessary",
         "calls": ["func", ...]
@@ -38,7 +41,8 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
     {
         "qualified_name": "<the original function name>",
         "unique_id": "<the original unique_id>",
-        "runs_on": ["gpu"],
+        "runs_on": 1,
+        "requires_translation": 1,
         "signature": "__device__ <original sigature of the function>",
         "comment": "The new version of the function suports cuda.",
         "calls": ["func", ...]
@@ -48,24 +52,36 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
     {
         "qualified_name": "<the original function name>",
         "unique_id": "<the original unique_id>",
-        "runs_on": ["gpu"],
+        "runs_on": 3,
+        "requires_translation": 1,
         "signature": "__global__ <original signature of the function>",
         "comment": "the original function will be implemented as a CUDA kernel."
         "calls": ["func", ...]
     }
 
-5. If a function has good parallelism but not all of its code is executed on the GPU, when CUDA-izing this function, it is necessary to launch some kernel function(s) within the function. Please mark the function as follows:    
+5. If a function has good parallelism but not all of its code is executed on the GPU, when CUDA-izing this function, it is necessary to launch some kernel function(s) within the function. Marking functions that lack for-loop(s) in this format is strictly prohibited. Please mark the function as follows:    
     {
         "qualified_name": "<the original function name>",
         "unique_id": "<the original unique_id>",
-        "runs_on": ["cpu"],
-        "signature": "__host__ <original signature of the function>",
+        "runs_on": 0,
+        "requires_translation": 1,
+        "signature": "<original signature of the function>",
         "comment": "The original function will be split into several parts, some of which will be implemented as kernel function(s).",
-        "calls": ["func", "kernel", ...],
+        "calls": ["<Function(including the new created kernels) that will be called DIRECTLY by this translated function; If a function is not directly called in the translated version but invoked through a newly created kernel, it should not be listed here; Each qualified function name should be listed as an individual element in this calls list.>", ...],
         "new_created_kernels": [
-            {"kernel_name": "<kernel name>", "signature": "__global__ <sigature of the new kernel>", "comment": "It implements the functionality of the original function Lines <xx>-<yy>.", "calls": ["func", ...]},
+            {
+                "kernel_name": "<kernel name>", 
+                "signature": "__global__ <sigature of the new kernel>", 
+                "comment": "<Please mark the specific code range in the original function that the current kernel is responsible for implementing (it is sufficient to list the first and last lines of code), and explain why this code range needs to be parallelized.>", 
+                "calls": ["function called in this kernel", ...]
+            },
             ...
-            {"kernel_name": "<kernel name>", "signature": "__global__ <sigature of the new kernel>", "comment": "It implements the functionality of the original function Lines <xx>-<yy>.", "calls": ["func", ...]}
+            {
+                "kernel_name": "<kernel name>", 
+                "signature": "__global__ <sigature of the new kernel>", 
+                "comment": "<Please mark the specific code range in the original function that the current kernel is responsible for implementing (it is sufficient to list the first and last lines of code), and explain why this code range needs to be parallelized.>", 
+                "calls": ["function called in this kernel", ...]
+            }
         ]
     }
 
@@ -73,8 +89,13 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
     {
         "qualified_name": "<the original function name>",
         "unique_id": "<the original unique_id>",      
-        "runs_on": ["unknown"]
+        "runs_on": -1
     }
+
+### Suggestions
+1. For functions/methods that call malloc/free, it is recommended to convert them into __host__ __device ones__. Specifically, on the host side, they still call malloc/free, while on the device side, they call cudaMalloc/cudaFree (currently, CUDA already supports calling these two CUDA functions on the device side).
+
+2. It is forbidden to convert functions or code snippets that have no loops or very few loop iterations into CUDA for execution on GPUs, as doing so will instead reduce program performance.
 
 ### Output
 1. The "signature" and "comment" properties are used to describe how to implement the function in the new project. The "calls" property restricts which functions the function in the new project can call. The elements in the "calls" property must be known function names, unless they are functions you require to be newly created. 
@@ -84,6 +105,32 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
     }
     ```
 """    
+
+REFINE_INTERFACE_SYSTEM_PROMPT = """
+You are a CUDA programming assistant. We are translating the code of a project into CUDA. For each function in the project, we have designed their preliminary translated interfaces (not yet implemented). Now, we need to optimize and confirm these interfaces. Your responsibility is to determine whether a function marked as __host__ __device__ or __device__ is reasonable. If it is reasonable, no modification is needed; otherwise, modifications should be made in accordance with the judgment rules.
+### Judgment Rules
+- Determining whether a function marked as __host__ __device__ or __device__ is reasonable depends on the functions that call this function (hereinafter referred to as "callers", and the function to be judged is referred to as "callee").
+- If at least one caller is marked as __host__ __device__ or __device__ in its translated interface, and the caller still directly calls the callee after translation, then it is reasonable for the callee to be marked as __host__ __device__ or __device__.
+- If at least one caller is marked as __host__ (or unmarked) in its translated interface, and the caller still directly calls the callee after translation, then it is reasonable for the callee to be marked as __host__ (or unmarked).
+- If at least one caller is marked as __host__ (or unmarked) in its translated interface, but after translation, the caller will be split into some kernel functions, and the callee is called in these kernel functions, then it is reasonable for the callee to be marked as __device__.
+
+You need to adjust the mark of the callee based on the above rules and your own experience. The final mark should be one of the following: __host__ __device__, __device__, or unmarked.
+
+### Output
+Please output the result in the following JSON format. Among them:
+- The value of runs_on can be 0, 1, or 2, which respectively represent "unmarked", "__device__", and "__host__ __device__";
+- The value of requires_translation can be 0 or 1. This value is set to 0 only if you think the implementation of the original function can be directly used as the translated implementation; otherwise, it is set to 1;
+- signature should be filled with the translated interface signature of the callee;
+- comment should briefly describe how the callee is translated.
+```json
+{
+"runs_on": <0, 1, or 2>,
+"requires_translation": <0 or 1>,
+"signature": "<The translated interface signature of the callee>",
+"comment": "<A brief description of how the callee is translated>"
+}
+```
+"""
 
 CURRENT_DESIGN_TASK = """
 ### Input
@@ -104,9 +151,9 @@ You are a CUDA programming assistant. Please translate the input function into a
 ### Translation Criterion
 - The interface for the CUDA version has been specified;
 - The functions that can be called in the CUDA version have also been specified. You cannot create new functions, but you can use functions from the C/C++ standard library and CUDA libraries;
-- The translated code must follow a file organization structure. Whenever possible, place the translated code into the original file (the one containing the code before translation). I will merge the newly generated code you provide into the original file, and if necessary, I will also modify the file extension to .cu.
+- The translated code must follow a file organization structure. Whenever possible, place the translated code into the original file (the one containing the code before translation). If necessary, you should modify the file extension to .cu.
 - The CUDA code should be as complete as possible. Pseudo-code is not allowed. Necessary header file inclusions and declarations must not be omitted. The file-organized code you generate should ideally be compilable.
-- The root directory of the project is /home/jiangbo/lenstool-mini. When including header files located within this directory, specify the include path relative to this project root directory.
+- If you need to include new header files, please first check the Makefile configuration (if existed) to ensure the correct header file paths.
 - If the signature of the translated function changes (including being explicitly marked as __host__, __device__, or __global__), and if a declaration for this function exists, you must also modify the function's declaration to keep it consistent with the function's implementation signature.
 
 ### Output
@@ -125,11 +172,14 @@ You are a CUDA programming assistant. Please translate the input function into a
 UPDATE_SYSTEM_PROMPT = """
 You are an AI programmer who specializes in merging code fragments based on semantics. You are responsible for merging the translated code fragments into the original code files in a semantic-based manner. Follow these rules strictly:
 1. **Merge Criteria**:
-   - Most importantly, you need to replace the original function with the translated one (including declarations, definitions, etc.).
-   - The order of each translated code fragment is random. Please adjust their order according to the content in the original code file.
+   - Before merging, please adjust the order of translated code fragment according to the content in the original code file.
+   - During merging, you need to replace the original function with the translated one (including declarations, definitions, etc.).
+   - During merging, you need to include necessary header files.
+   - During merging, you need to keep other code unchanged as much as possible.
+   - After merging, if the merged file contains CUDA code, the file extension should be changed from .c or .cpp to .cu.
 2. **Output Format**:
 ```<programming_language, such as cpp, java, python, etc>
-// filename: <the absolute path of the original file>
+// filename: <the absolute path of the original file, maybe with new file extension>
 <fully_merged_code>
 ```
 """
@@ -183,10 +233,19 @@ class Designer:
     def get_node(self, unique_id):
         query = """
         MATCH (n:Function)
-        WHERE n.unique = $unique_id
+        WHERE n.unique_id = $unique_id
         RETURN properties(n) as properties
         """
-        nodes = self.ingestor.fetch_all(query, params={"unique_id", unique_id})
+        nodes = self.ingestor.fetch_all(query, params={"unique_id": unique_id})
+        return [node["properties"] for node in nodes] if nodes else []
+
+    def get_caller_nodes(self, unique_id):
+        query = """
+        MATCH (n: Function) -[:CALLS]-> (m: Function)
+        WHERE m.unique_id = $unique_id
+        RETURN properties(n) as properties
+        """    
+        nodes = self.ingestor.fetch_all(query, params={"unique_id": unique_id})
         return [node["properties"] for node in nodes] if nodes else []
 
     def get_all_nodes(self):
@@ -199,6 +258,8 @@ class Designer:
 
     def update_node(self, unique_id, properties):
         set_clause = ", ".join([f"n.{k} = ${k}" for k in properties.keys() if k != "unique_id"])
+        if "unique_id" not in properties:
+            properties["unique_id"] = unique_id
         query = """
         MATCH (n:Function {{unique_id: $unique_id}})
         SET {set_clause}
@@ -254,7 +315,7 @@ class Designer:
     def design(self):
         nodes = self.get_topological_sorted_nodes()
         for node in nodes[::-1]:
-            if "runs_on" in node and node["runs_on"]:
+            if "runs_on" in node:
                 continue
             messages = [{"role": "system", "content": DESIGNER_SYSTEM_PROMPT}]
 
@@ -266,28 +327,123 @@ class Designer:
             if callees:
                 partially_completed_design = ""
                 for callee in callees:
-                    partially_completed_design += f"The function `{callee['qualified_name']}` will be run on {' and '.join(callee['runs_on'])}, and its function signature is designed as {callee['signature']} in the CUDA project. \n"
+                    partially_completed_design += f"The function `{callee['qualified_name']}` will be run on {callee['runs_on']}, and its function signature is designed as {callee['signature']} in the CUDA project. \n"
                      
                 partially_completed_design = PARTIALLY_COMPLETED_DESIGN.format(partially_completed_design=partially_completed_design)
                 messages.append({"role": "user", "content": design_task + "\n" + partially_completed_design})     
             else:
                 messages.append({"role": "user", "content": design_task})     
 
-            print(messages)
+            for message in messages:
+                print(message["content"])
             agent = GlmAgent()
             results = agent.chat(messages)
             result = json.loads(results[0]["content"])
 
-            if result["runs_on"][0] == "unknown":
+            if result["runs_on"] == -1:
                 print(f"design function {qualified_name} failed")
                 raise ValueError(f"design function {qualified_name} failed")
             else:
                 updated_node = self.update_node(unique_id=unique_id, properties=result)    
                 print(updated_node)
 
+    def refine_interfaces(self):
+        nodes = self.get_topological_sorted_nodes()
+        for node in nodes:
+            runs_on = node.get("runs_on", -1)
+            unique_id = node["unique_id"]
+            signature = node["signature"]
+            host_signature = re.sub("__device__ ", "", signature)
+            host_signature = re.sub("__host__ ", "", host_signature)
+            if runs_on not in [1, 2]: # 1: __host__ __device__, 2: __device__
+                continue
+            caller_nodes = self.get_caller_nodes(node['unique_id'])
+            if caller_nodes:
+                runs_on_gpu = any([node.get("runs_on", -1) in [1, 2, 3]  for node in caller_nodes])
+                if runs_on_gpu:
+                    # 前置函数中至少有一个在GPU上执行，该函数的确需要是__device__。无需修改
+                    # 这里的判断仍不够严格
+                    continue
+                nodes_with_new_kernels = [node for node in caller_nodes if "new_created_kernels" in node]
+                if nodes_with_new_kernels:
+                    task = "### Interface of the function to be judged\n"
+                    function_def = self.project.find_definition(node["qualified_name"], requires_lines=False)[node["qualified_name"]][0]["text"]
+                    task += "#### Original Implementation\n"
+                    task += function_def
+                    task += "\n####Preliminary Interface\n"
+                    task += """
+                    ```json
+                    {{
+                        "runs_on": {runs_on},
+                        "requires_translation: {requires_translation},
+                        "signature": {signature},
+                        "comment": {comment}
+                    }}
+                    ```
+                    """.format(runs_on=node.get("runs_on", -1), 
+                               requires_translation=node.get("requires_translation", 0),
+                               signature=node.get("signature", ""),
+                               comment=node.get("comment", "")
+                    )
+                    for node_with_new_kernels in nodes_with_new_kernels:
+                        task += f"\n### Interface of the caller {node_with_new_kernels.get('qualified_name')}\n"
+                        function_def = self.project.find_definition(node_with_new_kernels["qualified_name"], requires_lines=False)[node_with_new_kernels["qualified_name"]][0]["text"]
+                        task += "#### Original Implementation\n"
+                        task += function_def
+                        task += "\n####Preliminary Interface\n"
+                        task += """
+                        ```json
+                        {{
+                            "runs_on": {runs_on},
+                            "requires_translation: {requires_translation},
+                            "signature": "{signature}",
+                            "comment": "{comment}",
+                            "new_created_kernels": "{new_created_kernels}"
+                        }}
+                        ```
+                        """.format(runs_on=node_with_new_kernels.get("runs_on", -1), 
+                                requires_translation=node_with_new_kernels.get("requires_translation", 0),
+                                signature=node_with_new_kernels.get("signature", ""),
+                                comment=node_with_new_kernels.get("comment", ""),
+                                new_created_kernels=node_with_new_kernels.get("new_created_kernels", [])
+                        )
+                    messages = [
+                        {"role": "system", "content": REFINE_INTERFACE_SYSTEM_PROMPT},
+                        {"role": "user", "content": task}
+                    ]    
+
+                    for message in messages:
+                        print(message["content"])
+
+                    agent = GlmAgent()
+                    result = agent.chat(messages)
+                    for block in result:
+                        self.update_node(unique_id=unique_id, properties=json.loads(block["content"]))
+                else:
+                    # 没有任何前置函数拆分出kernel，当前函数不需要CUDA版本
+                    self.update_node(unique_id=unique_id, properties={
+                        "runs_on": 0,
+                        "requires_translation": 0,
+                        "signature": host_signature,
+                        "comment": "copy the original code"
+                    })
+
+            else:
+                # 没有前置函数，该函数无法在设备上运行
+                self.update_node(unique_id=unique_id, properties={
+                    "runs_on": 0,
+                    "requires_translation": 0,
+                    "signature": host_signature,
+                    "comment": "copy the original code"
+                })
+    
     def translate(self):
         nodes = self.get_topological_sorted_nodes()
         for node in nodes[::-1]:
+            requires_translation = node.get("requires_translation", 0)
+            translated = "translated" in node
+            if translated or requires_translation == 0: # skip translated functions
+                continue
             translate_prompt = self.generate_translation_prompt(node)
             messages = [ {"role": "system", "content": IMPLEMENT_SYSTEM_PROMPT} ]
             messages.append( {"role": "user", "content": translate_prompt} )
@@ -304,45 +460,55 @@ class Designer:
 
     def update_files(self):
         nodes = self.get_topological_sorted_nodes()
-        translated_files = {}
+        group_translated_snippets = {}
 
         for node in nodes[::-1]:
             translated_snippets = node.get("translated", [])
             if translated_snippets:
                 for translated_snippet in translated_snippets:
-                    filename = translated_snippet.get("filename")
-                    if filename:
-                        translated_file = translated_files.get(filename)
-                        if translated_file:
-                            translated_file.append(translated_snippet)
+                    translated_filename = translated_snippet.get("filename")
+                    if translated_filename:
+                        if translated_filename.endswith(".c"):
+                            translated_filename += "u"
+                        group_translate_snippet = group_translated_snippets.get(translated_filename)
+                        if group_translate_snippet:
+                            group_translate_snippet.append(translated_snippet)
                         else:
-                            translated_files[filename] = [translated_snippet]
+                            group_translated_snippets[translated_filename] = [translated_snippet]
 
-        for filename, translated_snippets in translated_files.items():                    
-            update_prompt = "### File Content before Translation"
-            if filename.endswith(".cu"):
-                filename = filename[:-len(".cu")] + ".c"
-            with open(filename) as f:
+        for translated_filename, translated_snippets in group_translated_snippets.items():                    
+            update_prompt = "### File Content before Translation\n"
+            original_filename = translated_filename
+            if translated_filename.endswith(".cu"):
+                original_filename = translated_filename[:-len(".cu")] + ".c"
+            with open(original_filename) as f:
                 content = f.read()
-            update_prompt += f"```cpp\n// filename:{filename}\n{content}\n```"    
+            update_prompt += f"```cpp\n// filename:{original_filename}\n{content}\n```\n"    
             
             update_prompt += "\n### Translated Code Snippets\n"
-            update_prompt += f"The file {filename} has the following translated code snippets:\n"
+            update_prompt += f"The file {translated_filename} has the following translated code snippets:\n"
             for translated_snippet in translated_snippets:
                 lang, content = translated_snippet["language"], translated_snippet["content"]
                 update_prompt += f"```{lang}\n"
-                update_prompt += f"// filename: {filename}\n"
-                update_prompt += f"{content}\n```"
+                update_prompt += f"// filename: {translated_filename}\n"
+                update_prompt += f"{content}\n```\n"
 
             messages = [
                 {"role": "system", "content": UPDATE_SYSTEM_PROMPT},
                 {"role": "user", "content": update_prompt}
             ]    
+
+            for message in messages:
+                print(message["content"])
+
             agent = GlmAgent()
             result = agent.chat(messages)
             for block in result:
                 with open(block["filename"], "w") as f:
                     f.write(block["content"])
+            #if translated_filename != original_filename:
+            #    import os
+            #    os.remove(original_filename)        
                         
     def generate_translation_prompt(self, node):
         callees = self.get_callees(node['unique_id'])
@@ -428,6 +594,9 @@ class Designer:
 
         prompt += code_snippets
 
+        makefile = self.project.get_makefile()
+        prompt += f"### Makefile\n{makefile}"
+
         return prompt
 
 def translate_lenstool_mini():
@@ -454,7 +623,7 @@ def translate_lenstool_mini():
     repo.git.execute(["git", "checkout", "--", "."])
 
     st = time.time()
-    project = CppProject(**project_config)
+    project = CppProject(**project_config, root_dir=project_root)
     et = time.time()
     print(f"It takes {et-st: .3f} second(s) to parse the project")
 
@@ -463,8 +632,8 @@ def translate_lenstool_mini():
 
         #designer.construct_graph()
         #designer.design()
-        #designer.translate()
-        designer.update_files()
+        designer.translate()
+        #designer.update_files()
 
 def translate_lenstool_cubetosou():
     config = {
@@ -487,18 +656,18 @@ def translate_lenstool_cubetosou():
 
     from git import Repo
     repo = Repo(project_root)
-    repo.git.execute(["git", "checkout", "--", "."])
+    #repo.git.execute(["git", "checkout", "--", "."])
 
     st = time.time()
-    project = CppProject(**project_config)
+    project = CppProject(**project_config, root_dir=project_root)
     et = time.time()
     print(f"It takes {et-st: .3f} second(s) to parse the project")
 
     with MemgraphIngestor(**memgraph_config) as ingestor:
         designer = Designer(project=project, ingestor=ingestor)
-
         #designer.construct_graph()
-        designer.design()
+        #designer.design()
+        designer.refine_interfaces()
         #designer.translate()
         #designer.update_files()
 

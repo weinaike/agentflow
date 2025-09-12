@@ -1,6 +1,7 @@
 
 import os
 import subprocess
+from tempfile import NamedTemporaryFile
 from typing_extensions import Annotated, List, Union
 from .utils import calculate_degrees
 import re
@@ -26,7 +27,8 @@ def find_definition(symbol:Annotated[str, "The name of the function or variable 
             find_declaration("", "galsim::UniformDeviate")    
     """
     ast = AST()
-    return ast.find_definition(symbol, class_name)
+    definition = ast.find_definition(symbol, class_name)
+    return definition or f"can't find the specified symbol {symbol}."
 
 def find_declaration(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                      class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
@@ -43,7 +45,8 @@ def find_declaration(symbol:Annotated[str, "The name of the function or variable
             find_declaration("", "galsim::UniformDeviate")    
     '''
     ast = AST()
-    return ast.find_declaration(symbol, class_name)
+    declaration = ast.find_declaration(symbol, class_name)
+    return declaration or f"can't find the specified symbol {symbol}"
 
 def fetch_source_code(symbol:Annotated[str, "The name of the function or variable that needs to be queried."],
                      class_name:Annotated[str, "The class name to which the function or variable belongs."] = None)-> dict:
@@ -465,6 +468,23 @@ def file_edit_save_to_file(filename: Annotated[str, "the file to save"],
     except Exception as e:
         return f'save file `{filename}` failed: {e}'
     return f'save file `{filename}` success'                    
+
+def file_edit_patch_file(original_file: Annotated[str, "the original file that the patch will be applied to"], 
+               unified_diff: Annotated[str, "unified diff content"]):    
+    '''
+    将指定的unified-diff格式的内容应用到原始的文件
+    '''
+    with NamedTemporaryFile(mode="wt", delete=False) as tmp_file:
+        tmp_file.write(unified_diff)
+        tmp_file.flush() # This is required, otherwise the file is still empty when the `patch` command is executed
+        command = f"patch -f {original_file} {tmp_file.name}"
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"failed to apply the patch command `{command}'")
+            return f"save file `{original_file}` failed: the unified-diff content may be mal-formed."
+        else:
+            print(f"successfully apply the patch command `{command}'")
+            return f"save file `{original_file}` successfully."
 
 def file_edit_rollback_files(filenames: Annotated[List[str], "files to be restored"])->str:
     '''将指定列表filenames中的文件回滚或删除，使git仓库恢复到修改前的状态'''
