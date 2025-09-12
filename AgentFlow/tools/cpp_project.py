@@ -18,12 +18,14 @@ class CppProject(ProjectBase):
                  build_options: List[str]=[], 
                  force_build: bool = False,
                  build_dir: str = None,
+                 root_dir: str = None,
                  src_dirs: List[str]=[], 
                  filter_by_dirs: List[str]=[], filter_by_namespaces: List[str]=[]
     ):
         self.build_options = build_options
         self.force_build = force_build
         self.build_dir = build_dir
+        self.root_dir = root_dir
         self.src_dirs = src_dirs
         self.filter_by_dirs = filter_by_dirs
         self.filter_by_namespaces = filter_by_namespaces
@@ -57,6 +59,22 @@ class CppProject(ProjectBase):
             self.md5_hash = "cpp_" + hash_obj.hexdigest()[:16]
             return self.md5_hash
 
+    def get_makefile(self):
+        if self.root_dir:
+            files = os.listdir(self.root_dir)
+            makefile_name = None
+            for filename in files:
+                if filename.upper() == 'MAKEFILE':
+                    makefile_name = os.path.join(self.root_dir, filename)
+                    break
+            if makefile_name:
+                with open(makefile_name) as f:
+                    content = f.read()   
+                return f"```makefile\n# filename: {makefile_name}\n{content}\n```\n"    
+                
+        return "Makefile doesn't exist in the project.\n"        
+            
+    
     def filter(self, cursors: List[Cursor], filters=None):
         if filters is None:
             filters = self.filters

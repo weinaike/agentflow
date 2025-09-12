@@ -906,7 +906,7 @@ class AST:
 
         return self.format_code_snippets(code_snippets)
         
-    def fetch_source_code(self, symbol, scope, type=None, filters=[], with_header=True, requires_whole_target_file=False):
+    def fetch_source_code(self, symbol, scope, type=None, filters=[], with_header=True, requires_whole_target_file=True):
         #提取scope::method_or_func有关的代码
         assert all([callable(filter) for filter in filters]), "filters must be callable!"
         method_or_func_def = self.find_definition_by_name(name=symbol, scope=scope, type=type)
