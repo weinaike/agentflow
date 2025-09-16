@@ -32,17 +32,17 @@ def extract_blocks(text):
 
 class GlmAgent:
     def __init__(self, **kwargs):
-        self.client = ZhipuAiClient() 
+        self.client = ZhipuAiClient(timeout=600.0) 
 
     def chat(self, messages):
         response = self.client.chat.completions.create(
             model="glm-4.5",
             messages=messages,
             thinking={
-                #"type": "disabled",    # 启用深度思考模式
-                "type": "enabled",    # 启用深度思考模式
+                "type": "disabled",    # 启用深度思考模式
+                #"type": "enabled",    # 启用深度思考模式
             },
-            max_tokens=16384,          # 最大输出tokens
+            max_tokens=65536,          # 最大输出tokens
             temperature=0.1           # 控制输出的随机性
         )   
 

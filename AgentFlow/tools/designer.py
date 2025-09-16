@@ -43,7 +43,7 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
         "unique_id": "<the original unique_id>",
         "runs_on": 1,
         "requires_translation": 1,
-        "signature": "__device__ <original sigature of the function>",
+        "signature": "__device__ <sigature of the translated function>",
         "comment": "The new version of the function suports cuda.",
         "calls": ["func", ...]
     }
@@ -54,7 +54,7 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
         "unique_id": "<the original unique_id>",
         "runs_on": 3,
         "requires_translation": 1,
-        "signature": "__global__ <original signature of the function>",
+        "signature": "__global__ <signature of the translated function>",
         "comment": "the original function will be implemented as a CUDA kernel."
         "calls": ["func", ...]
     }
@@ -96,6 +96,8 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
 1. For functions/methods that call malloc/free, it is recommended to convert them into __host__ __device ones__. Specifically, on the host side, they still call malloc/free, while on the device side, they call cudaMalloc/cudaFree (currently, CUDA already supports calling these two CUDA functions on the device side).
 
 2. It is forbidden to convert functions or code snippets that have no loops or very few loop iterations into CUDA for execution on GPUs, as doing so will instead reduce program performance.
+
+3. Device-side code does not support variable-length arrays. If an array is present in the parameter list of a function, the array type must be changed to the corresponding pointer type when designing the translated interface.
 
 ### Output
 1. The "signature" and "comment" properties are used to describe how to implement the function in the new project. The "calls" property restricts which functions the function in the new project can call. The elements in the "calls" property must be known function names, unless they are functions you require to be newly created. 
@@ -155,6 +157,9 @@ You are a CUDA programming assistant. Please translate the input function into a
 - The CUDA code should be as complete as possible. Pseudo-code is not allowed. Necessary header file inclusions and declarations must not be omitted. The file-organized code you generate should ideally be compilable.
 - If you need to include new header files, please first check the Makefile configuration (if existed) to ensure the correct header file paths.
 - If the signature of the translated function changes (including being explicitly marked as __host__, __device__, or __global__), and if a declaration for this function exists, you must also modify the function's declaration to keep it consistent with the function's implementation signature.
+
+### Suggestions
+- Variable-length arrays are not supported in device-side code. If a function needs to be executed on the device after translation and uses stack-allocated variable-length arrays internally, during the translation process, consideration should be given to allocating device memory via malloc and freeing the device memory via free at an appropriate time (Note: CUDA already supports calling the malloc and free functions on the device side).
 
 ### Output
 - Each file that houses the newly generated and structured code should be formatted as follows:
@@ -370,7 +375,7 @@ class Designer:
                     function_def = self.project.find_definition(node["qualified_name"], requires_lines=False)[node["qualified_name"]][0]["text"]
                     task += "#### Original Implementation\n"
                     task += function_def
-                    task += "\n####Preliminary Interface\n"
+                    task += "\n#### Preliminary Interface\n"
                     task += """
                     ```json
                     {{
@@ -390,7 +395,7 @@ class Designer:
                         function_def = self.project.find_definition(node_with_new_kernels["qualified_name"], requires_lines=False)[node_with_new_kernels["qualified_name"]][0]["text"]
                         task += "#### Original Implementation\n"
                         task += function_def
-                        task += "\n####Preliminary Interface\n"
+                        task += "\n#### Preliminary Interface\n"
                         task += """
                         ```json
                         {{
@@ -440,7 +445,7 @@ class Designer:
     def translate(self):
         nodes = self.get_topological_sorted_nodes()
         for node in nodes[::-1]:
-            requires_translation = node.get("requires_translation", 0)
+            requires_translation = node["refined_design"]["requires_translation"]
             translated = "translated" in node
             if translated or requires_translation == 0: # skip translated functions
                 continue
@@ -514,8 +519,8 @@ class Designer:
         callees = self.get_callees(node['unique_id'])
         prompt = "### The objective of your task\n"
         prompt += f"Translate the function {node['qualified_name']} as the following specification:\n"
-        prompt += f"- Interface. The new interface of the function is designed as: {node['signature']}\n"
-        prompt += f"- Implementation. {node['comment']}\n"
+        prompt += f"- Interface. The new interface of the function is designed as: {node['refined_design']['signature']}\n"
+        prompt += f"- Implementation. {node['refined_design']['comment']}\n"
         calls = node.get("calls", [])
         new_created_kernels = node.get("new_created_kernels", [])
         restricted_calls = set(calls)
@@ -568,7 +573,7 @@ class Designer:
             prompt += "### Partially Completed Translation\n"        
             prompt += f"The function(s) called by {node['qualified_name']} has been translated already:\n"
             for callee in callees:
-                prompt += f"- The translated function {callee['qualified_name']} has the following signature: {callee['signature']}\n"
+                prompt += f"- The translated function {callee['qualified_name']} has the following signature: {callee['refined_design']['signature']}\n"
 
         prompt += "### Related Code\n"        
         prompt += "Before reading the code, you need to understand all the prompts above. This will enable you to correctly include the relevant header files to access the associated data structures and functions, as well as figure out how to properly translate the related functions.\n"
@@ -595,7 +600,7 @@ class Designer:
         prompt += code_snippets
 
         makefile = self.project.get_makefile()
-        prompt += f"### Makefile\n{makefile}"
+        prompt += f"### Makefile\nWhen writing code, be sure to refer to the compilation options in the Makefile — especially the -I parameter for specifying header search paths — to avoid errors caused by missing or incorrect header file inclusion.\n{makefile}"
 
         return prompt
 
