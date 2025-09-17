@@ -4,62 +4,51 @@
     "version": 2,
     "component_version": 2,
     "description": null,
-    "label": "C/CPP项目代码库理解",
+    "label": "python项目代码库理解",
     "config": {
-        "project_name": "C/CPP项目代码库理解",
-        "project_id": "crow",
-        "description": "\n** 项目必要信息**\n** 项目代码库路径 ** : /root/project\n",
-        "workspace_path": "workspace/crow",
+        "project_name": "python项目代码库理解",
+        "project_id": "code-graph-rag",
+        "description": "\n** 项目必要信息**\n** 项目代码库路径 ** : /home/www/code-graph-rag\n",
+        "workspace_path": "workspace/code-graph-rag",
         "llm_config": "docs/OAI_CONFIG_LIST.json",
-        "codebase": "/root/project",
+        "codebase": "/home/www/code-graph-rag",
         "flows": [
             {
-                "flow_name": "代码库理解",
-                "flow_id": "flow1",
-                "config": "workflows/comprehension/flow1_codebase_comprehension/flow_codebase_comprehension.toml",
+                "flow_name": "代码仓库理解",
+                "flow_id": "flow2",
+                "config": "workflows/comprehension/flow2_codebase_rag/flow2_codebase_rag.toml",
                 "previous_flows": [],
-                "workspace_path": "workspace/crow",
-                "backup_dir": "workspace/crow/cache",
+                "workspace_path": "workspace/code-graph-rag/flow2",
+                "backup_dir": "workspace/code-graph-rag/cache",
                 "llm_config": "docs/OAI_CONFIG_LIST.json",
                 "flow_type": "SEQUENTIAL",
-                "description": "### 架构理解流程\n该流程的目的是帮助架构师\n1. 分析业务，理解项目的主要功能；\n2. 提炼实现核心功能的主要类或者模块，分析类或模块之间的关系； \n3. 提炼实现核心业务的主要流程，及其涉及的相关内容。\n\n",
+                "description": "### 代码仓库理解流程\n该流程的目的是：\n1. 生成代码仓库的总体介绍和项目概览\n2. 构建代码仓库的向量索引库（包括代码切分、embedding、索引构建）\n3. 提供基于检索的智能问答功能\n\n流程特点：\n- 支持多编程语言项目分析\n- 智能代码分割和向量化\n- 基于FAISS的高效检索\n- 上下文感知的问答生成\n",
                 "nodes": [
                     {
-                        "name": "功能分析",
+                        "name": "代码仓库总体介绍",
                         "id": "node1",
                         "inputs": [],
-                        "config": "node1_FunctionAnalysis.toml"
+                        "config": "node1_SummaryGeneration.toml"
                     },
                     {
-                        "name": "概要分析",
+                        "name": "代码仓库向量索引",
                         "id": "node2",
                         "inputs": [
                             "node1"
                         ],
-                        "config": "node2_ConceptionAnalysis.toml"
+                        "config": "node2_CodebaseIndex.toml"
                     },
                     {
-                        "name": "核心模块分析",
+                        "name": "智能问答系统",
                         "id": "node3",
                         "inputs": [
-                            "node1",
                             "node2"
                         ],
-                        "config": "node3_CoreModule.toml"
-                    },
-                    {
-                        "name": "文档汇总",
-                        "id": "node4",
-                        "inputs": [
-                            "node1",
-                            "node2",
-                            "node3"
-                        ],
-                        "config": "node4_DocumentationSummary.toml"
+                        "config": "node3_QASystem.toml"
                     }
                 ]
             }
         ],
-        "backup_dir": "workspace/crow/cache"
+        "backup_dir": "workspace/code-graph-rag/cache"
     }
 }

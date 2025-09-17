@@ -1,0 +1,25 @@
+type = "Agent"
+task = "构建向量索引，使用FAISS存储代码块向量"
+
+[manager]
+max_turns = 3
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "使用build_vector_index工具构建向量索引",
+    "验证索引构建结果",
+    "生成索引构建报告"
+]
+summary_prompt = '整理索引构建结果，输出索引统计信息'
+
+[[agents]]
+name = "assistant"
+model = "gpt-4o"
+tools = ['build_vector_index', 'run_command']
+system_prompt = '''
+你是一个专业的向量索引构建专家，擅长使用FAISS构建高效的向量索引。
+你的任务是：
+1. 使用build_vector_index工具构建向量索引
+2. 确保索引构建过程的正确性
+3. 生成详细的索引构建报告
+'''

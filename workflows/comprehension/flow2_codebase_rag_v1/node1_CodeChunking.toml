@@ -1,0 +1,26 @@
+type = "Agent"
+task = "对代码仓库进行智能分割，使用tree-sitter进行语法感知分割"
+
+[manager]
+max_turns = 3
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "分析代码仓库结构，确定需要处理的文件类型",
+    "使用code_chunking工具对代码进行智能分割",
+    "统计分割结果，生成代码块信息报告"
+]
+summary_prompt = '整理代码分割结果，输出详细的代码块统计信息'
+
+[[agents]]
+name = "assistant"
+model = "gpt-4o"
+tools = ['code_chunking', 'glob_search', 'read_file']
+system_prompt = '''
+你是一个专业的代码分析专家，擅长使用tree-sitter进行语法感知的代码分割。
+你的任务是：
+1. 分析代码仓库结构，识别不同编程语言的文件
+2. 使用code_chunking工具进行智能分割
+3. 确保分割后的代码块保持语法完整性
+4. 生成详细的分割统计报告
+'''

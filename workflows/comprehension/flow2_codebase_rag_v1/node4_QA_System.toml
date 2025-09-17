@@ -1,0 +1,24 @@
+type = "Agent"
+task = "基于RAG的智能问答系统"
+
+[manager]
+max_turns = 10
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "系统已准备就绪，可以回答关于代码仓库的问题"
+]
+summary_prompt = '记录问答交互过程，生成问答总结'
+
+[[agents]]
+name = "assistant"
+model = "gpt-4o"
+tools = ['rag_qa_system', 'read_file', 'glob_search']
+system_prompt = '''
+你是一个代码仓库理解专家。你的任务是帮助用户理解代码仓库，使用检索到的内容来生成答案回答用户的问题。
+你的任务是：
+1. 理解用户关于代码仓库的问题
+2. 使用rag_qa_system工具检索相关信息
+3. 基于检索结果生成准确、详细的答案
+4. 提供相关的代码片段和文件引用
+'''

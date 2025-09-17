@@ -11,7 +11,7 @@ from autogen_core import CancellationToken
 ############### llm_config  ################
 
 class ModelEnum(str, Enum):
-    DEFAULT = "glm"
+    DEFAULT = "gpt-4o"
     GPT4O = "gpt-4o"
     O1MINI = "o1-mini"
     CLAUDE = "claude"
@@ -62,7 +62,7 @@ def get_model_config(model_config_file: str, type:ModelEnum = ModelEnum.DEFAULT)
     )
     
     default_config = ModelConfig(
-        model=os.getenv("DEFAULT_MODEL", "glm-4.5"),
+        model=os.getenv("DEFAULT_MODEL", "gpt-4o"),
         api_key=os.getenv("OPENAI_API_KEY", ""),
         base_url=os.getenv("OPENAI_BASE_URL", ""),
         model_capabilities=default_capabilities

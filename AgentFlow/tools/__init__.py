@@ -7,6 +7,7 @@ from autogen_ext.tools.mcp import StdioServerParams, StreamableHttpServerParams,
 from autogen_ext.tools.mcp import StdioMcpToolAdapter
 from typing import List
 from rich.console import Console as RichConsole
+from .code_rag_tools import (code_chunking_tool, build_index_tool, rag_qa_tool, get_project_stats_tool)
 
 def print_tools(tools: List[StdioMcpToolAdapter]) -> None:
     """Print available MCP tools and their parameters in a formatted way."""
@@ -84,6 +85,10 @@ tool_mapping = {
     "create_ast": create_ast,
     "get_ast_status": get_ast_status,
     "glob_search": glob_search,
+    "code_chunking": code_chunking_tool,
+    "build_vector_index": build_index_tool,
+    "rag_qa_system": rag_qa_tool,
+    "get_project_stats": get_project_stats_tool,
 }
 
 mcp_tool_mapping = {}

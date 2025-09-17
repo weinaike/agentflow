@@ -1,0 +1,43 @@
+type = "Agent"
+task = "构建代码仓库向量索引库"
+
+[manager]
+max_turns = 6
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "分析代码仓库结构，确定需要处理的文件类型和范围",
+    "执行代码分割，将代码文件切分为语义相关的代码块",
+    "生成代码块的向量嵌入表示",
+    "构建FAISS向量索引库并保存"
+]
+summary_prompt = '整理代码仓库向量化处理结果，生成索引构建报告'
+
+[[agents]]
+name = "assistant"
+model = "gpt-4o"
+tools = ['code_chunking', 'build_vector_index', 'glob_search', 'read_file', 'run_command']
+system_prompt = '''
+你是一个专业的代码向量化工程师，擅长将代码仓库转换为可检索的向量索引库。
+
+你的任务是：
+1. 使用code_chunking工具对代码仓库进行智能分割
+2. 使用build_vector_index工具构建向量索引库
+3. 确保索引库包含所有重要的代码片段
+4. 验证索引构建的完整性和正确性
+
+技术要点：
+- 使用tree-sitter进行语法感知的代码分割
+- 支持多种编程语言：Python、JavaScript、TypeScript、C/C++、Java、Go、Rust等
+- 生成高质量的代码块向量嵌入
+- 使用FAISS进行高效的向量存储和检索
+
+处理流程：
+1. 首先分析代码仓库结构，识别需要处理的文件
+2. 执行代码分割，生成语义相关的代码块
+3. 为代码块生成向量嵌入
+4. 构建并保存FAISS索引库
+5. 验证索引构建结果
+
+注意：这个阶段专注于技术实现，确保向量索引库的质量和完整性。
+'''

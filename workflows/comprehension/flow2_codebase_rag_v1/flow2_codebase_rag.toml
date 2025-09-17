@@ -1,0 +1,38 @@
+flow_name = "代码仓库理解"
+flow_type = "SEQUENTIAL"
+description = '''
+### 代码仓库理解流程
+该流程的目的是：
+1. 对代码仓库进行智能分割和向量化
+2. 构建可检索的代码知识库
+3. 生成代码仓库理解综述文档
+4. 支持基于检索的问答功能
+'''
+
+# 代码分割和向量化
+[[nodes]]
+id = "node1"
+name = "代码分割与向量化"
+inputs = []
+config = "node1_CodeChunking.toml"
+
+# 构建向量索引
+[[nodes]]
+id = "node2"
+name = "向量索引构建"
+inputs = ['node1']
+config = "node2_IndexBuilding.toml"
+
+# 生成综述文档
+[[nodes]]
+id = "node3"
+name = "代码仓库综述生成"
+inputs = ['node2']
+config = "node3_SummaryGeneration.toml"
+
+# 问答系统
+[[nodes]]
+id = "node4"
+name = "智能问答系统"
+inputs = ['node3']
+config = "node4_QA_System.toml"

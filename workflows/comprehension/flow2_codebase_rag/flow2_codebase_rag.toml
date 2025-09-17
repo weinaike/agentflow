@@ -1,0 +1,36 @@
+flow_name = "代码仓库理解"
+flow_type = "SEQUENTIAL"
+description = '''
+### 代码仓库理解流程
+该流程的目的是：
+1. 生成代码仓库的总体介绍和项目概览
+2. 构建代码仓库的向量索引库（包括代码切分、embedding、索引构建）
+3. 提供基于检索的智能问答功能
+
+流程特点：
+- 支持多编程语言项目分析
+- 智能代码分割和向量化
+- 基于FAISS的高效检索
+- 上下文感知的问答生成
+'''
+
+# 节点1：代码仓库总体介绍生成
+[[nodes]]
+id = "node1"
+name = "代码仓库总体介绍"
+inputs = []
+config = "node1_SummaryGeneration.toml"
+
+# 节点2：代码仓库向量索引构建
+[[nodes]]
+id = "node2"
+name = "代码仓库向量索引"
+inputs = ['node1']
+config = "node2_CodebaseIndex.toml"
+
+# 节点3：智能问答系统
+[[nodes]]
+id = "node3"
+name = "智能问答系统"
+inputs = ['node2']
+config = "node3_QASystem.toml"

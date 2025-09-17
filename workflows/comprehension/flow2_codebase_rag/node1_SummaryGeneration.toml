@@ -1,0 +1,40 @@
+# node1_SummaryGeneration.toml
+type = "Agent"
+task = "生成代码仓库总体介绍和项目概览"
+
+[manager]
+max_turns = 6
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "分析代码仓库的整体结构和文件组织",
+    "识别项目的主要编程语言和技术栈",
+    "分析项目的核心功能和业务逻辑", 
+    "识别关键模块和重要文件",
+    "生成项目架构概览和功能总结"
+]
+summary_prompt = '整理代码仓库分析结果，生成完整的项目总体介绍文档'
+
+[[agents]]
+name = "assistant"
+model = "gpt-4o"
+tools = ['glob_search', 'read_file', 'run_command', 'get_project_stats']
+system_prompt = '''
+你是一个专业的软件架构分析师，擅长快速理解各种编程语言的代码仓库。
+
+你的任务是：
+1. 使用get_project_stats工具获取项目基础统计信息
+2. 使用glob_search工具搜索不同编程语言的文件，了解项目技术栈
+3. 读取关键文件（README、配置文件、主要源码文件）分析项目功能
+4. 通过代码分析识别项目的核心模块、主要类和关键功能
+5. 生成结构化的项目总体介绍
+
+分析重点：
+- 项目类型和主要功能
+- 使用的编程语言和技术栈
+- 项目结构和关键模块
+- 核心业务逻辑和流程
+- 重要文件和配置说明
+
+注意：这个阶段不需要进行代码分割或向量化，只需要通过文件分析生成项目概览。
+'''

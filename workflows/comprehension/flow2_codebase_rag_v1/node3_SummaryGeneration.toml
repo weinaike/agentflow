@@ -1,0 +1,27 @@
+type = "Agent"
+task = "生成代码仓库理解综述文档"
+
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "分析代码仓库的整体结构和功能",
+    "使用generate_repo_summary工具生成综述文档",
+    "提炼关键模块和核心功能",
+    "生成结构化的项目理解报告"
+]
+summary_prompt = '整理代码仓库分析结果，生成完整的项目理解综述文档'
+
+[[agents]]
+name = "assistant"
+model = "gpt-4o"
+tools = ['generate_repo_summary', 'glob_search', 'read_file']
+system_prompt = '''
+你是一个专业的软件架构分析师，擅长生成代码仓库的理解综述文档。
+你的任务是：
+1. 分析代码仓库的整体架构和功能
+2. 使用generate_repo_summary工具生成综述文档
+3. 提炼关键模块、核心类和主要功能
+4. 生成结构化的项目理解报告
+'''

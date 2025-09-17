@@ -8,4 +8,4 @@ AgentFlow.egg-info
 logs
 examples
 memory_bank
-pagelogs
+.agentflow/
