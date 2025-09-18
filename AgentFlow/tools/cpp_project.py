@@ -247,6 +247,24 @@ class CppProject(ProjectBase):
 
         return None        
 
+    def get_for_stmts(self, *, symbol=None, usr=None, cursor=None, type=None):
+        targets = []
+        if symbol:
+            targets.extend(self.find_definition_by_name(symbol, type))
+        elif usr:
+            targets.append(self.find_definition_by_usr(usr))    
+        elif cursor:
+            targets.append(self.find_definition_by_cursor(cursor))    
+        assert len(targets) == 1
+
+        target: Cursor = targets[0]
+        for_stmts = [node for node in target.walk_preorder() \
+            if node.kind == CursorKind.FOR_STMT]
+        start = target.extent.start.line
+        for for_stmt in for_stmts:
+            pass
+
+    
     def get_call_expr_nodes(self, cursor: Cursor, filters=[], unique=False, sort=False):
         call_expr_nodes = [node for node in cursor.walk_preorder() \
             if node.kind == CursorKind.CALL_EXPR and node.referenced]
@@ -438,9 +456,9 @@ class CppProject(ProjectBase):
         context = "### Context Before Translation\n"
         if callees:
             if callees_in_project:
-                context += f"{symbol} calls the following function(s): {', '.join([CursorUtils.get_full_name(c) for c in callees])}, where {', '.join([CursorUtils.get_full_name(c) for c in callees_in_project])} are/is defined in current project.\n"
+                context += f"{symbol} calls the following function(s): {', '.join([CursorUtils.get_full_name(c) for c in callees])}, where only {', '.join([CursorUtils.get_full_name(c) for c in callees_in_project])} are/is defined in current project.\n"
             else:
-                context += f"{symbol} calls the following function(s): {', '.join([CursorUtils.get_full_name(c) for c in callees])}.\n"
+                context += f"{symbol} calls the following function(s): {', '.join([CursorUtils.get_full_name(c) for c in callees])}, all of which are provided by third-party libraries.\n"
                     
         if type_defs:
             if type_defs_in_project:
@@ -734,7 +752,6 @@ def TEST_lenstool_mini_query_graph():
         """
         nodes_data = ingestor.fetch_all(nodes_query)
         print(json.dumps(nodes_data, indent=4))
-        
 
 def TEST_lenstool_mini_update_graph():
     config = {
@@ -894,4 +911,5 @@ if __name__ == '__main__':
         #TEST_lenstool_project_fetch_source_code()
         #TEST_lenstool_mini_query_graph()
         TEST_lenstool_mini_update_graph()
+        #TEST_lenstool_mini_fetch_for_stmt()
 
