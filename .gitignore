@@ -9,3 +9,9 @@ logs
 examples
 memory_bank
 .agentflow/
+
+CodeRAG/nltk_data
+CodeRAG/venv
+CodeRAG/*.env
+CodeRAG/faiss_index.bin
+CodeRAG/metadata.npy

@@ -1,0 +1,10 @@
+# 忽略敏感文件，但允许.env
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# 允许.env文件
+!.env

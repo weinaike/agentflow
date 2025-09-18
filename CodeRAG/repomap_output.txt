@@ -1,0 +1,327 @@
+Chat files: []
+('/root/wang/csst/code-graph-rag/codebase_rag/services/graph_service.py:
+(Rank value: 1.0000)
+
+   9: class MemgraphIngestor:
+  12: def __init__(self, host: str, port: int, batch_size: int = 1000):
+  31: def __enter__(self) -> "MemgraphIngestor":
+  38: def __exit__():
+  51: def _execute_query(self, query: str, params: dict[str, Any] | None = None) -> list:
+  76: def _execute_batch(self, query: str, params_list: list[dict[str, Any]]) -> None:
+  91: def clean_database(self) -> None:
+  96: def ensure_constraints(self) -> None:
+ 107: def ensure_node_batch(self, label: str, properties: dict[str, Any]) -> None:
+ 111: def ensure_relationship_batch():
+ 130: def flush_nodes(self) -> None:
+ 158: def flush_relationships(self) -> None:
+ 181: def flush_all(self) -> None:
+ 187: def fetch_all(self, query: str, params: dict[str, Any] | None = None) -> list:
+ 192: def execute_write(self, query: str, params: dict[str, Any] | None = None) -> None:
+ 197: def export_graph_to_dict(self) -> dict[str, Any]:
+ 230: def _get_current_timestamp(self) -> str:
+
+/root/wang/csst/code-graph-rag/codebase_rag/tools/document_analyzer.py:
+(Rank value: 1.0000)
+
+  15: class _NotSupportedClient:
+  18: def __getattr__(self, name: str) -> None:
+  24: class DocumentAnalyzer:
+  30: def __init__(self, project_root: str) -> None:
+  54: def analyze(self, file_path: str, question: str) -> str:
+ 147: def create_document_analyzer_tool(analyzer: DocumentAnalyzer) -> Tool:
+ 150: def analyze_document(file_path: str, question: str) -> str:
+
+/root/wang/csst/code-graph-rag/codebase_rag/services/llm.py:
+(Rank value: 1.0000)
+
+  22: class LLMGenerationError(Exception):
+  28: def _clean_cypher_response(response_text: str) -> str:
+  38: class CypherGenerator:
+  41: def __init__(self) -> None:
+ 100: async def generate(self, natural_language_query: str) -> str:
+ 122: def create_rag_orchestrator(tools: list[Tool]) -> Agent:
+
+/root/wang/csst/code-graph-rag/codebase_rag/main.py:
+(Rank value: 1.0000)
+
+  45: confirm_edits_globally = True
+  48: _FILE_MODIFICATION_PATTERNS = [
+  59: app = typer.Typer()
+  68: console = Console(width=None, force_terminal=True)
+  71: session_log_file = None
+  72: session_cancelled = False
+  77: def init_session_log(project_root: Path) -> Path:
+  88: def log_session_event(event: str) -> None:
+  96: def get_session_context() -> str:
+ 105: def is_edit_operation_request(question: str) -> bool:
+ 111: async def _handle_rejection()
+ 139: def is_edit_operation_response(response_text: str) -> bool:
+ 159: def _setup_common_initialization(repo_path: str) -> Path:
+ 178: def _create_configuration_table():
+ 216: async def run_optimization_loop()
+ 368: async def run_with_cancellation()
+ 397: def _handle_chat_images(question: str, project_root: Path) -> str:
+ 471: def get_multiline_input(prompt_text: str = "Ask a question") -> str:
+ 476: def submit(event: Any) -> None:
+ 481: def new_line(event: Any) -> None:
+ 486: def keyboard_interrupt(event: Any) -> None:
+ 513: async def run_chat_loop()
+ 616: def _update_model_settings():
+ 630: def _export_graph_to_file(ingestor: MemgraphIngestor, output: str) -> bool:
+ 667: def _initialize_services_and_agent(repo_path: str, ingestor: MemgraphIngestor) -> Any:
+ 707: async def main_async(repo_path: str) -> None:
+ 730: def start():
+ 817: def export():
+ 848: async def main_optimize_async()
+ 882: def optimize():
+
+/root/wang/csst/code-graph-rag/codebase_rag/parser_loader.py:
+(Rank value: 1.0000)
+
+  11: LanguageLoader = Callable[[], object] | None
+  14: def _try_load_from_submodule(lang_name: str) -> LanguageLoader:
+  88: def _import_language_loaders() -> dict[str, LanguageLoader]:
+ 156: _language_loaders = _import_language_loaders()
+ 159: LANGUAGE_LIBRARIES: dict[str, LanguageLoader | None] = _language_loaders
+ 162: def load_parsers() -> tuple[dict[str, Parser], dict[str, Any]]:
+
+/root/wang/csst/code-graph-rag/codebase_rag/tools/file_reader.py:
+(Rank value: 1.0000)
+
+   8: class FileReadResult(BaseModel):
+  16: class FileReader:
+  19: def __init__(self, project_root: str = "."):
+  35: async def read_file(self, file_path: str) -> FileReadResult:
+  75: def create_file_reader_tool(file_reader: FileReader) -> Tool:
+  78: async def read_file_content(file_path: str) -> str:
+
+/root/wang/csst/code-graph-rag/codebase_rag/tests/conftest.py:
+(Rank value: 1.0000)
+
+  19: def temp_repo() -> Generator[Path, None, None]:
+  27: def mock_ingestor() -> MagicMock:
+  33: def mock_updater(temp_repo: Path, mock_ingestor: MagicMock) -> MagicMock:
+
+/root/wang/csst/code-graph-rag/realtime_updater.py:
+(Rank value: 1.0000)
+
+  18: class CodeChangeEventHandler(FileSystemEventHandler):
+  21: def __init__(self, updater: GraphUpdater):
+  28: def _is_relevant(self, path_str: str) -> bool:
+  35: def dispatch(self, event: Any) -> None:
+  76: def start_watcher(repo_path: str, host: str, port: int) -> None:
+
+/root/wang/csst/code-graph-rag/codebase_rag/tools/file_writer.py:
+(Rank value: 1.0000)
+
+   8: class FileCreationResult(BaseModel):
+  16: class FileWriter:
+  19: def __init__(self, project_root: str = "."):
+  23: async def create_file(self, file_path: str, content: str) -> FileCreationResult:
+  53: def create_file_writer_tool(file_writer: FileWriter) -> Tool:
+  56: async def create_new_file(file_path: str, content: str) -> FileCreationResult:
+
+/root/wang/csst/code-graph-rag/codebase_rag/tools/directory_lister.py:
+(Rank value: 1.0000)
+
+   8: class DirectoryLister:
+   9: def __init__(self, project_root: str):
+  12: def list_directory_contents(self, directory_path: str) -> str:
+  32: def _get_safe_path(self, file_path: str) -> Path:
+  55: def create_directory_lister_tool(directory_lister: DirectoryLister) -> Tool:
+
+/root/wang/csst/code-graph-rag/codebase_rag/tests/test_class_method_relationship.py:
+(Rank value: 1.0000)
+
+  14: def temp_project(temp_repo: Path) -> Path:
+  26: def test_defines_method_relationship_is_created():
+
+/root/wang/csst/code-graph-rag/codebase_rag/config.py:
+(Rank value: 1.0000)
+
+  13: def detect_provider_from_model(model_name: str) -> Literal["gemini", "openai", "local"]:
+  23: class AppConfig(BaseSettings):
+  68: def validate_for_usage(self) -> None:
+  97: def active_orchestrator_model(self) -> str:
+ 105: def active_cypher_model(self) -> str:
+ 112: def set_orchestrator_model(self, model: str) -> None:
+ 116: def set_cypher_model(self, model: str) -> None:
+ 121: settings = AppConfig()
+ 125: IGNORE_PATTERNS = {
+ 141: IGNORE_SUFFIXES = {".tmp", "~"}
+ 146: EDIT_REQUEST_KEYWORDS = frozenset()
+ 166: EDIT_TOOLS = frozenset()
+ 178: EDIT_INDICATORS = frozenset()
+ 202: ORANGE_STYLE = Style.from_dict({"": "#ff8c00"})
+
+/root/wang/csst/code-graph-rag/codebase_rag/tools/file_editor.py:
+(Rank value: 1.0000)
+
+  15: class FunctionMatch(TypedDict):
+  23: LANGUAGE_EXTENSIONS = {
+  41: class EditResult(BaseModel):
+  49: class FileEditor:
+  50: def __init__(self, project_root: str = ".") -> None:
+  57: def _get_real_extension(self, file_path_obj: Path) -> str:
+  67: def get_parser(self, file_path: str) -> Parser | None:
+  76: def get_ast(self, file_path: str) -> Node | None:
+  88: def get_function_source_code():
+ 107: def find_function_nodes(node: Node, parent_class: str | None = None) -> None:
+ 204: def replace_function_source_code():
+ 246: def get_diff():
+ 272: def apply_patch_to_file(self, file_path: str, patch_text: str) -> bool:
+ 300: def _display_colored_diff():
+ 353: def replace_code_block():
+ 424: async def edit_file(self, file_path: str, new_content: str) -> EditResult:
+ 470: def create_file_editor_tool(file_editor: FileEditor) -> Tool:
+ 473: async def replace_code_surgically()
+
+/root/wang/csst/code-graph-rag/codebase_rag/tests/test_graph_updater_integration.py:
+(Rank value: 1.0000)
+
+  16: def temp_project(temp_repo: Path) -> Path:
+  32: def test_function_call_relationships_are_created():
+
+/root/wang/csst/code-graph-rag/examples/graph_export_example.py:
+(Rank value: 1.0000)
+
+  21: def print_summary(summary: dict) -> None:
+  30: def print_node_and_relationship_types(summary: dict) -> None:
+  41: def print_example_nodes(graph: GraphLoader, node_label: str, limit: int = 5) -> None:
+  55: def analyze_graph(graph_file: str) -> None:
+  77: def main() -> None:
+
+/root/wang/csst/code-graph-rag/codebase_rag/schemas.py:
+(Rank value: 1.0000)
+
+   6: class GraphData(BaseModel):
+  15: def _format_results(cls, v: Any) -> list[dict[str, Any]]:
+  35: class CodeSnippet(BaseModel):
+  48: class ShellCommandResult(BaseModel):
+
+/root/wang/csst/code-graph-rag/build_binary.py:
+(Rank value: 1.0000)
+
+  14: def build_binary() -> bool:
+
+/root/wang/csst/code-graph-rag/codebase_rag/graph_updater.py:
+(Rank value: 1.0000)
+
+  16: class GraphUpdater:
+  19: def __init__():
+  38: def run(self) -> None:
+  60: def remove_file_from_state(self, file_path: Path) -> None:
+ 102: def _identify_structure(self) -> None:
+ 170: def _process_files(self) -> None:
+ 214: def _get_docstring(self, node: Node) -> str | None:
+ 229: def parse_and_ingest_file(self, file_path: Path, language: str) -> None:
+ 295: def _ingest_top_level_functions():
+ 347: def _build_nested_qualified_name():
+ 380: def _is_method(self, func_node: Node, lang_config: LanguageConfig) -> bool:
+ 391: def _determine_function_parent():
+ 415: def _ingest_classes_and_methods():
+ 491: def _parse_dependencies(self, filepath: Path) -> None:
+ 513: def _process_function_calls(self) -> None:
+ 518: def _process_calls_in_file():
+ 540: def _process_calls_in_functions():
+ 572: def _process_calls_in_classes():
+ 618: def _get_call_target_name(self, call_node: Node) -> str | None:
+ 647: def _ingest_function_calls():
+ 685: def _resolve_function_call():
+ 714: def _is_likely_same_function():
+
+/root/wang/csst/code-graph-rag/codebase_rag/tools/codebase_query.py:
+(Rank value: 1.0000)
+
+  12: class GraphQueryError(Exception):
+  18: def create_query_tool():
+  31: async def query_codebase_knowledge_graph(natural_language_query: str) -> GraphData:
+
+/root/wang/csst/code-graph-rag/codebase_rag/tools/shell_command.py:
+(Rank value: 1.0000)
+
+  15: COMMAND_ALLOWLIST = {
+  37: GIT_CONFIRMATION_COMMANDS = {
+  54: def _is_dangerous_command(cmd_parts: list[str]) -> bool:
+  60: def _requires_confirmation(cmd_parts: list[str]) -> tuple[bool, str]:
+  87: def timing_decorator():
+  95: async def wrapper(*args: Any, **kwargs: Any) -> Any:
+ 106: class ShellCommander:
+ 109: def __init__(self, project_root: str = ".", timeout: int = 30):
+ 115: async def execute()
+ 200: def create_shell_command_tool(shell_commander: ShellCommander) -> Tool:
+ 203: async def run_shell_command()
+
+/root/wang/csst/code-graph-rag/codebase_rag/tools/code_retrieval.py:
+(Rank value: 1.0000)
+
+  10: class CodeRetriever:
+  13: def __init__(self, project_root: str, ingestor: MemgraphIngestor):
+  18: async def find_code_snippet(self, qualified_name: str) -> CodeSnippet:
+  88: def create_code_retrieval_tool(code_retriever: CodeRetriever) -> Tool:
+  91: async def get_code_snippet(ctx: RunContext, qualified_name: str) -> CodeSnippet:
+
+/root/wang/csst/code-graph-rag/codebase_rag/tests/test_realtime_updater.py:
+(Rank value: 1.0000)
+
+  21: def event_handler(mock_updater: MagicMock) -> CodeChangeEventHandler:
+  26: def test_file_creation_flow():
+  41: def test_file_modification_flow():
+  56: def test_file_deletion_flow():
+  70: def test_irrelevant_files_are_ignored():
+  87: def test_directory_creation_is_ignored():
+ 101: def test_unsupported_file_types_are_ignored():
+
+/root/wang/csst/code-graph-rag/codebase_rag/prompts.py:
+(Rank value: 1.0000)
+
+   4: GRAPH_SCHEMA_AND_RULES = """
+  39: RAG_ORCHESTRATOR_SYSTEM_PROMPT = """
+  68: CYPHER_SYSTEM_PROMPT = f"""
+ 108: LOCAL_CYPHER_SYSTEM_PROMPT = f"""
+
+/root/wang/csst/code-graph-rag/codebase_rag/tests/test_main_smoke.py:
+(Rank value: 1.0000)
+
+  10: def test_help_command_works() -> None:
+  39: def test_import_main_module() -> None:
+
+/root/wang/csst/code-graph-rag/codebase_rag/graph_loader.py:
+(Rank value: 1.0000)
+
+  11: class GraphNode:
+  20: class GraphRelationship:
+  29: class GraphLoader:
+  32: def __init__(self, file_path: str):
+  46: def load(self) -> None:
+  93: def _build_property_index(self, property_name: str) -> None:
+ 106: def nodes(self) -> list[GraphNode]:
+ 114: def relationships(self) -> list[GraphRelationship]:
+ 122: def metadata(self) -> dict[str, Any]:
+ 129: def find_nodes_by_label(self, label: str) -> list[GraphNode]:
+ 135: def find_node_by_property(self, property_name: str, value: Any) -> list[GraphNode]:
+ 143: def get_node_by_id(self, node_id: int) -> GraphNode | None:
+ 149: def get_relationships_for_node(self, node_id: int) -> list[GraphRelationship]:
+ 155: def get_outgoing_relationships(self, node_id: int) -> list[GraphRelationship]:
+ 161: def get_incoming_relationships(self, node_id: int) -> list[GraphRelationship]:
+ 167: def summary(self) -> dict[str, Any]:
+ 186: def load_graph(file_path: str) -> GraphLoader:
+
+/root/wang/csst/code-graph-rag/codebase_rag/tools/language.py:
+(Rank value: 1.0000)
+
+  16: def cli() -> None:
+  27: def add_grammar():
+ 249: def extract_types(obj: dict | list) -> None:
+ 264: def extract_semantic_categories():
+ 485: def list_languages() -> None:
+ 520: def remove_language(language_name: str, keep_submodule: bool = False) -> None:
+ 592: def cleanup_orphaned_modules() -> None:
+
+/root/wang/csst/code-graph-rag/codebase_rag/language_config.py:
+(Rank value: 1.0000)
+
+   5: class LanguageConfig:
+  33: LANGUAGE_CONFIGS = {
+ 192: def get_language_config(file_extension: str) -> LanguageConfig | None:
+ 200: def get_language_config_by_name(language_name: str) -> LanguageConfig | None:', FileReport(excluded={}, definition_matches=219, reference_matches=1514, total_files_considered=41))
