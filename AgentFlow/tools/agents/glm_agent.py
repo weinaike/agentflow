@@ -50,6 +50,36 @@ class GlmAgent:
         result = extract_blocks(response.choices[0].message.content)
         return result
 
+class GPTAgent:
+    def __init__(self):
+        self.url = 'https://api2.road2all.com/v1/chat/completions'        
+        self.model = "gpt-4.1-mini"
+        self.temperature = 0.1
+        self.stream = False
+    def chat(self, messages):
+        import urllib
+        data = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": self.temperature,
+            "stream": self.stream
+        }    
+        data = json.dumps(data).encode("utf-8")
+        req = urllib.request.Request(self.url, data=data, method="POST")
+        req.add_header('Content-Type', 'application/json')
+        req.add_header('Authorization', 'Bearer sk-E7gOgfTjf0tREnYXEa1767178b7f43499eBdA49389CdD905')
+        try: 
+            with urllib.request.urlopen(req) as response:
+                response_content = response.read().decode('utf-8')
+                response_content = json.loads(response_content)
+                content = response_content["choices"][0]["message"]["content"]
+                result = extract_blocks(content)
+                return result
+        except Exception as e:
+            print(e)        
+            return []
+
+            
         
 if __name__ == '__main__':
     agent = GlmAgent()

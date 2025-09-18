@@ -1,7 +1,7 @@
 from AgentFlow.tools.memgraph.graph_service import MemgraphIngestor
 from AgentFlow.tools.project_base import ProjectBase
 from AgentFlow.tools.cpp_project import CppProject
-from AgentFlow.tools.agents.glm_agent import GlmAgent
+from AgentFlow.tools.agents.glm_agent import GlmAgent, GPTAgent
 
 import re
 import json
@@ -59,7 +59,7 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
         "calls": ["func", ...]
     }
 
-5. If a function has good parallelism but not all of its code is executed on the GPU, when CUDA-izing this function, it is necessary to launch some kernel function(s) within the function. Marking functions that lack for-loop(s) in this format is strictly prohibited. Please mark the function as follows:    
+5. If a function has good parallelism but not all of its code can be executed on the GPU, when CUDA-izing this function, it is necessary to launch some kernel function(s) within the function. Please mark the function as follows:    
     {
         "qualified_name": "<the original function name>",
         "unique_id": "<the original unique_id>",
@@ -72,7 +72,7 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
             {
                 "kernel_name": "<kernel name>", 
                 "signature": "__global__ <sigature of the new kernel>", 
-                "comment": "<Please mark the specific code range in the original function that the current kernel is responsible for implementing (it is sufficient to list the first and last lines of code), and explain why this code range needs to be parallelized.>", 
+                "comment": "<Please mark the specific code range in the original function that the current kernel is responsible for implementing (it is required to list the first and last code between the range), and explain why this code range needs to be parallelized.>", 
                 "calls": ["function called in this kernel", ...]
             },
             ...
@@ -84,6 +84,10 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
             }
         ]
     }
+
+WARNINGS 
+(1) You must make judgments based solely on the function's structure, not your existing general knowledge. In particular, marking functions that lack for-loop(s) in this format is strictly prohibited.
+(2) The 'calls' in each element of new_created_kernels refers to the function names callable within the corresponding kernel, while the top-level calls denote the functions callable in the translated function. You must carefully set these 'calls' values, as they affect the signatures of the called functions—particularly whether the signatures require __host__, __host__ __device__, or __device__ qualifiers. Generally, a function being called should not be present in both 'calls' simultaneously.
 
 6. For other scenarios, please mark the function as follows (We will check it by manual):
     {
@@ -160,6 +164,7 @@ You are a CUDA programming assistant. Please translate the input function into a
 
 ### Suggestions
 - Variable-length arrays are not supported in device-side code. If a function needs to be executed on the device after translation and uses stack-allocated variable-length arrays internally, during the translation process, consideration should be given to allocating device memory via malloc and freeing the device memory via free at an appropriate time (Note: CUDA already supports calling the malloc and free functions on the device side).
+- Pay special attention to the handling of global variables when translating a C/C++ function that uses them to the device side.
 
 ### Output
 - Each file that houses the newly generated and structured code should be formatted as follows:
@@ -273,6 +278,17 @@ class Designer:
         updated_nodes = self.ingestor.fetch_all(query.format(set_clause=set_clause), properties)
         self.ingestor.flush_nodes()
         return [updated_node["properties"] for updated_node in updated_nodes] if updated_nodes else []
+
+    def set_property(self, unique_id, name, value):
+        query = """
+        MATCH (n:Function)
+        WHERE n.unique_id = $unique_id
+        SET n.{name} = $value
+        RETURN properties(n) as properties
+        """    
+        updated_nodes = self.ingestor.fetch_all(query=query.format(name=name), params={"unique_id": unique_id, "value": value})
+        self.ingestor.flush_nodes()
+        return [updated_node["properties"] for updated_node in updated_nodes] if updated_nodes else []
     
     def construct_graph(self):
         from AgentFlow.tools.cpp_project import CursorUtils
@@ -320,7 +336,7 @@ class Designer:
     def design(self):
         nodes = self.get_topological_sorted_nodes()
         for node in nodes[::-1]:
-            if "runs_on" in node:
+            if "preliminary_design" in node:
                 continue
             messages = [{"role": "system", "content": DESIGNER_SYSTEM_PROMPT}]
 
@@ -332,7 +348,8 @@ class Designer:
             if callees:
                 partially_completed_design = ""
                 for callee in callees:
-                    partially_completed_design += f"The function `{callee['qualified_name']}` will be run on {callee['runs_on']}, and its function signature is designed as {callee['signature']} in the CUDA project. \n"
+                    callee_prelim_design = callee["preliminary_design"]
+                    partially_completed_design += f"The function `{callee['qualified_name']}` will be run on {callee_prelim_design['runs_on']}, and its function signature is designed as {callee_prelim_design['signature']} in the CUDA project. \n"
                      
                 partially_completed_design = PARTIALLY_COMPLETED_DESIGN.format(partially_completed_design=partially_completed_design)
                 messages.append({"role": "user", "content": design_task + "\n" + partially_completed_design})     
@@ -341,7 +358,10 @@ class Designer:
 
             for message in messages:
                 print(message["content"])
-            agent = GlmAgent()
+            
+            self.set_property(unique_id=unique_id, name="preliminary_design_request", value=messages[-1]["content"])    
+            #agent = GlmAgent()
+            agent = GPTAgent()
             results = agent.chat(messages)
             result = json.loads(results[0]["content"])
 
@@ -349,28 +369,39 @@ class Designer:
                 print(f"design function {qualified_name} failed")
                 raise ValueError(f"design function {qualified_name} failed")
             else:
-                updated_node = self.update_node(unique_id=unique_id, properties=result)    
-                print(updated_node)
+                updated_nodes = self.set_property(unique_id=unique_id, name="preliminary_design", value=result)
+                print(updated_nodes)
 
     def refine_interfaces(self):
         nodes = self.get_topological_sorted_nodes()
         for node in nodes:
-            runs_on = node.get("runs_on", -1)
+            if "refined_design" in node:
+                continue
             unique_id = node["unique_id"]
-            signature = node["signature"]
+            prelim_design = node.get("preliminary_design", None)
+            if not prelim_design:
+                raise ValueError(f"please run preliminary_design first: {unique_id}")
+            runs_on = prelim_design.get("runs_on", -1)
+            signature = prelim_design["signature"]
             host_signature = re.sub("__device__ ", "", signature)
             host_signature = re.sub("__host__ ", "", host_signature)
             if runs_on not in [1, 2]: # 1: __host__ __device__, 2: __device__
+                self.set_property(unique_id=unique_id, name="refined_design", value={
+                    k:v for k,v in prelim_design.items() if k in ["runs_on", "requires_translation", "signature", "comment"]
+                })
                 continue
             caller_nodes = self.get_caller_nodes(node['unique_id'])
             if caller_nodes:
-                runs_on_gpu = any([node.get("runs_on", -1) in [1, 2, 3]  for node in caller_nodes])
+                runs_on_gpu = any([caller["refined_design"].get("runs_on", -1) in [1, 2, 3]  for caller in caller_nodes])
                 if runs_on_gpu:
                     # 前置函数中至少有一个在GPU上执行，该函数的确需要是__device__。无需修改
                     # 这里的判断仍不够严格
+                    self.set_property(unique_id=unique_id, name="refined_design", value={
+                        k:v for k,v in prelim_design.items() if k in ["runs_on", "requires_translation", "signature", "comment"]
+                    })
                     continue
-                nodes_with_new_kernels = [node for node in caller_nodes if "new_created_kernels" in node]
-                if nodes_with_new_kernels:
+                callers_with_new_kernels = [caller for caller in caller_nodes if "new_created_kernels" in caller['preliminary_design']]
+                if callers_with_new_kernels:
                     task = "### Interface of the function to be judged\n"
                     function_def = self.project.find_definition(node["qualified_name"], requires_lines=False)[node["qualified_name"]][0]["text"]
                     task += "#### Original Implementation\n"
@@ -385,14 +416,18 @@ class Designer:
                         "comment": {comment}
                     }}
                     ```
-                    """.format(runs_on=node.get("runs_on", -1), 
-                               requires_translation=node.get("requires_translation", 0),
-                               signature=node.get("signature", ""),
-                               comment=node.get("comment", "")
+                    """.format(runs_on=prelim_design.get("runs_on", -1), 
+                               requires_translation=prelim_design.get("requires_translation", 0),
+                               signature=prelim_design.get("signature", ""),
+                               comment=prelim_design.get("comment", "")
                     )
-                    for node_with_new_kernels in nodes_with_new_kernels:
-                        task += f"\n### Interface of the caller {node_with_new_kernels.get('qualified_name')}\n"
-                        function_def = self.project.find_definition(node_with_new_kernels["qualified_name"], requires_lines=False)[node_with_new_kernels["qualified_name"]][0]["text"]
+                    for caller_with_new_kernels in callers_with_new_kernels:
+                        caller_qualified_name = caller_with_new_kernels["qualified_name"]
+                        caller_prelim_design = caller_with_new_kernels["preliminary_design"]
+                        caller_refined_design = caller_with_new_kernels["refined_design"]
+                        
+                        task += f"\n### Interface of the caller {caller_qualified_name}\n"
+                        function_def = self.project.find_definition(caller_qualified_name, requires_lines=False)[caller_qualified_name][0]["text"]
                         task += "#### Original Implementation\n"
                         task += function_def
                         task += "\n#### Preliminary Interface\n"
@@ -406,11 +441,11 @@ class Designer:
                             "new_created_kernels": "{new_created_kernels}"
                         }}
                         ```
-                        """.format(runs_on=node_with_new_kernels.get("runs_on", -1), 
-                                requires_translation=node_with_new_kernels.get("requires_translation", 0),
-                                signature=node_with_new_kernels.get("signature", ""),
-                                comment=node_with_new_kernels.get("comment", ""),
-                                new_created_kernels=node_with_new_kernels.get("new_created_kernels", [])
+                        """.format(runs_on=caller_refined_design.get("runs_on", -1), 
+                                requires_translation=caller_refined_design.get("requires_translation", 0),
+                                signature=caller_refined_design.get("signature", ""),
+                                comment=caller_refined_design.get("comment", ""),
+                                new_created_kernels=caller_prelim_design.get("new_created_kernels", [])
                         )
                     messages = [
                         {"role": "system", "content": REFINE_INTERFACE_SYSTEM_PROMPT},
@@ -423,10 +458,10 @@ class Designer:
                     agent = GlmAgent()
                     result = agent.chat(messages)
                     for block in result:
-                        self.update_node(unique_id=unique_id, properties=json.loads(block["content"]))
+                        self.set_property(unique_id=unique_id, name="refined_design", value=json.loads(block["content"]))
                 else:
                     # 没有任何前置函数拆分出kernel，当前函数不需要CUDA版本
-                    self.update_node(unique_id=unique_id, properties={
+                    self.set_property(unique_id=unique_id, name="refined_design", value={
                         "runs_on": 0,
                         "requires_translation": 0,
                         "signature": host_signature,
@@ -435,7 +470,7 @@ class Designer:
 
             else:
                 # 没有前置函数，该函数无法在设备上运行
-                self.update_node(unique_id=unique_id, properties={
+                self.set_property(unique_id=unique_id, name="refined_design", value={
                     "runs_on": 0,
                     "requires_translation": 0,
                     "signature": host_signature,
@@ -461,7 +496,8 @@ class Designer:
             for block in result:
                 print(block)
             
-            self.update_node(node["unique_id"], {"translated": result, "unique_id": node["unique_id"]})    
+            #self.update_node(node["unique_id"], {"translated": result, "unique_id": node["unique_id"]})    
+            self.set_property(unique_id=node["unique_id"], name="translated", value=result)
 
     def update_files(self):
         nodes = self.get_topological_sorted_nodes()
@@ -517,12 +553,14 @@ class Designer:
                         
     def generate_translation_prompt(self, node):
         callees = self.get_callees(node['unique_id'])
+        prelim_design = node["preliminary_design"]
+        refined_design = node["refined_design"]
         prompt = "### The objective of your task\n"
         prompt += f"Translate the function {node['qualified_name']} as the following specification:\n"
-        prompt += f"- Interface. The new interface of the function is designed as: {node['refined_design']['signature']}\n"
-        prompt += f"- Implementation. {node['refined_design']['comment']}\n"
-        calls = node.get("calls", [])
-        new_created_kernels = node.get("new_created_kernels", [])
+        prompt += f"- Interface. The new interface of the function is designed as: {refined_design['signature']}\n"
+        prompt += f"- Implementation. {refined_design['comment']}\n"
+        calls = prelim_design.get("calls", [])
+        new_created_kernels = prelim_design.get("new_created_kernels", [])
         restricted_calls = set(calls)
         restricted_calls.update([new_kernel['kernel_name'] for new_kernel in new_created_kernels])
         restricted_calls = list(restricted_calls)
@@ -639,6 +677,21 @@ def translate_lenstool_mini():
         #designer.design()
         designer.translate()
         #designer.update_files()
+        
+def TEST_lenstool_mini_fetch_for_stmt():
+    config = {
+        "build_options": ["-I/home/jiangbo/lenstool-cubetosou/include", "-I/usr/lib/gcc/x86_64-linux-gnu/12/include/"],
+        "force_build": True,
+        "build_dir": "/home/jiangbo/lenstool-cubetosou/build",
+        "src_dirs": ["/home/jiangbo/lenstool-cubetosou/src", "/home/jiangbo/lenstool-cubetosou/liblt"],
+        "filter_by_dirs": ["/home/jiangbo/lenstool-cubetosou"]
+    }
+    st = time.time()
+    project = CppProject(**config)
+    et = time.time()
+    print(f"It takes {et-st: .3f} second(s) to parse the project")
+
+    project.get_for_stmts(usr="c:Bspline.c@F@ft_approx_sin")
 
 def translate_lenstool_cubetosou():
     config = {
@@ -652,7 +705,7 @@ def translate_lenstool_cubetosou():
         },
         "memgraph_config": {
             "host": "localhost",
-            "port": 7688
+            "port": 7689
         }
     }
     project_root = config["project_root"]
@@ -671,10 +724,63 @@ def translate_lenstool_cubetosou():
     with MemgraphIngestor(**memgraph_config) as ingestor:
         designer = Designer(project=project, ingestor=ingestor)
         #designer.construct_graph()
-        #designer.design()
-        designer.refine_interfaces()
+        designer.design()
+        #designer.refine_interfaces()
         #designer.translate()
         #designer.update_files()
 
+        return
+
+        designer.set_property(unique_id="c:@F@e_grad_pot", name="preliminary_design", value={
+            "qualified_name": "e_grad_pot",
+            "unique_id": "c:@F@e_grad_pot",
+            "runs_on": 0,
+            "requires_translation": 0,
+            "signature": "struct point e_grad_pot(const struct point *pi, long int ilens)",
+            "comment": "use the original code directly. The function calls host-only functions (e.g., sprintf, fprintf for I/O, raise for signal raising, Bspline_surface_point_red and sp_grad marked as host-only) and functions with unknown GPU compatibility (wcss2p), making it unable to execute on GPU. It also lacks a loop structure for parallelization, so no CUDA translation is feasible.",
+            "calls": [
+                "rotation_opt",
+                "sqrt",
+                "hypo",
+                "polxy",
+                "cos",
+                "sin",
+                "asin",
+                "asinh",
+                "rotation",
+                "csiemd",
+                "ci05",
+                "pow",
+                "log",
+                "fabs",
+                "ci05f",
+                "pi05",
+                "f_weight",
+                "f_weightx",
+                "f_weighty",
+                "f_newx_x",
+                "f_newx_y",
+                "f_newy_x",
+                "f_newy_y",
+                "Bspline_surface_point_red",
+                "dpl_from_kappa",
+                "ci15",
+                "ci10",
+                "sp_grad",
+                "nfw_dpl",
+                "nfwg_dpl",
+                "elli_tri",
+                "sprintf",
+                "fprintf",
+                "raise",
+                "sersic_dpl",
+                "einasto_alpha",
+                "hern_dpl",
+                "wcss2p",
+                "bilinear"
+            ]
+        })
+
 if __name__ == '__main__':
-    translate_lenstool_cubetosou()        
+    #translate_lenstool_cubetosou()        
+    TEST_lenstool_mini_fetch_for_stmt()
