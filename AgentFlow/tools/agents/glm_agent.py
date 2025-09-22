@@ -53,7 +53,7 @@ class GlmAgent:
 class GPTAgent:
     def __init__(self):
         self.url = 'https://api2.road2all.com/v1/chat/completions'        
-        self.model = "gpt-4.1-mini"
+        self.model = "gpt-4o"
         self.temperature = 0.1
         self.stream = False
     def chat(self, messages):

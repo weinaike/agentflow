@@ -458,7 +458,7 @@ class CppProject(ProjectBase):
             if callees_in_project:
                 context += f"{symbol} calls the following function(s): {', '.join([CursorUtils.get_full_name(c) for c in callees])}, where only {', '.join([CursorUtils.get_full_name(c) for c in callees_in_project])} are/is defined in current project.\n"
             else:
-                context += f"{symbol} calls the following function(s): {', '.join([CursorUtils.get_full_name(c) for c in callees])}, all of which are provided by third-party libraries.\n"
+                context += f"{symbol} calls the following function(s): {', '.join([CursorUtils.get_full_name(c) for c in callees])}.\n"
                     
         if type_defs:
             if type_defs_in_project:
@@ -626,7 +626,8 @@ class CppProject(ProjectBase):
         def get_all_loops(cursor: Cursor):
             results = []
             for node in cursor.walk_preorder():
-                if node.kind in [CursorKind.FOR_STMT, CursorKind.WHILE_STMT, CursorKind.DO_STMT]:
+                #if node.kind in [CursorKind.FOR_STMT, CursorKind.WHILE_STMT, CursorKind.DO_STMT]:
+                if node.kind in [CursorKind.FOR_STMT]:
                     results.append(node)
             return results        
 
