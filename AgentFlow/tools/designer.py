@@ -15,6 +15,42 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
 
 ### Criterion
 
+You first need to determine whether the function to be translated contains a for loop. If the function includes a for loop, you should design the translated interface of the function in accordance with the translation rules for functions with a for loop; if the function does not contain a for loop, you shall design its translated interface in line with the translation rules for functions without a for loop.
+
+#### Translation rules for functions without for loops
+1. If a function contains complex logic or calls functions that cannot be executed on a GPU (such as file operations excpet `printf`, third-party libraries with unknown specific implementations, etc.), please mark the function as follows:
+    {
+        "qualified_name": "<the original function name>",
+        "unique_id": "<the original unique_id>",
+        "runs_on": 0,
+        "requires_translation": 0,
+        "signature": "<original sigature of the function>",
+        "comment": "<Please explain the reason for designing the function signature in this way and detail how to implement the translated function, ensuring that subsequent personnel can successfully complete the specific implementation of the function in accordance with your description.>",
+        "calls": ["func", ...]
+    }
+2. If a function itself can be executed on both the CPU and the GPU, and the other functions called by this function can also be executed on both the CPU and the GPU, then this function shall be marked as follows:
+    {
+        "qualified_name": "<the original function name>",
+        "unique_id": "<the original unique_id>",
+        "runs_on": 2,
+        "requires_translation": 1,
+        "signature": "__host__ __device__ <sigature of the function>",
+        "comment": "<Please explain the reason for designing the function signature in this way and detail how to implement the translated function, ensuring that subsequent personnel can successfully complete the specific implementation of the function in accordance with your description.>",
+        "calls": ["func", ...]
+    }
+3. If all the translated interfaces of the other functions called within a function are marked as __host__ __device__, or if there are corresponding CUDA API implementations in CUDA for these called functions (fabs, sin, exp, etc., from C standard library), then this function can be migrated to run on the GPU. This function shall be marked as follows:
+    {
+        "qualified_name": "<the original function name>",
+        "unique_id": "<the original unique_id>",
+        "runs_on": 2,
+        "requires_translation": 1,
+        "signature": "__host__ __device__ <sigature of the function>",
+        "comment": "<Please explain the reason for designing the function signature in this way and detail how to implement the translated function, ensuring that subsequent personnel can successfully complete the specific implementation of the function in accordance with your description.>",
+        "calls": ["func", ...]
+    }
+
+#### Translation rules for functions containing for loops
+
 1. If a function contains complex logic or calls functions that cannot be executed on a GPU (such as file operations, third-party libraries with unknown specific implementations, etc.), please mark the function as follows:
     {
         "qualified_name": "<the original function name>",
@@ -22,7 +58,7 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
         "runs_on": 0,
         "requires_translation": 0,
         "signature": "<original sigature of the function>",
-        "comment": "use the original code directly",
+        "comment": "<Please explain the reason for designing the function signature in this way and detail how to implement the translated function, ensuring that subsequent personnel can successfully complete the specific implementation of the function in accordance with your description.>",
         "calls": ["func", ...]
     }
 
@@ -33,7 +69,7 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
         "runs_on": 2,
         "requires_translation": 1,
         "signature": "__host__ __device__ <original sigature of the function>",
-        "comment": "The new version of the function suports cpu and cuda. Use the __CUDA_ARCH__ macro to switch cpu/gpu code if necessary",
+        "comment": "<Please explain the reason for designing the function signature in this way and detail how to implement the translated function, ensuring that subsequent personnel can successfully complete the specific implementation of the function in accordance with your description.>",
         "calls": ["func", ...]
     }
 
@@ -44,7 +80,7 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
         "runs_on": 1,
         "requires_translation": 1,
         "signature": "__device__ <sigature of the translated function>",
-        "comment": "The new version of the function suports cuda.",
+        "comment": "<Please explain the reason for designing the function signature in this way and detail how to implement the translated function, ensuring that subsequent personnel can successfully complete the specific implementation of the function in accordance with your description.>",
         "calls": ["func", ...]
     }
 
@@ -55,7 +91,7 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
         "runs_on": 3,
         "requires_translation": 1,
         "signature": "__global__ <signature of the translated function>",
-        "comment": "the original function will be implemented as a CUDA kernel."
+        "comment": "<Please explain the reason for designing the function signature in this way and detail how to implement the translated function, ensuring that subsequent personnel can successfully complete the specific implementation of the function in accordance with your description.>",
         "calls": ["func", ...]
     }
 
@@ -66,7 +102,7 @@ We need to migrate a C language project to the CUDA environment (CUDA version 12
         "runs_on": 0,
         "requires_translation": 1,
         "signature": "<original signature of the function>",
-        "comment": "The original function will be split into several parts, some of which will be implemented as kernel function(s).",
+        "comment": "<Please explain the reason for designing the function signature in this way and detail how to implement the translated function, ensuring that subsequent personnel can successfully complete the specific implementation of the function in accordance with your description.>",
         "calls": ["<Function(including the new created kernels) that will be called DIRECTLY by this translated function; If a function is not directly called in the translated version but invoked through a newly created kernel, it should not be listed here; Each qualified function name should be listed as an individual element in this calls list.>", ...],
         "new_created_kernels": [
             {
@@ -705,7 +741,7 @@ def translate_lenstool_cubetosou():
         },
         "memgraph_config": {
             "host": "localhost",
-            "port": 7689
+            "port": 7690
         }
     }
     project_root = config["project_root"]
@@ -782,5 +818,4 @@ def translate_lenstool_cubetosou():
         })
 
 if __name__ == '__main__':
-    #translate_lenstool_cubetosou()        
-    TEST_lenstool_mini_fetch_for_stmt()
+    translate_lenstool_cubetosou()        
