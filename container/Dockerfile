@@ -18,7 +18,8 @@ RUN pip install --no-cache-dir packaging \
     && pip install --no-cache-dir -e .
 
 RUN cd /app/studio \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir -e .
 
 COPY --chmod=755 container/entrypoint.sh /app/entrypoint.sh
 
