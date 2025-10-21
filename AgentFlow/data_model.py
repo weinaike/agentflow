@@ -102,15 +102,15 @@ class NodeTypeEnum(str, Enum):
 class AgentParam(BaseModel):
     name: str = Field(..., description="Agent ID")
     system_prompt: str  = Field(..., description="Agent System prompt")
-    description: str = Field(None, description="Agent description")
-    tools: list[str] = Field([], description="fucntion call for agent")
-    model : ModelEnum = Field(ModelEnum.DEFAULT, description="LLM for agent")
+    description: str = Field(default='an agent', description="Agent description")
+    tools: list[str] = Field(default_factory=list, description="fucntion call for agent")
+    model: ModelEnum = Field(default=ModelEnum.DEFAULT, description="LLM for agent")
 
 # NodeOutput 用于描述节点的输出
 class NodeOutput(BaseModel):
     description: str
     address: str 
-    content: str = None
+    content: str = ''
     def get_content(self) -> str:
         content = ''
         try:
@@ -130,11 +130,11 @@ class NodeParam(BaseModel):
     inputs: list[str] = list()   # 节点ID
     config: str
     # 以下内容无需主动配置   
-    llm_config: Optional[str] = None # 不配置则使用工作流配置
-    workspace_path: Optional[str] = None # 可以不配置，默认使用工作流路径
-    backup_dir: Optional[str] = None # 数据备份/缓存目录
-    flow_id: Optional[str] = None
-    output: Optional[NodeOutput] = None
+    llm_config: str
+    workspace_path: str
+    backup_dir: str
+    flow_id: str
+    output: NodeOutput
 
 
 
@@ -204,8 +204,8 @@ class Context(BaseModel):
     input_func: Optional[Callable] = None  # 输入函数，用于获取用户输入
     cancellation_token: Optional[CancellationToken] = None
     goal: Optional[str] = None  # 目标描述，用于指导工作流执行
-    
-    def get_node_output(self, flow_id : str, node_id: str) -> NodeOutput:
+
+    def get_node_output(self, flow_id : str, node_id: str) -> Optional[NodeOutput]:
         key = f'{flow_id}.{node_id}'
         return self.node_output.get(key, None)
     
@@ -216,7 +216,7 @@ class Context(BaseModel):
             content = output.get_content()
             return CONTEXT_TEMPLATE.format(node_description = output.description,
                                            detail_content = content)
-        return None
+        return ''
 
     class Config:
         arbitrary_types_allowed = True
@@ -239,9 +239,9 @@ class flowNodeParam(BaseModel):
     flow_id: str
     config: str
     previous_flows: List[str] = list()
-    workspace_path: str = None 
-    backup_dir: str = None # 数据备份/缓存目录
-    llm_config: str = None # 模型配置文件路径  
+    workspace_path: str
+    backup_dir: str
+    llm_config: str
     
 
 ## Define the parameters for the flow
@@ -295,7 +295,7 @@ class RepositoryParam(BaseModel):
     project_path: str                               # 代码仓库路径
     source_path: str                                # 源码路径
     header_path: Optional[Union[str,List[str]]] = None     # 头文件路径
-    build_path: str = None                          # 编译路径
+    build_path: Optional[str] = None                          # 编译路径
     namespace: Optional[Union[str,List[str]]] = None      # 命名空间
 
 class SolutionParam(BaseModel):
@@ -306,10 +306,10 @@ class SolutionParam(BaseModel):
     llm_config: str
     codebase: Union[RepositoryParam, str]
     flows: List[Union[flowDetailParam, flowNodeParam]] = []
-    backup_dir: str = None # 数据备份/缓存目录
+    backup_dir: str
     requirement: Optional[str] = None   # 项目需求描述，用于替换工作流描述中的{requirement}
     requirement_flow: Optional[List[str]] = None # 需求对应的工作流ID
-    def get_flow_param(self, flow_id: str) -> flowNodeParam:
+    def get_flow_param(self, flow_id: str) -> Optional[flowNodeParam]:
         for flow in self.flows:
             if flow.flow_id == flow_id:
                 return flow

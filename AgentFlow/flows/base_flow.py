@@ -43,8 +43,8 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
 
     @abstractmethod
     async def run_stream(self, context: Context, specific_node: list[str] = [], flow_execute : bool = True
-                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response | Context], None]:
-        pass
+                         ) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage | Response | Context, None]:
+        yield context
 
 
     def should_node_run(self, node_id :str, specific_node: list[str] = [], flow_execute : bool = True) -> bool:
@@ -61,7 +61,7 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
         return self._flow_param.flow_id
     
     
-    def get_node(self, node_id: str) -> BaseNode:
+    def get_node(self, node_id: str) -> Optional[BaseNode]:
         for node in self._nodes:
             if node.id == node_id:
                 return node
@@ -108,7 +108,7 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
                 raise e
         
         
-        nodechecklist:NodeCheckList = None
+        nodechecklist: Optional[NodeCheckList] = None
         if False:#use_check:
             checklist_file_path = os.path.join(flow_param.backup_dir, f'{flow_param.flow_id}_checklist.json')
             if os.path.exists(checklist_file_path):

@@ -1,5 +1,5 @@
 
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_ext.models.openai import OpenAIChatCompletionClient, BaseOpenAIChatCompletionClient
 from autogen_core.model_context import BufferedChatCompletionContext
 from autogen_agentchat.agents import AssistantAgent, UserProxyAgent
 from autogen_agentchat.conditions import ExternalTermination, TextMentionTermination
@@ -47,7 +47,7 @@ class BaseNode(ABC, ComponentBase[BaseModel]):
 
 
     @abstractmethod
-    async def run_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response], None]:
+    def run_stream(self, context:Context) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage | Response, None]:
         pass
 
     @abstractmethod
@@ -75,16 +75,13 @@ class BaseNode(ABC, ComponentBase[BaseModel]):
 
 class ToolNode(BaseNode) :    
     def __init__(self, config: Union[Dict, ToolNodeParam]):
-        self._node_param : ToolNodeParam
+        self._node_param : NodeParam
         if isinstance(config, dict):
             self._node_param = ToolNodeParam(**config)
         else:
             self._node_param = config    
         self.print_param()
 
-    async def execute(self, context:Context) -> Response:
-        NotImplementedError("AgentNode execute method must be implemented")
-        
 
 class AgentNode(BaseNode) :  
     def __init__(self, config: Union[Dict, AgentNodeParam]):
@@ -92,10 +89,12 @@ class AgentNode(BaseNode) :
         self._node_param : AgentNodeParam
         if isinstance(config, Dict):
             self._node_param = AgentNodeParam(**config)
+        elif isinstance(config, AgentNodeParam):
+            self._node_param = config
         else:
             self._node_param = config
         self.print_param()
-        self.team: BaseGroupChat = None
+        self.team: Optional[BaseGroupChat] = None
         self.state_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_chat_state.json")
         self.use_check = self._node_param.manager.use_check
         self.check_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_check.json")
@@ -107,16 +106,16 @@ class AgentNode(BaseNode) :
         param = AgentParam(name = 'summary_agent', system_prompt = SUMMARY_SYSTEM_PROMPT)
         self.summary_agent : AssistantAgent = self.create_agent(param, self._node_param.llm_config)
 
-        llm_config = get_model_config(config.llm_config, ModelEnum.DEFAULT)
+        llm_config = get_model_config(self._node_param.llm_config, ModelEnum.DEFAULT)
         model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
-        self._model_client = model_client
+        self._model_client:BaseOpenAIChatCompletionClient = model_client
         
         if self.use_check:
             self.user_proxy_agent = UserProxyAgent(name='user', description='A human Checker')
             check_param = AgentParam(name = 'checker', system_prompt = CHECK_SYSTEM_PROMPT, model = ModelEnum.DEFAULT)
             self.check_agent = self.create_agent(check_param, self._node_param.llm_config)
             
-        self.response:str = None
+        self.response: str = ''
 
     def set_input_func(self, input_func: Optional[Callable]) -> None:
         """
@@ -129,7 +128,8 @@ class AgentNode(BaseNode) :
             self._input_func = input_func
             self.user_proxy_agent.input_func = input_func
 
-    async def gen_check_result(self, history: List[ChatMessage], cancellation_token: Optional[CancellationToken] = None) -> AsyncGenerator[Union[CheckResult| BaseAgentEvent | BaseChatMessage], None]:
+    async def gen_check_result(self, history: List[ChatMessage], cancellation_token: CancellationToken) -> AsyncGenerator[
+            CheckResult| BaseAgentEvent | BaseChatMessage, None]:
 
         content = f"### 当前节点工作目标：\n{self._node_param.task}\n-----\n"
         content += f"### 当前节点的预交付物内容（过程摘要或总结结论）：\n{history[-1].content}\n-----\n"
@@ -140,58 +140,64 @@ class AgentNode(BaseNode) :
         else:
             content += f"当前节点没有检查项。\n"
         content += f"最后，总结检查结果，对于不符合要求的地方，给出改进方案（代办事项）。并决定由谁完成改进方案。（对于预交付物的内容修改，由SummaryAgent完成，若需要获取更多上下文信息由ExecutionTeam完成）\n [注意：重要说明：检查与总结都围绕检查清单开展，对于不在清单内的内容不作为检查项。不需要优化]\n"
-        msgs: List[ChatMessage] = []
+        msgs: List[BaseChatMessage] = []
         msgs.extend(history)
         msgs.append(TextMessage(content=content, source="user"))
         print(f"\n*************{self._node_param.flow_id}.{self._node_param.id} :check*************\n", flush=True)
         check_response:Response = await self.check_agent.on_messages(messages=msgs, cancellation_token=cancellation_token)
 
-                                                        
-        ## 检查结果格式化
-        check_result :CheckResult = None
-        format_prompt = CHECK_TEMPLATE.format(type=CheckResult.model_json_schema().__str__())   
+        if not isinstance(check_response.chat_message, TextMessage):
+            print(f"Unexpected response type: {type(check_response.chat_message)}")
+            return
 
+        ## 检查结果格式化
+        check_result : Optional[CheckResult] = None
+        format_prompt = CHECK_TEMPLATE.format(type=CheckResult.model_json_schema().__str__())   
+        client_msgs: List[UserMessage] = []
         if hasattr(self, "_input_func") and self._input_func:
             print("Setting input function for user proxy agent")
             msg = TextMessage(content=f"## 内置checker检查结果:\n{check_response.chat_message.content}\n\n请提供你的建议(如无建议,回复PASS)......\n", source='assistant')
             yield msg
             human_response:Response = await self.user_proxy_agent.on_messages(messages=[msg], cancellation_token=cancellation_token)
-       
-            msgs = [UserMessage(content=check_response.chat_message.content,source='user'), 
+
+            if not isinstance(human_response.chat_message, TextMessage):
+                print(f"Unexpected response type: {type(human_response.chat_message)}")
+                return
+
+            client_msgs = [UserMessage(content=check_response.chat_message.content,source='user'), 
                     UserMessage(content=human_response.chat_message.content, source="user"),
                     UserMessage(content=format_prompt, source="user")]    
         else:
             yield check_response.chat_message
             print("No input function set for user proxy agent, using default format prompt")
-            msgs = [UserMessage(content=check_response.chat_message.content,source='user'), 
+            client_msgs = [UserMessage(content=check_response.chat_message.content,source='user'), 
                     UserMessage(content=format_prompt, source="user")]
         
         while True:
-            ret:CreateResult = await self._model_client.create(messages= msgs)   
+            ret:CreateResult = await self._model_client.create(messages = client_msgs)   
             try: 
                 check_result = CheckResult(**get_json_content(ret.content))  
                 check_result.reason += check_response.chat_message.content
                 break
             except Exception as e:
                 logger.error(f"Error in parsing json: {e}")
-                msgs.append(UserMessage(content=f"Error in parsing json: {e}, 请根据格式要求重新输出", source="user"))
+                client_msgs.append(UserMessage(content=f"Error in parsing json: {e}, 请根据格式要求重新输出", source="user"))
         await self.check_agent.on_reset(self.cancellation_token)
         yield check_result
         return
 
-    async def execute(self, context:Context) -> Response:
-        NotImplementedError("AgentNode execute method must be implemented")
+    async def execute(self, context:Context) -> Optional[Response]:
+        raise ValueError("AgentNode execute method must be implemented")
 
 
-    async def execute_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response], None]:
-        NotImplementedError("AgentNode execute_stream method must be implemented")
+    async def execute_stream(self, context:Context) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage | Response, None]:
+        yield TextMessage(content="Base execute stream", source="system")
 
     def create_agent(self, agent_param: AgentParam, llm_config_file: str) -> AssistantAgent:
         
         name = agent_param.name
-        tools = None
-        if len(agent_param.tools) > 0:
-            tools = []
+        tools = []
+
         for tool in agent_param.tools:
             if tool in mcp_tool_mapping:
                 tools.append(mcp_tool_mapping[tool])
@@ -199,6 +205,10 @@ class AgentNode(BaseNode) :
                 tools.append(tool_mapping[tool])
             else:
                 logger.warning(f"Tool {tool} not found in tool mapping, skipping.")
+
+
+        if len(agent_param.tools) == 0:
+            tools = None
         system_prompt = agent_param.system_prompt
 
         # create model client
@@ -234,15 +244,15 @@ class AgentNode(BaseNode) :
         with open(self.state_file, "w") as f:
             json.dump(state, f, ensure_ascii=False, indent=4, default=self.json_serializer)
         return state
-    
-    def get_NodeOutput(self) -> NodeOutput:
+
+    async def get_NodeOutput(self) -> NodeOutput:
         return self._node_param.output
     
 
     def gen_context(self, context:Context) -> str:
         flow_id = self._node_param.flow_id
         inputs = self._node_param.inputs
-
+        
         content = ""
         if self.first_iteration:
             self.first_iteration = False #只在首次迭代开发时才提供BACKGROUND
@@ -251,13 +261,15 @@ class AgentNode(BaseNode) :
         
         has_context = False
         for input in inputs:
-            output : NodeOutput = None
+            output : Optional[NodeOutput] = None
             if '.' in input:
                 fid, nid = input.split('.')
                 output = context.get_node_output(fid, nid)
             else:
                 output = context.get_node_output(flow_id, input)
-            
+
+            if output is None:
+                continue
             detail = output.get_content()
             if not has_context:
                 content += MIDDLE_TEMPLATE
@@ -282,7 +294,7 @@ class AgentNode(BaseNode) :
         self.cancellation_token.cancel()
 
 
-    async def run_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response], None]:
+    async def run_stream(self, context:Context) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage | Response, None]:
         try:
             async for msg in self.execute_stream(context):
                 if isinstance(msg, (BaseAgentEvent, BaseChatMessage)):
@@ -294,7 +306,8 @@ class AgentNode(BaseNode) :
                     out_msg = deepcopy.copy(msg)
                     result = out_msg.chat_message
                     result.source = f"{self._node_param.flow_id}.{self._node_param.id}.{result.source}"
-                    await self.set_NodeOutput(result.content)
+                    if isinstance(result, TextMessage):                        
+                        await self.set_NodeOutput(result.content)
                     yield out_msg
                     
 

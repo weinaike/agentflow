@@ -82,7 +82,7 @@ class SequentialFlow(BaseFlow):
             else:
                 logger.info(f"Skip node {self.id}.{node_id}")
                
-            context.node_output[f'{self.id}.{node_id}'] = node.get_NodeOutput()
+            context.node_output[f'{self.id}.{node_id}'] = await node.get_NodeOutput()
             if self.process :
                 self.process.terminate()
                 self.process = None
@@ -92,7 +92,7 @@ class SequentialFlow(BaseFlow):
         return context
 
     async def run_stream(self, context: Context, specific_node: list[str] = [], flow_execute: bool = True
-                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage| Response | Context], None]:
+                         ) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage| Response | Context, None]:
         await self.before_run(context, specific_node)
         context.flow_description[self._flow_param.flow_id] = self._flow_param.description
         for node_id in self._topological_order:
@@ -110,7 +110,7 @@ class SequentialFlow(BaseFlow):
             else:
                 logger.info(f"Skip node {self.id}.{node_id}")
 
-            context.node_output[f'{self.id}.{node_id}'] = node.get_NodeOutput()
+            context.node_output[f'{self.id}.{node_id}'] = await node.get_NodeOutput()
             if self.process:
                 self.process.terminate()
                 self.process = None

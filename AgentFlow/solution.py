@@ -11,8 +11,8 @@ import re
 from typing import Callable, Dict, List, Union, Sequence, Optional
 from typing import AsyncGenerator
 from autogen_agentchat.base import TaskResult, Response
-from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, TextMessage, UserMessage
-from autogen_core.models import CreateResult
+from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, TextMessage
+from autogen_core.models import CreateResult, UserMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_ext.tools.mcp import StdioServerParams, StreamableHttpServerParams, SseServerParams
 from autogen_core import ComponentBase, Component, CancellationToken
@@ -55,7 +55,7 @@ def load_config(config_file: str) -> SolutionParam:
 
 
 # Define the Solution class
-class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
+class Solution(ComponentBase, Component):
     component_type = "solution"
 
     component_version = 2
@@ -100,37 +100,6 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
         
         self.input_func : Optional[Callable] = None
 
-        if isinstance(self._souluton_param.codebase, RepositoryParam):
-            if self._souluton_param.codebase.language == LanguageEnum.CPP:
-
-                src = self._souluton_param.codebase.source_path
-                
-                include = []
-                if isinstance(self._souluton_param.codebase.header_path, list):
-                    include = self._souluton_param.codebase.header_path
-                elif isinstance(self._souluton_param.codebase.header_path, str):
-                    include = [self._souluton_param.codebase.header_path]
-                else:
-                    include = []
-                namespaces = []
-                if isinstance(self._souluton_param.codebase.namespace, list):
-                    namespaces = self._souluton_param.codebase.namespace
-                elif isinstance(self._souluton_param.codebase.namespace, str):
-                    if self._souluton_param.codebase.namespace == '':
-                        namespaces = []
-                    else:
-                        namespaces = [self._souluton_param.codebase.namespace]
-                else:
-                    namespaces=[]
-                cache_file = f'{self._souluton_param.backup_dir}/{self._souluton_param.project_id}'
-                ast = AST()
-                dir_list = [src]
-                if include:
-                    dir_list.extend(include)
-                output_filters =  [
-                    lambda cursor: all(not cursor.location.file.name.startswith(directory) for directory in list(set(dir_list))),
-                ]
-                ast.create_cache(src_dir=src, include_dir=include, namespaces=namespaces, parsing_filters=output_filters, cache_file=cache_file, load=True)
     def set_input_func(self, input_func: Callable):
         """
         Set the input function for the solution.
@@ -174,7 +143,7 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
     async def run_stream(self, task: str | BaseChatMessage | Sequence[BaseChatMessage] | None = None,
                          cancellation_token: Optional[CancellationToken] = None,
                          specific_flow: list[str] = [], specific_node: list[str] = []
-                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | TaskResult | Response], None]:
+                         ) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage | TaskResult | Response, None]:
         Template = '''
 ## 本方案的配置参数如下：
 {param}
@@ -197,6 +166,9 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                 try:
                     msg = UserMessage(content=Template.format(param = self._souluton_param, task=task), source="user")
                     ret: CreateResult = await self._model_client.create(messages=[msg], json_output=True)
+                    if not isinstance(ret.content, str):
+                        logger.error(f"Unexpected response format: {ret.content}")
+                        continue
                     print(f"根据task信息，需运行的Flow、Node: {ret.content}")
                     if 'json' in ret.content:    
                         code_block_pattern = re.compile(rf'```json(.*?)```', re.DOTALL)
@@ -226,10 +198,10 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
             return
         
         
-        last_response: Response = None
+        last_response: Optional[Response] = None
         context = Context(project_description=self._souluton_param.description)
         context.cancellation_token = cancellation_token
-        if task is not None:
+        if task is not None and isinstance(task, str):
             context.goal = task
             
         if self.input_func:
@@ -240,7 +212,8 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                     break
                 if specific_flow and flow.id not in specific_flow:
                     logger.info(f"skip {flow.id}")
-                    async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=False):
+                    stream = await flow.run_stream(context, specific_node=specific_node, flow_execute=False)
+                    async for msg in stream:
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
                         if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
@@ -251,7 +224,8 @@ class Solution(ComponentBase[BaseModel], Component[SolutionParam]):
                             context = msg
                 else:
                     logger.info(f"run {flow.id}")
-                    async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=True):
+                    stream = await flow.run_stream(context, specific_node=specific_node, flow_execute=True)
+                    async for msg in stream:
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
                         if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):

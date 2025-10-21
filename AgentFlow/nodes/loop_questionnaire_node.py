@@ -6,7 +6,7 @@ from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
 from ..tools import extract_code_blocks
 from .questionnaire_node import QuestionnaireNode
 from .base_node import AgentNode
-from ..data_model import AgentNodeParam, Context, AgentParam, TaskItem, LoopModeEnum
+from ..data_model import AgentNodeParam, Context, AgentParam, TaskItem, LoopModeEnum, LoopDependParam
 
 from typing import  Dict, Union, List, Optional, AsyncGenerator, Union
 import logging
@@ -32,19 +32,23 @@ async def execute_task(task:TaskItem, context:Context, node_param:AgentNodeParam
 
     task.status = 'doing'
     try:
-        response = await seq_node.run(context)        
+        response = await seq_node.run(context)   
+        task.status = 'done'
+        if isinstance(response, Response) and isinstance(response.chat_message, TextMessage):
+            return response.chat_message.content     
+        else:
+            return ''
     except Exception as e:
         logger.error(f"Error in node {node_param.id}: {e}")
-        seq_node.stop()
+        await seq_node.stop()
         task.status = 'todo'
-        return None
+        return ''
 
-    task.status = 'done'
-    return response.chat_message.content
+
 
 
 async def execute_task_stream(task:TaskItem, context:Context, node_param:AgentNodeParam
-                                ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | TaskResult | Response | str], None]: 
+                                ) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage | TaskResult | Response | str, None]: 
     new_param = copy.deepcopy(node_param)
     new_param.task = '### 任务分发至各节点依次执行, 当前节点需要执行的任务是：' + task.content
     new_param.id += f'task{task.id}'
@@ -60,11 +64,11 @@ async def execute_task_stream(task:TaskItem, context:Context, node_param:AgentNo
     try:
         async for msg in seq_node.run_stream(context):
             yield msg
-            if isinstance(msg, Response):
+            if isinstance(msg, Response) and isinstance(msg.chat_message, TextMessage):
                 yield msg.chat_message.content
     except Exception as e:
         logger.error(f"Error in node {node_param.id}: {e}")
-        seq_node.stop()
+        await seq_node.stop()
         task.status = 'todo'
         return
 
@@ -83,7 +87,8 @@ class LoopQuestionnaireNode(AgentNode):
         else:
             self._node_param = config
 
-        self._loop_param = self._node_param.manager.loop
+        if self._node_param.manager and self._node_param.manager.loop:
+            self._loop_param:LoopDependParam = self._node_param.manager.loop
         
         param = AgentParam(name = 'planner', system_prompt = FORMAT_SYSTEM_PROMPT)
         self.planner : AssistantAgent = self.create_agent(param, self._node_param.llm_config)
@@ -170,7 +175,7 @@ class LoopQuestionnaireNode(AgentNode):
     async def run(self, context:Context) -> None:
         await Console(self.run_stream(context), output_stats=True)
 
-    async def run_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response], None]:
+    async def run_stream(self, context:Context) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage | Response, None]:
         if os.path.exists(self.tasks_file):
             with open(self.tasks_file, 'r') as f:
                 tasks = [TaskItem(**obj) for obj in json.load(f)]

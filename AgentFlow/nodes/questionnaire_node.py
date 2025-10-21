@@ -1,7 +1,7 @@
 
 
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.base import TaskResult, Response
+from autogen_agentchat.base import TaskResult, Response, ChatAgent, Team
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.ui import Console
 from autogen_agentchat.messages import ChatMessage, TextMessage
@@ -30,7 +30,7 @@ class QuestionnaireNode(AgentNode):
             raise ValueError(f"AgentNode {self._node_param.id} must have at least {len(self._node_param.manager.participants)} agents")
         
         ## 依据manager中的agents字段顺序，创建多个assistant
-        self.agents : List[AssistantAgent] = []
+        self.agents : List[ChatAgent|Team] = []
         for name in self._node_param.manager.participants:             
             found = False
             for agent_param in self._node_param.agents:
@@ -52,6 +52,8 @@ class QuestionnaireNode(AgentNode):
         return response
 
     async def load_state(self) -> bool:
+        if self.team is None:
+            return False
         try:
             if os.path.exists(self.state_file):
                 with open(self.state_file, "r") as f:
@@ -67,6 +69,8 @@ class QuestionnaireNode(AgentNode):
             return False    
             
     async def save_state(self) -> Dict:
+        if self.team is None:
+            return {}
         team_state = await self.team.save_state()
         summary_state = await self.summary_agent.save_state()
         state = {"team": team_state, "summary": summary_state, "response": self.response}
@@ -77,7 +81,9 @@ class QuestionnaireNode(AgentNode):
     
 
     
-    async def execute_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage  | Response], None]:
+    async def execute_stream(self, context:Context) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage  | Response, None]:
+        if self.team is None:
+            raise ValueError("Team is not initialized")
         content = self.gen_context(context)
 
         cancellation_token =  context.cancellation_token if context.cancellation_token else self.cancellation_token
@@ -100,7 +106,7 @@ class QuestionnaireNode(AgentNode):
                         results.append(copy.deepcopy(msg)) 
             except Exception as e:
                 print(f"Error in executing task: {e}", flush=True)
-        summary : Response = None
+        summary : Optional[Response] = None
 
         # 生成随机的uuid字符串
         uuid = re.sub(r'[^a-zA-Z0-9]', '', str(os.urandom(16)))
@@ -177,6 +183,7 @@ class QuestionnaireNode(AgentNode):
             else:
                 break
 
-        self.response = summary.chat_message.content
-        yield summary
+        if summary is not None and isinstance(summary.chat_message, TextMessage):
+            self.response = summary.chat_message.content
+            yield summary
         return

@@ -44,7 +44,7 @@ class LoopFlow(BaseFlow):
         self.tasks_file = os.path.join(self._config["backup_dir"], f"{self._flow_param.flow_id}_loop_tasks.json")
         self.planner = AssistantAgent(name='planner', model_client=model_client, system_message = FORMAT_SYSTEM_PROMPT)
 
-    def create_internal_flow(config) -> BaseFlow:
+    def create_internal_flow(self, config) -> BaseFlow:
         raise NotImplementedError("override this method in the subclass please!")
 
     async def run(self, context, specific_node = [], flow_execute = True) -> Context:
@@ -107,6 +107,8 @@ class LoopFlow(BaseFlow):
                                         cancellation_token=CancellationToken())
                                     )
             try:
+                if not isinstance(respond.chat_message , TextMessage):
+                    raise ValueError("Invalid response type, expected TextMessage")
                 json_str = extract_code_blocks(respond.chat_message.content, "json")
                 parsed_json = json.loads(json_str)
                 tasks.extend([TaskItem(**obj) for obj in parsed_json])
@@ -120,8 +122,8 @@ class LoopFlow(BaseFlow):
 
         return tasks    
     
-    async def run_stream(self, context, specific_node = [], flow_execute = True
-                         ) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage | Response | Context], None]:
+    async def run_stream(self, context: Context, specific_node: list[str] = [], flow_execute: bool = True
+                         ) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage | Response | Context, None]:
         if os.path.exists(self.tasks_file):
             with open(self.tasks_file) as f:
                 tasks = [TaskItem(**obj) for obj in json.load(f)]
@@ -139,7 +141,7 @@ class LoopFlow(BaseFlow):
             flow:BaseFlow = self.create_internal_flow(config)
 
             async for msg in flow.run_stream(context, specific_node, flow_execute):
-                if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
+                if isinstance(msg, Response):
                     names = msg.chat_message.source.split('.')
                     names[0] = self._flow_param.flow_id
                     msg.chat_message.source = '.'.join(names)

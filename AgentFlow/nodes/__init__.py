@@ -12,11 +12,20 @@ class NodeFactory:
     def create_node(node_type: str, config: Union[Dict, ToolNodeParam, AgentNodeParam]) -> BaseNode:
         if node_type == NodeTypeEnum.TOOL:   
             if isinstance(config, dict):
-                config = ToolNodeParam(**config)         
+                config = ToolNodeParam(**config)
+            elif isinstance(config, ToolNodeParam):
+                config = config    
+            else:
+                raise ValueError(f"Invalid config type for ToolNode: {type(config)}")
             return ToolNode(config)
+            
         elif node_type == NodeTypeEnum.AGENT:
             if isinstance(config, dict):
                 config = AgentNodeParam(**config)
+            elif isinstance(config, AgentNodeParam):
+                config = config
+            else:
+                raise ValueError(f"Invalid config type for AgentNode: {type(config)}")
             
             if config.manager.mode == AgentModeEnum.Questionnaire :
                 return QuestionnaireNode(config)

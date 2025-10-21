@@ -1,12 +1,12 @@
 
 
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.base import TaskResult, Response
+from autogen_agentchat.base import TaskResult, Response, ChatAgent, Team
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.ui import Console
-from autogen_agentchat.messages import ChatMessage, TextMessage, UserMessage
+from autogen_agentchat.messages import ChatMessage, TextMessage,ToolCallSummaryMessage
 from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage
-from autogen_core.models import SystemMessage, CreateResult
+from autogen_core.models import SystemMessage, CreateResult, UserMessage
 from autogen_core import CancellationToken
 from .base_node import AgentNode
 from .questionnaire_node import QuestionnaireNode
@@ -33,7 +33,7 @@ class ReflectiveNode(QuestionnaireNode):
             raise ValueError(f"AgentNode {self._node_param.id} must have at least {len(self._node_param.manager.participants)} agents")
         
         ## 依据manager中的agents字段顺序，创建多个assistant
-        self.agents : List[AssistantAgent] = []
+        self.agents : List[ChatAgent | Team] = []
         for name in self._node_param.manager.participants:             
             found = False
             for agent_param in self._node_param.agents:
@@ -56,10 +56,10 @@ class ReflectiveNode(QuestionnaireNode):
     async def _format_summary(self, check_response: Response, cancellation_token: Optional[CancellationToken] = None) -> AsyncGenerator[Union[CheckResult| BaseAgentEvent | BaseChatMessage], None]:
  
         ## 检查结果格式化
-        check_result :CheckResult = None
+        check_result:CheckResult
         format_prompt = CHECK_TEMPLATE.format(type=CheckResult.model_json_schema().__str__())   
         msgs = []
-        if hasattr(self, "_input_func") and self._input_func:
+        if hasattr(self, "_input_func") and self._input_func:            
             print("Setting input function for user proxy agent")
             msg = TextMessage(content=f"## 内置checker检查结果:\n{check_response.chat_message.content}\n请提供你的建议......\n", source='user')
             yield msg
@@ -88,7 +88,9 @@ class ReflectiveNode(QuestionnaireNode):
         return
 
 
-    async def execute_stream(self, context:Context) -> AsyncGenerator[Union[BaseAgentEvent | BaseChatMessage  | Response], None]:
+    async def execute_stream(self, context:Context) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage  | Response, None]:
+        if self.team is None:
+            raise ValueError("Team is not initialized")
         content = self.gen_context(context)
 
         cancellation_token =  context.cancellation_token if context.cancellation_token else self.cancellation_token
@@ -119,7 +121,7 @@ class ReflectiveNode(QuestionnaireNode):
             msgs : List[ChatMessage] = []
             for result in results:                
                 for msg in result.messages:
-                    if msg.type in ['TextMessage', 'ToolCallSummaryMessage']:
+                    if isinstance(msg, (TextMessage, ToolCallSummaryMessage)):
                         msgs.append(msg)
             msgs.append(TextMessage(content=SUMMARY_USER_PROMPT, source="user"))
             summary = await self.summary_agent.on_messages(messages=msgs, cancellation_token=cancellation_token)
