@@ -6,8 +6,7 @@ import json
 import os
 from autogen_agentchat.base import TaskResult
 from autogen_core import CancellationToken
-
-
+from autogen_ext.tools.mcp import StdioServerParams, StreamableHttpServerParams, SseServerParams
 ############### llm_config  ################
 
 class ModelEnum(str, Enum):
@@ -105,6 +104,8 @@ class AgentParam(BaseModel):
     description: str = Field(default='an agent', description="Agent description")
     tools: list[str] = Field(default_factory=list, description="fucntion call for agent")
     model: ModelEnum = Field(default=ModelEnum.DEFAULT, description="LLM for agent")
+    max_tool_iterations : int = Field(default=1, description="Max tool iterations for agent")
+    
 
 # NodeOutput 用于描述节点的输出
 class NodeOutput(BaseModel):
@@ -130,18 +131,59 @@ class NodeParam(BaseModel):
     inputs: list[str] = list()   # 节点ID
     config: str
     # 以下内容无需主动配置   
-    llm_config: str
-    workspace_path: str
-    backup_dir: str
-    flow_id: str
-    output: NodeOutput
+    llm_config: Optional[str] = None
+    workspace_path: Optional[str] = None
+    backup_dir: Optional[str] = None
+    flow_id: Optional[str] = None
+    output: Optional[NodeOutput] = None
 
 
+class ToolModeEnum(str, Enum):
+    Unknown = "Unknown"
+    ClaudeCodeAgent = "ClaudeCodeAgent"      # Claude 专用的编程代理模式  
 
 
 class ToolNodeParam(NodeParam):
     type: Literal[NodeTypeEnum.TOOL]
-    tools: list[str]
+    task: str
+    tool_type: ToolModeEnum
+    interactive: Optional[bool] = Field(False, description="Whether the tool node is interactive")
+
+
+class SystemPromptPreset(BaseModel):
+    """System prompt preset configuration."""
+    type: Literal["preset"]
+    preset: Literal["claude_code"]
+
+class ClaudeOptions(BaseModel):
+
+    allowed_tools: list[str] = Field(default_factory=list)
+    system_prompt: str | SystemPromptPreset | None = None
+    mcp_servers: str | None = None  # Path to MCP server config file or JSON string
+    permission_mode: Literal["default", "acceptEdits", "plan", "bypassPermissions"] | None = None
+    continue_conversation: bool = False
+    resume: str | None = None
+    max_turns: int | None = None
+    disallowed_tools: list[str] = Field(default_factory=list)
+    model: str | None = None
+    permission_prompt_tool_name: str | None = None
+    cwd: str | None = None
+    cli_path: str | None = None
+    settings: str | None = None
+    add_dirs: list[str] = Field(default_factory=list)
+    env: dict[str, str] = Field(default_factory=dict)
+    extra_args: dict[str, str | None] = Field(default_factory=dict)  # Pass arbitrary CLI flags
+    max_buffer_size: int | None = None  # Max bytes when buffering CLI stdout    
+    user: str | None = None    
+    # When true resumed sessions will fork to a new session ID rather than
+    # continuing the previous session.
+    fork_session: bool = False
+    setting_sources: list[Literal['user', 'project', 'local']] = Field(default_factory=lambda: ['local'])
+
+class ClaudeCodeParam(ToolNodeParam):
+    # 仅能够处理本机认为，他需要调用Claude Code SDK, 本机需要按照 Claude Code
+    claude_options: ClaudeOptions = Field(..., description="Claude Agent 配置选项")
+
 
 # 节点输出检查项
 class CheckItem(BaseModel):
@@ -164,6 +206,9 @@ class AgentModeEnum(str, Enum):
     SwarmGroupChat = "SwarmGroupChat"
     MagenticOne = "MagenticOne"
     ReflectiveTeam = "ReflectiveTeam"  # 反思团队模式, 需要多轮问答和总结
+
+    WR124Agent = "WR124Agent"              # WR124 专用的编程代理模式
+
 
 # ManagerParam 用于描述 AgentNodeParam 的 manager 参数
 class ManagerParam(BaseModel):
@@ -189,11 +234,43 @@ class AgentNodeParam(NodeParam):
     description: Optional[str] = None  # 节点描述
 
 
+
+class WR124AgentParam(NodeParam):
+    type: Literal[NodeTypeEnum.AGENT]
+    task: str
+    agents : List[AgentParam] = list()   
+
+
 class RunParam(BaseModel):
     flow_id: List[str] = Field([], description="工作流ID列表, 需要执行的工作流ID, 如果为空则执行所有工作流")
     node_id: List[str] = Field([], description="节点ID列表, 需要执行的节点ID, 如果为空则执行所有节点")
 
+class LanguageEnum(str, Enum):
+    C = "C"
+    CPP = "C++"
+    PYTHON = "Python"
+    JAVA = "Java"
+    GO = "Go"
+    RUST = "Rust"
+    SWIFT = "Swift"
+    JAVASCRIPT = "JavaScript"
+    TYPESCRIPT = "TypeScript"
+    KOTLIN = "Kotlin"
+    SCALA = "Scala"
+    RUBY = "Ruby"
+    PHP = "PHP"
+    CSHARP = "C#"
+    OBJECTIVEC = "Objective-C"
+    SHELL = "Shell"
+    OTHER = "Other"
 
+class RepositoryParam(BaseModel):
+    language: LanguageEnum = LanguageEnum.PYTHON
+    project_path: str                               # 代码仓库路径
+    source_path: str                                # 源码路径
+    header_path: Optional[Union[str,List[str]]] = None     # 头文件路径
+    build_path: Optional[str] = None                          # 编译路径
+    namespace: Optional[Union[str,List[str]]] = None      # 命名空间
 ############# 上下文传递 ################
 
 # Context 用于描述工作流的上下文
@@ -204,7 +281,8 @@ class Context(BaseModel):
     input_func: Optional[Callable] = None  # 输入函数，用于获取用户输入
     cancellation_token: Optional[CancellationToken] = None
     goal: Optional[str] = None  # 目标描述，用于指导工作流执行
-
+    mcps: list[StdioServerParams | StreamableHttpServerParams | SseServerParams] = []
+    codebase: Union[RepositoryParam, str] | None = None
     def get_node_output(self, flow_id : str, node_id: str) -> Optional[NodeOutput]:
         key = f'{flow_id}.{node_id}'
         return self.node_output.get(key, None)
@@ -239,15 +317,15 @@ class flowNodeParam(BaseModel):
     flow_id: str
     config: str
     previous_flows: List[str] = list()
-    workspace_path: str
-    backup_dir: str
-    llm_config: str
+    workspace_path: Optional[str] = None
+    backup_dir: Optional[str] = None
+    llm_config: Optional[str] = None
     
 
 ## Define the parameters for the flow
 class flowDetailParam(flowNodeParam):
     flow_type: FlowTypeEnum
-    description: str
+    description: Optional[str] = None
     nodes: List[NodeParam]        
   
 class SequentialFlowParam(flowDetailParam):
@@ -271,32 +349,7 @@ class ConditionFlowParam(flowDetailParam):
 
 ############### workflow  ################
 
-class LanguageEnum(str, Enum):
-    C = "C"
-    CPP = "C++"
-    PYTHON = "Python"
-    JAVA = "Java"
-    GO = "Go"
-    RUST = "Rust"
-    SWIFT = "Swift"
-    JAVASCRIPT = "JavaScript"
-    TYPESCRIPT = "TypeScript"
-    KOTLIN = "Kotlin"
-    SCALA = "Scala"
-    RUBY = "Ruby"
-    PHP = "PHP"
-    CSHARP = "C#"
-    OBJECTIVEC = "Objective-C"
-    SHELL = "Shell"
-    OTHER = "Other"
 
-class RepositoryParam(BaseModel):
-    language: LanguageEnum = LanguageEnum.PYTHON
-    project_path: str                               # 代码仓库路径
-    source_path: str                                # 源码路径
-    header_path: Optional[Union[str,List[str]]] = None     # 头文件路径
-    build_path: Optional[str] = None                          # 编译路径
-    namespace: Optional[Union[str,List[str]]] = None      # 命名空间
 
 class SolutionParam(BaseModel):
     project_name: str

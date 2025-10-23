@@ -209,7 +209,7 @@ async def run_websocket(
                                 team_cfg['run_id'] = run_id  # Pass run_id to team config
 
                                 asyncio.create_task(ws_manager.start_stream(run_id, task, team_cfg, flow_id=flow_id, node_ids=node_ids))
-                            elif team_response.status is False: ## 没有数据库，或者数据库中无数据，则直接从文件中读取智能体配置文件
+                            elif team_response.status and len(team_response.data) == 0: ## 没有数据库，或者数据库中无数据，则直接从文件中读取智能体配置文件
                                 team_cfg = {}
                                 if team_config["id"] == 2: # 2 代表代码库理解智能体
                                     with open('workflows/comprehension/solution.toml_component.json') as f:

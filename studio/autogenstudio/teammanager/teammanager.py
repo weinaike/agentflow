@@ -10,7 +10,7 @@ import aiofiles
 import yaml
 from autogen_agentchat.agents import UserProxyAgent
 from autogen_agentchat.base import TaskResult, Response
-from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, ToolCallSummaryMessage,TextMessage
+from autogen_agentchat.messages import BaseAgentEvent, BaseChatMessage, ToolCallSummaryMessage,TextMessage, ToolCallRequestEvent
 from autogen_agentchat.teams import BaseGroupChat
 from autogen_core import EVENT_LOGGER_NAME, CancellationToken, ComponentModel
 from autogen_core.logging import LLMCallEvent
@@ -178,16 +178,19 @@ class TeamManager:
 
                 if isinstance(message, TaskResult):
                     yield TeamResult(task_result=message, usage="solution", duration=time.time() - start_time)
-                # elif isinstance(message, BaseAgentEvent):
-                #     yield message
-                elif isinstance(message, BaseChatMessage):
-                    if isinstance(message, ToolCallSummaryMessage):
+                elif isinstance(message, BaseAgentEvent):
+                    print(type(message), flush=True)
+                    if isinstance(message, ToolCallRequestEvent):                        
                         names = []
-                        for result in message.results:
+                        for result in message.content:
                             names.append(result.name)
                         text = "".join([f"调用工具：{name}  \n" for name in names])
                         message = TextMessage(content=text, source=message.source)
-                    elif isinstance(message, TextMessage):
+                        yield message
+                    # yield message
+                elif isinstance(message, BaseChatMessage):
+                    print(type(message), flush=True)
+                    if isinstance(message, TextMessage):
                         content = message.content.replace('TERMINATE', '')
                         message = TextMessage(content=content, source=message.source)
                     source = message.source
@@ -195,7 +198,8 @@ class TeamManager:
                         s_flow_id, s_node_id, s_role = source.split('.')   
                         if s_role == 'assistant':
                             yield message
-                elif isinstance(message, Response) and isinstance(team, Solution):                    
+                elif isinstance(message, Response) and isinstance(team, Solution):
+                    print(type(message), flush=True)
                     # Ensure Response messages are properly formatted
                     msg = message.chat_message
                     if isinstance(msg, TextMessage):

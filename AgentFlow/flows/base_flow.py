@@ -72,9 +72,12 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
         prompt = f'## 工作流 {flow_param.flow_id} : {flow_param.flow_name} \n本工作流的职责:{flow_param.description}\n'
         nodes : List[BaseNode] = []
 
+        if flow_param.workspace_path is None or flow_param.backup_dir is None:
+            raise ValueError("workspace_path and backup_dir must be set in flow_param")
+
         if not os.path.exists(flow_param.workspace_path):
             os.makedirs(flow_param.workspace_path)
-
+        
         use_check = False
         node_configs : List[Dict] = []
         prompt += f'## 工作流节点\n本工作流包含以下{len(flow_param.nodes)}个节点:\n'
@@ -85,26 +88,30 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
             node.flow_id = flow_param.flow_id
 
             config_path = os.path.dirname(flow_param.config)
-            config_file = os.path.join(config_path, node.config)
-            with open(config_file, 'r') as f:
+            node_file = os.path.join(config_path, node.config)
+            with open(node_file, 'r') as f:
                 node_config = f.read()
+                print(f"Loading node config from {node_config}")
             try:
                 node_config = toml.loads(node_config)
                 node_config.update(node.model_dump())
                 node_config['output'] = {"address": os.path.join(node.workspace_path, node.config.replace('toml', 'md')),
                                           "description": node.name}  
-                if 'summary_prompt' not in node_config['manager']:
-                    node_config['manager']['summary_prompt'] = SUMMARY_USER_PROMPT
-                    prompt += f"### {node.id} {node.name}\n- 节点职责:{node_config['task']}\n"
+                if node_config['type'] == 'Agent':
+                    if 'summary_prompt' not in node_config['manager']:
+                        node_config['manager']['summary_prompt'] = SUMMARY_USER_PROMPT
+                        prompt += f"### {node.id} {node.name}\n- 节点职责:{node_config['task']}\n"
+                    else:
+                        prompt += f"### {node.id} {node.name}\n- 节点职责:{node_config['task']}\n- 节点执行结果的总结提示词：'''{node_config['manager']['summary_prompt']}'''\n\n"
+
+                    node_configs.append(node_config)
+                    if 'use_check' in node_config['manager'] and node_config['manager']['use_check']:
+                        use_check = True
                 else:
-                    prompt += f"### {node.id} {node.name}\n- 节点职责:{node_config['task']}\n- 节点执行结果的总结提示词：'''{node_config['manager']['summary_prompt']}'''\n\n"
-
-                node_configs.append(node_config)
-                if 'use_check' in node_config['manager'] and node_config['manager']['use_check']:
-                    use_check = True
-
+                    prompt += f"### {node.id} {node.name}\n- 节点职责:{node_config['task']}\n\n"
+                    node_configs.append(node_config)
             except Exception as e:
-                print(f"Error in reading config file: {config_file}, {e}")
+                print(f"Error in reading config file: {node_file}, {e}")
                 raise e
         
         
@@ -142,10 +149,12 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
         for node_config in node_configs:
             if nodechecklist is not None:                
                 for node_check in nodechecklist.nodes:
-                    if node_check.node_id == node_config['id']:
+                    if node_check.node_id == node_config['id'] and node_config['type'] == 'Agent':
                         node_config['manager']['summary_prompt'] += node_check.summary_prompt
                         node_config['manager']['check_items'] = node_check.check_items
                         break
+                    else:
+                        continue
             
             nodes.append(NodeFactory.create_node(node_config['type'], node_config))
 
@@ -176,7 +185,10 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
                     continue
                 dot.edge(input_node, node.id)
                 graph[input_node].append(node.id)
-               
+        
+        if self._flow_param.workspace_path is None:
+            raise ValueError("workspace_path must be set in flow_param")
+
         file = os.path.join(self._flow_param.workspace_path, flow_name)
 
         # Save and render the graph

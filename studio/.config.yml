@@ -1,0 +1,9 @@
+type: github
+github:
+  client_id: "Iv23limJojMT6Z2zrzif"
+  client_secret: "59af1ad6b8c94a8913df617fd06a4e1f532524b4"
+  callback_url: "http://10.15.49.70:8081/api/auth/callback"
+  scopes:
+    - user:email
+jwt_secret: "你的JWT密钥"
+token_expiry_minutes: 60

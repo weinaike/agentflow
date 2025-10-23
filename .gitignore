@@ -4,8 +4,11 @@ tests
 template
 workspace*
 OAI_CONFIG_LIST*
-AgentFlow.egg-info
+AgentFlow.egg-info*
 logs
 examples
 memory_bank
 pagelogs
+chroma_db*
+.claude
+PRPs

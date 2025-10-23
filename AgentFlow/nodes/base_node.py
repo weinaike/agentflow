@@ -219,6 +219,7 @@ class AgentNode(BaseNode) :
                                model_client=model_client, 
                                tools=tools, 
                                system_message=SYSTEM_TEMPLATE.format(system_prompt=system_prompt, keyword = self.temrminate_word),
+                               max_tool_iterations=agent_param.max_tool_iterations,
                             #    reflect_on_tool_use = True,
                             #  model_context=BufferedChatCompletionContext(buffer_size=10),
                                )

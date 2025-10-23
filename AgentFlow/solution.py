@@ -99,6 +99,7 @@ class Solution(ComponentBase, Component):
         self._init = False
         
         self.input_func : Optional[Callable] = None
+        self.mcps:list[StdioServerParams | StreamableHttpServerParams | SseServerParams] = []
 
     def set_input_func(self, input_func: Callable):
         """
@@ -144,65 +145,15 @@ class Solution(ComponentBase, Component):
                          cancellation_token: Optional[CancellationToken] = None,
                          specific_flow: list[str] = [], specific_node: list[str] = []
                          ) -> AsyncGenerator[BaseAgentEvent | BaseChatMessage | TaskResult | Response, None]:
-        Template = '''
-## 本方案的配置参数如下：
-{param}
-
-## 现在用户如下指令:
-{task}
-
-## 格式化输出
-请以json格式输出需要执行的flow与node, 格式：{{flow_id:[], node_id:[]}}
- 
-## 请注意以下几点：
-1. 如果flow_id与node_id都为空，则表示执行全部工作流与节点;
-2. 如果用户没有特别指定，则默认运行全部flow与node; 
-2. node_id与flow_id独立输出，不要出现'flow1_node1'这类节点ID。
-
-'''
-        if task is not None and ((len(specific_flow) == 0) or (len(specific_node) == 0)) and not self._init:    
-            count = 0
-            while True:                
-                try:
-                    msg = UserMessage(content=Template.format(param = self._souluton_param, task=task), source="user")
-                    ret: CreateResult = await self._model_client.create(messages=[msg], json_output=True)
-                    if not isinstance(ret.content, str):
-                        logger.error(f"Unexpected response format: {ret.content}")
-                        continue
-                    print(f"根据task信息，需运行的Flow、Node: {ret.content}")
-                    if 'json' in ret.content:    
-                        code_block_pattern = re.compile(rf'```json(.*?)```', re.DOTALL)
-                        json_blocks = code_block_pattern.findall(ret.content)
-                        ret.content = ''.join(json_blocks).strip()
-
-                    output = RunParam(**json.loads(ret.content))
-
-                    specific_flow = output.flow_id
-                    specific_node = output.node_id
-                    self._init = True
-                    logger.info(f"_model_client create Specific flows: {specific_flow}, Specific nodes: {specific_node}")
-                    break
-                except Exception as e:
-                    logger.error(f"Error during model client create: {e}\n{traceback.format_exc()}")
-                    count += 1
-                    if count > 3:
-                        yield TaskResult(
-                            messages=[TextMessage(content="Error during configuring param.", source="solution")],
-                            stop_reason="error",
-                        )
-                        return
-
-        if  isinstance(specific_node, list) and len(specific_node) > 0 and \
-            isinstance(specific_flow, list) and len(specific_flow) > 1:
-            logger.error("Only one flow can be specified for execution")
-            return
-        
-        
+           
         last_response: Optional[Response] = None
         context = Context(project_description=self._souluton_param.description)
         context.cancellation_token = cancellation_token
+        context.mcps = self.mcps        
+        context.codebase = self._souluton_param.codebase
         if task is not None and isinstance(task, str):
             context.goal = task
+        
             
         if self.input_func:
             context.input_func = self.input_func
@@ -212,8 +163,7 @@ class Solution(ComponentBase, Component):
                     break
                 if specific_flow and flow.id not in specific_flow:
                     logger.info(f"skip {flow.id}")
-                    stream = await flow.run_stream(context, specific_node=specific_node, flow_execute=False)
-                    async for msg in stream:
+                    async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=False):
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
                         if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
@@ -224,8 +174,7 @@ class Solution(ComponentBase, Component):
                             context = msg
                 else:
                     logger.info(f"run {flow.id}")
-                    stream = await flow.run_stream(context, specific_node=specific_node, flow_execute=True)
-                    async for msg in stream:
+                    async for msg in flow.run_stream(context, specific_node=specific_node, flow_execute=True):
                         if cancellation_token and cancellation_token.is_cancelled():
                             break
                         if isinstance(msg, (BaseChatMessage, BaseAgentEvent, Response)):
@@ -272,5 +221,5 @@ class Solution(ComponentBase, Component):
         """
         Register MCP tools for the solution.
         """
-
+        self.mcps.append(param)
         await register_mcp_tools(param)

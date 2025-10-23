@@ -19,7 +19,8 @@ dependencies = [
     "graphviz",
     "libclang",
     "pylint",
-    "mcp"
+    "mcp",
+    "claude_agent_sdk",
 ]
 
 keywords = ["agent", "workflow", "automation", "python"]
