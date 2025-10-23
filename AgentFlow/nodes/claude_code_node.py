@@ -67,13 +67,11 @@ class ClaudeCodeNode(BaseNode):
             )
         self.response: str = ''
         self._input_func: Optional[Callable] = None  # User input function
-        self.user_proxy_agent = None
         self.cancellation_token = CancellationToken()
         self._interactive = self._param.interactive if hasattr(self._param, 'interactive') else False
 
     def set_input_func(self, input_func: Optional[Callable]) -> None:
         self._input_func = input_func
-        self.user_proxy_agent = UserProxyAgent(name='user', input_func=input_func)
 
     def _create_claude_options(self, param: ClaudeCodeParam, context: Context) -> ClaudeAgentOptions:
         """创建 Claude Agent 的配置选项
@@ -436,47 +434,41 @@ class ClaudeCodeNode(BaseNode):
                             # print(type(autogen_msg), flush=True)
                             yield autogen_msg
 
-                while self.user_proxy_agent and self._interactive:
+                while self._input_func and self._interactive:
 
                     if cancellation_token.is_cancelled():
                         logger.info(f"ClaudeCodeNode {self._param.id} cancelled during execution.")
                         break
-                    msg = TextMessage(content=f"请提供你的建议(如无建议,回复 PASS )......\n", source=f"{self._param.flow_id}.{self._param.id}.assistant")
-                    yield msg
-                    human_response:Response = await self.user_proxy_agent.on_messages(messages=[msg], cancellation_token=cancellation_token)
-
-                    if not isinstance(human_response.chat_message, TextMessage):
+                    promt = f"请提供你的建议(如无建议,回复 PASS )......\n"
+                    content = await self._input_func(promt)
+                    if content.strip().upper() == "PASS":
                         break
-                
-                    content = human_response.chat_message.content
-                    if "PASS" in content.strip().upper():
-                        break
-                    else:
-                        await client.query(prompt=content)
-                        # 接收并处理响应
-                        async for message in client.receive_response():
 
-                            if cancellation_token.is_cancelled():
-                                logger.info(f"ClaudeCodeNode {self._param.id} cancelled during execution.")
-                                await client.interrupt()
-                                break
+                    await client.query(prompt=content)
+                    # 接收并处理响应
+                    async for message in client.receive_response():
 
-                            # 转换 Claude 消息为 Autogen 消息
-                            autogen_result = self._convert_claude_to_autogen_message(message)
-                            
-                            # 判断返回的是 Response 还是消息列表
-                            if isinstance(autogen_result, Response):
-                                # ResultMessage 转换为 Response，直接 yield
-                                # 累积响应内容
-                                chat_msg = autogen_result.chat_message
-                                if isinstance(chat_msg, TextMessage):
-                                    self.response += chat_msg.content + "\n"
-                                yield autogen_result
-                            else:
-                                # 其他消息类型，返回的是列表
-                                for autogen_msg in autogen_result:                           
-                                    # 生成输出消息（保留原有 source）
-                                    yield autogen_msg
+                        if cancellation_token.is_cancelled():
+                            logger.info(f"ClaudeCodeNode {self._param.id} cancelled during execution.")
+                            await client.interrupt()
+                            break
+
+                        # 转换 Claude 消息为 Autogen 消息
+                        autogen_result = self._convert_claude_to_autogen_message(message)
+                        
+                        # 判断返回的是 Response 还是消息列表
+                        if isinstance(autogen_result, Response):
+                            # ResultMessage 转换为 Response，直接 yield
+                            # 累积响应内容
+                            chat_msg = autogen_result.chat_message
+                            if isinstance(chat_msg, TextMessage):
+                                self.response += chat_msg.content + "\n"
+                            yield autogen_result
+                        else:
+                            # 其他消息类型，返回的是列表
+                            for autogen_msg in autogen_result:                           
+                                # 生成输出消息（保留原有 source）
+                                yield autogen_msg
 
             # 保存输出
             await self._set_node_output(self.response)

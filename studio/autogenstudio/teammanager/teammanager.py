@@ -187,9 +187,16 @@ class TeamManager:
                         text = "".join([f"调用工具：{name}  \n" for name in names])
                         message = TextMessage(content=text, source=message.source)
                         yield message
-                    # yield message
+
                 elif isinstance(message, BaseChatMessage):
                     print(type(message), flush=True)
+                    if isinstance(message, ToolCallSummaryMessage):
+                        names = []
+                        for result in message.results:
+                            names.append(result.name)
+                        text = "".join([f"调用工具：{name}  \n" for name in names])
+                        message = TextMessage(content=text, source=message.source)  
+
                     if isinstance(message, TextMessage):
                         content = message.content.replace('TERMINATE', '')
                         message = TextMessage(content=content, source=message.source)

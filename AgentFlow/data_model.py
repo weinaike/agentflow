@@ -147,8 +147,7 @@ class ToolNodeParam(NodeParam):
     type: Literal[NodeTypeEnum.TOOL]
     task: str
     tool_type: ToolModeEnum
-    interactive: Optional[bool] = Field(False, description="Whether the tool node is interactive")
-
+    interactive: Optional[bool] = Field(False, description="Whether the tool node is interactive")    
 
 class SystemPromptPreset(BaseModel):
     """System prompt preset configuration."""
@@ -206,7 +205,7 @@ class AgentModeEnum(str, Enum):
     SwarmGroupChat = "SwarmGroupChat"
     MagenticOne = "MagenticOne"
     ReflectiveTeam = "ReflectiveTeam"  # 反思团队模式, 需要多轮问答和总结
-
+    Interactive = "Interactive"  # 交互式编程代理模式
     WR124Agent = "WR124Agent"              # WR124 专用的编程代理模式
 
 
@@ -229,17 +228,12 @@ class AgentNodeParam(NodeParam):
     task: str   
     # 以下内容对 Tool 节点无需配置
     type: Literal[NodeTypeEnum.AGENT]
+    description: Optional[str] = None  # 节点描述
+    interactive: Optional[bool] = Field(False, description="Whether the tool node is interactive")  
+    
     manager : ManagerParam
     agents : List[AgentParam] = list()   
-    description: Optional[str] = None  # 节点描述
-
-
-
-class WR124AgentParam(NodeParam):
-    type: Literal[NodeTypeEnum.AGENT]
-    task: str
-    agents : List[AgentParam] = list()   
-
+  
 
 class RunParam(BaseModel):
     flow_id: List[str] = Field([], description="工作流ID列表, 需要执行的工作流ID, 如果为空则执行所有工作流")

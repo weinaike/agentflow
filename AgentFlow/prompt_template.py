@@ -1,5 +1,9 @@
 
 
+GOAL_TEMPLATE = '''# 任务目标
+{goal}
+'''
+
 
 BACKGROUND_TEMPLATE = '''
 # 项目背景

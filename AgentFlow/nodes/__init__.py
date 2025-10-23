@@ -5,6 +5,7 @@ from .loop_questionnaire_node import LoopQuestionnaireNode
 from .selector_group_chat_node import SelectorGroupChatNode
 from .reflective_node import ReflectiveNode
 from .claude_code_node import ClaudeCodeNode
+from .interactive_node import InteractiveNode
 from typing import Union, Dict
 
 
@@ -42,6 +43,8 @@ class NodeFactory:
                 return SelectorGroupChatNode(config)
             elif config.manager.mode == AgentModeEnum.ReflectiveTeam:
                 return ReflectiveNode(config)
+            elif config.manager.mode == AgentModeEnum.Interactive:
+                return InteractiveNode(config)
             else:                          
                 raise NotImplementedError(f"Unknown agent mode: {config.manager.mode}")
         else:

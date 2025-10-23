@@ -61,12 +61,13 @@ class ReflectiveNode(QuestionnaireNode):
         msgs = []
         if hasattr(self, "_input_func") and self._input_func:            
             print("Setting input function for user proxy agent")
-            msg = TextMessage(content=f"## 内置checker检查结果:\n{check_response.chat_message.content}\n请提供你的建议......\n", source='user')
-            yield msg
-            human_response:Response = await self.user_proxy_agent.on_messages(messages=[msg], cancellation_token=cancellation_token)
-       
+            prompt = f"## 内置checker检查结果:\n{check_response.chat_message.content}\n请提供你的建议......, 如无 输入 PASS 跳过\n"
+            response_content = await self._input_func(prompt)
+            if response_content.strip().upper() == "PASS":
+                response_content = "PASS"
+            
             msgs = [UserMessage(content=check_response.chat_message.content,source='user'), 
-                    UserMessage(content=human_response.chat_message.content, source="user"),
+                    UserMessage(content=response_content, source="user"),
                     UserMessage(content=format_prompt, source="user")]    
         else:
             print("No input function set for user proxy agent, using default format prompt")

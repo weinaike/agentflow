@@ -110,8 +110,7 @@ class AgentNode(BaseNode) :
         model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
         self._model_client:BaseOpenAIChatCompletionClient = model_client
         
-        if self.use_check:
-            self.user_proxy_agent = UserProxyAgent(name='user', description='A human Checker')
+        if self.use_check or self._node_param.interactive:
             check_param = AgentParam(name = 'checker', system_prompt = CHECK_SYSTEM_PROMPT, model = ModelEnum.DEFAULT)
             self.check_agent = self.create_agent(check_param, self._node_param.llm_config)
             
@@ -123,10 +122,7 @@ class AgentNode(BaseNode) :
         This function will be used to get user input during the check process.
         """
         print("Setting input function for user proxy agent")
-        if hasattr(self, "user_proxy_agent") and self.user_proxy_agent:
-            print("User proxy agent already exists, setting input function")
-            self._input_func = input_func
-            self.user_proxy_agent.input_func = input_func
+        self._input_func = input_func
 
     async def gen_check_result(self, history: List[ChatMessage], cancellation_token: CancellationToken) -> AsyncGenerator[
             CheckResult| BaseAgentEvent | BaseChatMessage, None]:
@@ -155,17 +151,11 @@ class AgentNode(BaseNode) :
         format_prompt = CHECK_TEMPLATE.format(type=CheckResult.model_json_schema().__str__())   
         client_msgs: List[UserMessage] = []
         if hasattr(self, "_input_func") and self._input_func:
-            print("Setting input function for user proxy agent")
-            msg = TextMessage(content=f"## 内置checker检查结果:\n{check_response.chat_message.content}\n\n请提供你的建议(如无建议,回复PASS)......\n", source='assistant')
-            yield msg
-            human_response:Response = await self.user_proxy_agent.on_messages(messages=[msg], cancellation_token=cancellation_token)
-
-            if not isinstance(human_response.chat_message, TextMessage):
-                print(f"Unexpected response type: {type(human_response.chat_message)}")
-                return
+            prompt = f"## 内置checker检查结果:\n{check_response.chat_message.content}\n\n请提供你的建议(如无建议,回复PASS)......\n"
+            response_content = await self._input_func(prompt)           
 
             client_msgs = [UserMessage(content=check_response.chat_message.content,source='user'), 
-                    UserMessage(content=human_response.chat_message.content, source="user"),
+                    UserMessage(content=response_content, source="user"),
                     UserMessage(content=format_prompt, source="user")]    
         else:
             yield check_response.chat_message
@@ -255,6 +245,11 @@ class AgentNode(BaseNode) :
         inputs = self._node_param.inputs
         
         content = ""
+
+        if context.goal :
+            content += GOAL_TEMPLATE.format(goal=context.goal)
+
+
         if self.first_iteration:
             self.first_iteration = False #只在首次迭代开发时才提供BACKGROUND
             content = BACKGROUND_TEMPLATE.format(project_description = context.project_description, 
