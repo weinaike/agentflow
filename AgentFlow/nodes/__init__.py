@@ -6,6 +6,7 @@ from .selector_group_chat_node import SelectorGroupChatNode
 from .reflective_node import ReflectiveNode
 from .claude_code_node import ClaudeCodeNode
 from .interactive_node import InteractiveNode
+from .wr124_node import WR124Node
 from typing import Union, Dict
 
 
@@ -45,6 +46,8 @@ class NodeFactory:
                 return ReflectiveNode(config)
             elif config.manager.mode == AgentModeEnum.Interactive:
                 return InteractiveNode(config)
+            elif config.manager.mode == AgentModeEnum.WR124Node:
+                return WR124Node(config)
             else:                          
                 raise NotImplementedError(f"Unknown agent mode: {config.manager.mode}")
         else:

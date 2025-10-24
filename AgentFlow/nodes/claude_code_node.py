@@ -89,24 +89,25 @@ class ClaudeCodeNode(BaseNode):
             claude_options.add_dirs.append(param.workspace_path)
         if param.backup_dir:
             claude_options.add_dirs.append(param.backup_dir)
-        if context.codebase:
-            if isinstance(context.codebase, str):
-                claude_options.add_dirs.append(context.codebase)
-                claude_options.cwd = context.codebase
-            elif isinstance(context.codebase, RepositoryParam):
-                claude_options.add_dirs.append(context.codebase.project_path)
-                claude_options.cwd = context.codebase.project_path
-                if context.codebase.build_path:
-                    claude_options.add_dirs.append(context.codebase.build_path)
-                if context.codebase.source_path:
-                    claude_options.add_dirs.append(context.codebase.source_path)
-                if context.codebase.header_path:
-                    claude_options.add_dirs.extend(context.codebase.header_path)
+        # if context.codebase:
+        #     if isinstance(context.codebase, str):
+        #         claude_options.add_dirs.append(context.codebase)
+        #         claude_options.cwd = context.codebase
+        #     elif isinstance(context.codebase, RepositoryParam):
+        #         claude_options.add_dirs.append(context.codebase.project_path)
+        #         claude_options.cwd = context.codebase.project_path
+        #         if context.codebase.build_path:
+        #             claude_options.add_dirs.append(context.codebase.build_path)
+        #         if context.codebase.source_path:
+        #             claude_options.add_dirs.append(context.codebase.source_path)
+        #         if context.codebase.header_path:
+        #             claude_options.add_dirs.extend(context.codebase.header_path)
 
 
         if len(context.mcps) > 0:
             # 转换 MCP 配置
             claude_mcp_configs = self._autogen_mcp_2_claude_mcp(context.mcps)
+
             claude_options.mcp_servers = claude_mcp_configs
 
 
@@ -173,7 +174,7 @@ class ClaudeCodeNode(BaseNode):
                         )
                         messages.append(ToolCallExecutionEvent(
                             content=[result],
-                            source=f"{source_prefix}.user_tool_result"
+                            source=f"{source_prefix}.user"
                         ))
                 
                 # 如果有文本内容，创建 TextMessage
@@ -395,7 +396,8 @@ class ClaudeCodeNode(BaseNode):
             context_content = self._gen_context(context)
             param = self._param
             task = getattr(param, 'task', '')  # type: ignore
-            task_content = f"{context_content}\n\n## 任务目标：\n{task}"
+            task_content = f"{context_content}## 任务目标：\n{task}"
+            print(task_content)
             
             # 创建 Claude 客户端选项
             options:ClaudeAgentOptions = self._create_claude_options(self._param, context)
@@ -431,7 +433,9 @@ class ClaudeCodeNode(BaseNode):
                         # 其他消息类型，返回的是列表
                         for autogen_msg in autogen_result:                           
                             # 生成输出消息（保留原有 source）
-                            # print(type(autogen_msg), flush=True)
+                            print(type(autogen_msg), flush=True)
+                            if isinstance(autogen_msg, ToolCallExecutionEvent):
+                                continue
                             yield autogen_msg
 
                 while self._input_func and self._interactive:

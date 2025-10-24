@@ -91,7 +91,7 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
             node_file = os.path.join(config_path, node.config)
             with open(node_file, 'r') as f:
                 node_config = f.read()
-                print(f"Loading node config from {node_config}")
+                # print(f"Loading node config from {node_config}")
             try:
                 node_config = toml.loads(node_config)
                 node_config.update(node.model_dump())

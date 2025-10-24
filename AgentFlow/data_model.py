@@ -25,6 +25,7 @@ class ModelCapabilities(BaseModel):
     function_calling : bool
     json_output : bool
     structured_output : bool
+    multiple_system_messages: bool = True
 
 
 class ModelConfig(BaseModel):
@@ -57,14 +58,15 @@ def get_model_config(model_config_file: str, type:ModelEnum = ModelEnum.DEFAULT)
         vision=False,
         function_calling=True,
         json_output=True,
-        structured_output=False
+        structured_output=False,
+        multiple_system_messages=True
     )
     
     default_config = ModelConfig(
         model=os.getenv("DEFAULT_MODEL", "glm-4.5"),
         api_key=os.getenv("OPENAI_API_KEY", ""),
         base_url=os.getenv("OPENAI_BASE_URL", ""),
-        model_capabilities=default_capabilities
+        model_capabilities=default_capabilities                
     )
     
     return default_config
@@ -99,13 +101,16 @@ class NodeTypeEnum(str, Enum):
 
 # define the agent parameters
 class AgentParam(BaseModel):
+    type: Literal['Assistant', 'WR124Agent'] = 'Assistant'
     name: str = Field(..., description="Agent ID")
     system_prompt: str  = Field(..., description="Agent System prompt")
     description: str = Field(default='an agent', description="Agent description")
     tools: list[str] = Field(default_factory=list, description="fucntion call for agent")
     model: ModelEnum = Field(default=ModelEnum.DEFAULT, description="LLM for agent")
     max_tool_iterations : int = Field(default=1, description="Max tool iterations for agent")
-    
+    max_tokens: Optional[int] = Field(None, description="The maximum number of tokens for the agent")
+    max_compress_count: Optional[int] = Field(None, description="Maximum number of times to compress history")       
+
 
 # NodeOutput 用于描述节点的输出
 class NodeOutput(BaseModel):
@@ -206,7 +211,7 @@ class AgentModeEnum(str, Enum):
     MagenticOne = "MagenticOne"
     ReflectiveTeam = "ReflectiveTeam"  # 反思团队模式, 需要多轮问答和总结
     Interactive = "Interactive"  # 交互式编程代理模式
-    WR124Agent = "WR124Agent"              # WR124 专用的编程代理模式
+    WR124Node = "WR124Node"              # WR124 专用的编程代理模式
 
 
 # ManagerParam 用于描述 AgentNodeParam 的 manager 参数

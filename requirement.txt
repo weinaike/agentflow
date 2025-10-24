@@ -6,3 +6,4 @@ libclang
 pylint
 mcp
 claude_agent_sdk
+git+https://github.com/weinaike/wr124.git

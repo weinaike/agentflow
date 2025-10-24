@@ -199,6 +199,7 @@ class TeamManager:
 
                     if isinstance(message, TextMessage):
                         content = message.content.replace('TERMINATE', '')
+                        content = content.replace('_I_HAVE_COMPLETED_', '')
                         message = TextMessage(content=content, source=message.source)
                     source = message.source
                     if '.' in source:
@@ -211,6 +212,7 @@ class TeamManager:
                     msg = message.chat_message
                     if isinstance(msg, TextMessage):
                         content = msg.content.replace('TERMINATE', '')
+                        content = content.replace('_I_HAVE_COMPLETED_', '')
                         msg.content = content
 
                     result = TaskResult(messages=[msg], stop_reason='node completed')

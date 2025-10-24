@@ -1,24 +1,21 @@
 type = "Agent"
 task = '''分析项目的UML类图、目录结构，介绍功能与架构'''
-
+interactive = false
 [manager]
-max_turns = 5
-mode = 'Questionnaire'
+max_turns = 1
+mode = 'WR124Node'
 questions = [
-    "查询目录结构, 生成UML类图",
-    "分析类图，提取核心类，分析类之间的关系，构建概念模型",
-    "概述项目软件架构，详细介绍功能与开发指南",
+    "协助总结项目开发指南。主要包含：项目简介、软件特性、安装配置说明、使用说明、项目结构、参与开发指引。",
 ]
 participants = ["assistant"]
 
-summary_prompt = '''
-总结以上内容，详细且完整得介绍项目概念模型，功能、框架结构与开发指南。
-'''
+summary_prompt = "协助总结项目开发指南。主要包含：项目简介、软件特性、安装配置说明、使用说明、项目结构、参与开发指引。"
 
 
 [[agents]]
+type = "WR124Agent"
 name = "assistant"
-tools = ["generate_cpp_uml", "read_file_content","get_cpp_dir_structure"]
+tools = ['read_file','run_command', 'glob_search']
 system_prompt = '''
 你是一名资深的软件架构师，精通面向对象设计、UML建模、以及多种编程语言的代码分析。你的任务是通过分析给定的UML类图和代码源文件，深入理解软件架构，并生成以下输出：
 
@@ -38,7 +35,8 @@ system_prompt = '''
 
 请确保回答准确全面，避免不必要的假设。如输入不足，请明确指出所需的补充信息。
 '''
-
+model = 'glm'
+max_tool_iterations=40
 
 
 

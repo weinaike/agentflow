@@ -46,8 +46,18 @@ def main():
                 headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN"},
                 sse_read_timeout = 3600,  # 设置SSE读取超时时间为1小时
             )
+            # task = StreamableHttpServerParams(
+            #     url="http://localhost/mcp",
+            #     headers={
+            #         "Authorization": "",
+            #         "X-Project-ID": "default",
+            #     },
+            #     sse_read_timeout=600,
+            #     timeout=600
+            # )
 
             await workflows.register_tools(command_mcp_server)
+            # await workflows.register_tools(task)
 
             await Console(workflows.run_stream(specific_flow=sp_flow, specific_node=sp_node), output_stats=True)                
             

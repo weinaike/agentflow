@@ -8,11 +8,11 @@ max_turns = 5
 mode = 'Questionnaire'
 participants = ["assistant"]
 questions = [
-    "cmake管理项目配置，需要包含哪些必须的内容？",
+    "管理项目配置，需要包含哪些必须的内容？",
     "查询本项目中的这些内容信息",
-    "为本项目生成符合cmake的配置内容",
+    # "为本项目生成符合cmake的配置内容",
     "检查生成的内容是否符合要求，如有问题请修改",
-    "将修改后内容保存至install.md",
+    # "将修改后内容保存至install.md",
 ]
 summary_prompt = '汇总安装说明文档'
 

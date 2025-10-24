@@ -1,7 +1,7 @@
 
 from autogen_ext.models.openai import OpenAIChatCompletionClient, BaseOpenAIChatCompletionClient
 from autogen_core.model_context import BufferedChatCompletionContext
-from autogen_agentchat.agents import AssistantAgent, UserProxyAgent
+from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import ExternalTermination, TextMentionTermination
 from autogen_agentchat.teams import BaseGroupChat, RoundRobinGroupChat
 from autogen_core import CancellationToken
@@ -21,6 +21,7 @@ import logging
 import json
 import copy as deepcopy
 from abc import ABC, abstractmethod
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,6 +32,7 @@ class BaseNode(ABC, ComponentBase[BaseModel]):
     component_type = "node"
     def __init__(self, config: Union[Dict, NodeParam]):
         self._node_param : NodeParam 
+
 
     def print_param(self):
         logger.info(f"----------{self._node_param.id} {self._node_param.name} param start----------")
@@ -76,6 +78,7 @@ class BaseNode(ABC, ComponentBase[BaseModel]):
 class ToolNode(BaseNode) :    
     def __init__(self, config: Union[Dict, ToolNodeParam]):
         self._node_param : NodeParam
+        self._input_func: Optional[Callable] = None
         if isinstance(config, dict):
             self._node_param = ToolNodeParam(**config)
         else:
@@ -83,7 +86,7 @@ class ToolNode(BaseNode) :
         self.print_param()
 
 
-class AgentNode(BaseNode) :  
+class AgentNode(BaseNode) :
     def __init__(self, config: Union[Dict, AgentNodeParam]):
         self.first_iteration = True
         self._node_param : AgentNodeParam
@@ -94,7 +97,7 @@ class AgentNode(BaseNode) :
         else:
             self._node_param = config
         self.print_param()
-        self.team: Optional[BaseGroupChat] = None
+        self.team: Optional[BaseGroupChat | AssistantAgent] = None
         self.state_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_chat_state.json")
         self.use_check = self._node_param.manager.use_check
         self.check_file = os.path.join(self._node_param.backup_dir, f"{self._node_param.flow_id}_{self._node_param.id}_check.json")
@@ -115,14 +118,14 @@ class AgentNode(BaseNode) :
             self.check_agent = self.create_agent(check_param, self._node_param.llm_config)
             
         self.response: str = ''
-
-    def set_input_func(self, input_func: Optional[Callable]) -> None:
-        """
-        Set the input function for the user proxy agent.
-        This function will be used to get user input during the check process.
-        """
-        print("Setting input function for user proxy agent")
-        self._input_func = input_func
+        self._input_func: Optional[Callable] = None
+    # def set_input_func(self, input_func: Optional[Callable]) -> None:
+    #     """
+    #     Set the input function for the user proxy agent.
+    #     This function will be used to get user input during the check process.
+    #     """
+    #     print("Setting input function for user proxy agent")
+    #     self._input_func = input_func
 
     async def gen_check_result(self, history: List[ChatMessage], cancellation_token: CancellationToken) -> AsyncGenerator[
             CheckResult| BaseAgentEvent | BaseChatMessage, None]:
@@ -205,14 +208,40 @@ class AgentNode(BaseNode) :
         model_enum = agent_param.model
         llm_config = get_model_config(llm_config_file, model_enum)
         model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
-        agent = AssistantAgent(name=name, 
-                               model_client=model_client, 
-                               tools=tools, 
-                               system_message=SYSTEM_TEMPLATE.format(system_prompt=system_prompt, keyword = self.temrminate_word),
-                               max_tool_iterations=agent_param.max_tool_iterations,
-                            #    reflect_on_tool_use = True,
-                            #  model_context=BufferedChatCompletionContext(buffer_size=10),
-                               )
+        agent: AssistantAgent = None
+        if agent_param.type == 'Assistant':
+            agent = AssistantAgent(name=name, 
+                                   model_client=model_client, 
+                                   tools=tools, 
+                                   system_message=SYSTEM_TEMPLATE.format(system_prompt=system_prompt, keyword = self.temrminate_word),
+                                   max_tool_iterations=agent_param.max_tool_iterations,
+                                #    reflect_on_tool_use = True,
+                                #  model_context=BufferedChatCompletionContext(buffer_size=10),
+                                   )            
+        else:
+            from wr124.agents.agent_base import BaseAgent as WR124Agent
+            from wr124.agents.agent_base import STOP_PROMPT
+            from wr124.agents.agent_param import parse_agent_markdown
+            import pkg_resources
+            import os
+            compress_file_path = pkg_resources.resource_filename('wr124', 'agents/preset_agents/compress_history.md')
+            if os.path.exists(compress_file_path):              
+                compress_agent_param = parse_agent_markdown(compress_file_path)
+            else:
+                compress_agent_param = None
+                
+            agent = WR124Agent(
+                name=agent_param.name,
+                model_client=model_client,
+                description=agent_param.description,
+                system_message= f"{agent_param.system_prompt}\n{STOP_PROMPT}",
+                tools=tools,
+                reflect_on_tool_use=False,
+                max_tool_iterations=agent_param.max_tool_iterations if agent_param.max_tool_iterations is not None else 5,
+                max_tokens=agent_param.max_tokens if agent_param.max_tokens is not None else 40000,
+                max_compress_count=agent_param.max_compress_count,
+                compress_agent=compress_agent_param if agent_param.max_compress_count else None
+            )
         return agent
 
     @abstractmethod

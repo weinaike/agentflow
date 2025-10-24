@@ -1,10 +1,10 @@
-project_name = "C/CPP项目代码库理解"
-project_id = "crow"
+project_name = "项目代码库理解"
+project_id = "xtd"
 description = ''
-workspace_path = "workspace/crow"
+workspace_path = "workspace/xtd"
 llm_config = "docs/OAI_CONFIG_LIST.json"
 
-codebase = '/root/project'
+codebase = '/root/project/'
 
 [[flows]]
 flow_name = "代码库理解"

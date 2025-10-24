@@ -28,13 +28,13 @@ summary_prompt = '''
 
 [manager.loop]
 dependencies = ["node2"]
-mode = 'Concurrent' #"Iteration"
+mode = 'Iteration' #"Iteration"
 prompt = "围绕核心关键类列表分解任务， 逐个分析核心关键类，提取核心成员与方法，并梳理核心流程（一个类对应一个任务"
 
 
 [[agents]]
 name = "assistant"
-tools = ["run_shell_code", "get_call_graph"]
+tools = ["run_shell_code", "read_file"]
 system_prompt = '''
 你是一名资深的软件架构师，精通面向对象设计、UML建模、以及多种编程语言的代码分析。你的任务是通过分析给定的UML类图和代码源文件，深入理解软件架构，并生成以下输出：
 

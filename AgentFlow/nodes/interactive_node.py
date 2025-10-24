@@ -42,7 +42,8 @@ class InteractiveNode(AgentNode):
                     break
             if not found:
                 raise ValueError(f"Agent {name} not found in the agent list")
-
+        
+        
         self.team = RoundRobinGroupChat(participants = self.agents, 
                                         termination_condition = self.termination_condition,
                                         max_turns=self._node_param.manager.max_turns,

@@ -601,7 +601,7 @@ async def list_directory(path: str = ".") -> Dict[str, Any]:
         return {"error": str(e)}
 
 
-async def read_file(file_path: str, start_line: int = 1, end_line: int = None, encoding: str = "utf-8", show_line_numbers: bool = True) -> Dict[str, Any]:
+async def read_file(file_path: str, start_line: int = 1, end_line: int = 50, encoding: str = "utf-8", show_line_numbers: bool = True) -> Dict[str, Any]:
     """
     读取文件内容, 支持指定行范围(从1开始)；对于大文件，建议使用分页读取；
     Args:
