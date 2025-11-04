@@ -222,12 +222,18 @@ class AgentNode(BaseNode) :
             from wr124.agents.agent_base import BaseAgent as WR124Agent
             from wr124.agents.agent_base import STOP_PROMPT
             from wr124.agents.agent_param import parse_agent_markdown
-            import pkg_resources
+            import importlib.resources
             import os
-            compress_file_path = pkg_resources.resource_filename('wr124', 'agents/preset_agents/compress_history.md')
-            if os.path.exists(compress_file_path):              
-                compress_agent_param = parse_agent_markdown(compress_file_path)
-            else:
+            
+            try:
+                # 使用 importlib.resources 替代 pkg_resources
+                with importlib.resources.path('wr124.agents.preset_agents', 'compress_history.md') as compress_file_path:
+                    if os.path.exists(compress_file_path):              
+                        compress_agent_param = parse_agent_markdown(str(compress_file_path))
+                    else:
+                        compress_agent_param = None
+            except (ImportError, FileNotFoundError):
+                # 如果文件不存在或模块导入失败，使用 None
                 compress_agent_param = None
                 
             agent = WR124Agent(

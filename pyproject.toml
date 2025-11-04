@@ -21,7 +21,7 @@ dependencies = [
     "pylint",
     "mcp",
     "claude_agent_sdk",
-    "wr124 @ git+https://github.com/weinaike/wr124.git",
+    "wr124 @ git+https://gitlab.zhejianglab.com/weinaike/wr124.git",
 ]
 
 keywords = ["agent", "workflow", "automation", "python"]

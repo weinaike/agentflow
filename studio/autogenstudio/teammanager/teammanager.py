@@ -5,8 +5,10 @@ import os
 import time
 from pathlib import Path
 from typing import AsyncGenerator, Callable, List, Optional, Sequence, Union
+import uuid
 
 import aiofiles
+import aiohttp
 import yaml
 from autogen_agentchat.agents import UserProxyAgent
 from autogen_agentchat.base import TaskResult, Response
@@ -39,6 +41,17 @@ class TeamManager:
     def __init__(self):
         self._team: Optional[Union[BaseGroupChat, Solution]] = None
         self._run_context = RunContext()
+
+    @staticmethod
+    async def check_health(url: str, timeout: float = 5.0) -> bool:
+        """Check if a service is healthy by calling its health endpoint"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
+                    return response.status == 200
+        except Exception as e:
+            logger.warning(f"Health check failed for {url}: {e}")
+            return False
 
     @staticmethod
     async def load_from_file(path: Union[str, Path]) -> dict:
@@ -130,6 +143,24 @@ class TeamManager:
                     sse_read_timeout = 3600,  # 设置SSE读取超时时间为1小时
                 )
                 await solution.register_tools(command_mcp_server)
+
+            # Check if localhost:4444 health endpoint is available and register MCP service
+            if await self.check_health("http://localhost:4444/api/health"):
+                logger.info("Health check passed for localhost:4444, registering MCP service")
+                project_id = Path(config['codebase']).name
+                session_id = str(uuid.uuid4())
+                logger.info(f"project_id: {project_id}, Generated session ID: {session_id}")
+                command_mcp_server = StreamableHttpServerParams(
+                        url="http://localhost:4444/mcp",
+                        headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN", 
+                                 "X-Project-ID": project_id,
+                                 "X-Session-ID": session_id},
+                    sse_read_timeout=600,
+                    timeout=30,
+                )
+                await solution.register_tools(command_mcp_server)
+            else:
+                logger.info("Health check failed for localhost:4444, skipping MCP service registration")
 
             self._team = solution
         return self._team
