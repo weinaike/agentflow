@@ -3,6 +3,8 @@ from AgentFlow.tools.project_base import ProjectBase
 from AgentFlow.tools.cpp_project import CppProject
 from AgentFlow.tools.agents.glm_agent import GlmAgent, GPTAgent
 
+from datetime import datetime
+
 import re
 import json
 import time
@@ -51,7 +53,7 @@ You first need to determine whether the function to be translated contains a for
 
 #### Translation rules for functions containing for loops
 
-1. If a function contains complex logic or calls functions that cannot be executed on a GPU (such as file operations, third-party libraries with unknown specific implementations, etc.), please mark the function as follows:
+1. If a function contains complex logic (say, hard to decouple data dependency in for-loop) or calls functions that cannot be executed on a GPU (such as file operations excpet `printf`, third-party library functions without known GPU implementation, etc.), please mark the function as follows:
     {
         "qualified_name": "<the original function name>",
         "unique_id": "<the original unique_id>",
@@ -62,18 +64,18 @@ You first need to determine whether the function to be translated contains a for
         "calls": ["func", ...]
     }
 
-2. If a function has simple logic, or calls functions from the C standard library for which CUDA provides corresponding implementations (such as malloc, sin, etc.), but lacks parallelism, please mark the function as follows:
+2. If a function has simple logic, or calls functions from the C standard library for which CUDA provides corresponding implementations (such as malloc, sin, exp, etc.), but lacks parallelism, please mark the function as follows:
     {
         "qualified_name": "<the original function name>",
         "unique_id": "<the original unique_id>",
         "runs_on": 2,
         "requires_translation": 1,
-        "signature": "__host__ __device__ <original sigature of the function>",
+        "signature": "__host__ __device__ <sigature of the function>",
         "comment": "<Please explain the reason for designing the function signature in this way and detail how to implement the translated function, ensuring that subsequent personnel can successfully complete the specific implementation of the function in accordance with your description.>",
         "calls": ["func", ...]
     }
 
-3. Similar to the second scenario, but if you are highly confident that this function will only execute on the GPU in the new project, please mark the function as follows:
+3. Similar to the second scenario, but if you are highly confident that this function will only execute on the GPU in the translated project, please mark the function as follows:
     {
         "qualified_name": "<the original function name>",
         "unique_id": "<the original unique_id>",
@@ -101,7 +103,7 @@ You first need to determine whether the function to be translated contains a for
         "unique_id": "<the original unique_id>",
         "runs_on": 0,
         "requires_translation": 1,
-        "signature": "<original signature of the function>",
+        "signature": "<signature of the translated function>",
         "comment": "<Please explain the reason for designing the function signature in this way and detail how to implement the translated function, ensuring that subsequent personnel can successfully complete the specific implementation of the function in accordance with your description.>",
         "calls": ["<Function(including the new created kernels) that will be called DIRECTLY by this translated function; If a function is not directly called in the translated version but invoked through a newly created kernel, it should not be listed here; Each qualified function name should be listed as an individual element in this calls list.>", ...],
         "new_created_kernels": [
@@ -133,11 +135,11 @@ WARNINGS
     }
 
 ### Suggestions
-1. For functions/methods that call malloc/free, it is recommended to convert them into __host__ __device ones__. Specifically, on the host side, they still call malloc/free, while on the device side, they call cudaMalloc/cudaFree (currently, CUDA already supports calling these two CUDA functions on the device side).
+1. For functions/methods that call malloc/free, it is recommended to convert them into __host__ __device__ ones. Specifically, on the host side, they still call malloc/free, while on the device side, they call cudaMalloc/cudaFree (currently, CUDA already supports calling these two CUDA functions on the device side).
 
 2. It is forbidden to convert functions or code snippets that have no loops or very few loop iterations into CUDA for execution on GPUs, as doing so will instead reduce program performance.
 
-3. Device-side code does not support variable-length arrays. If an array is present in the parameter list of a function, the array type must be changed to the corresponding pointer type when designing the translated interface.
+3. Device-side code lacks support for variable-length arrays. If an array appears in a function's parameter list, its type must be converted to the corresponding pointer type when designing the converted interface; If a function body contains variable-length arrays, it is recommended that memory be allocated via cudaMalloc when ported to the GPU.
 
 ### Output
 1. The "signature" and "comment" properties are used to describe how to implement the function in the new project. The "calls" property restricts which functions the function in the new project can call. The elements in the "calls" property must be known function names, unless they are functions you require to be newly created. 
@@ -238,6 +240,7 @@ class Designer:
     def get_topological_sorted_nodes(self):
         sort_query = """
         MATCH p=(n:Function)-[:CALLS]->(m:Function)
+        WHERE m.out_of_scope = false
         WITH project(p) AS graph
         CALL graph_util.topological_sort(graph) YIELD sorted_nodes
         UNWIND sorted_nodes AS nodes
@@ -327,17 +330,46 @@ class Designer:
         return [updated_node["properties"] for updated_node in updated_nodes] if updated_nodes else []
     
     def construct_graph(self):
+        from hashlib import md5
+        class GraphNode:
+            def __init__(self, node, fillcolor):
+                self.node_id = md5(node.get_usr().encode()).hexdigest()[:8]
+                self.node_label = CursorUtils.get_full_name(node)
+                #self.node_label = CursorUtils.get_full_displayname(node)
+                self.fillcolor = fillcolor
+                self.node = node
+
+            def __hash__(self):
+                return int(self.node_id, base=16)    
+
+            def __eq__(self, other):
+                return self.node_id == other.node_id    
+        class GraphEdge:
+            def __init__(self, src, dst, color):
+                self.src_id = md5(src.get_usr().encode()).hexdigest()[:8]
+                self.dst_id = md5(dst.get_usr().encode()).hexdigest()[:8]
+                self.color = color        
+                self.src_node = src
+                self.dst_node = dst
+
+            def __hash__(self):
+                return (int(self.src_id, base=16) << 8) + int(self.dst_id, base=16)   
+
+            def __eq__(self, other):
+                return self.src_id == other.src_id and self.dst_id == other.dst_id    
+        graph_nodes, graph_edges = set(), set()
+
         from AgentFlow.tools.cpp_project import CursorUtils
         self.ingestor.clean_database()
         self.ingestor.flush_all()
-        nodes = self.get_all_nodes()
-        print(nodes)
+
         for filename, ptu in self.project.parsed_tus.items():
             for unique_id, clazz in ptu.classes.items():
                 clazz_props = {
                     "unique_id": clazz.get_usr(),
                     "qualified_name": CursorUtils.get_full_name(clazz),
                     "name": clazz.spelling,
+                    "out_of_scope": CursorUtils.is_out_of_any_scope(clazz, self.project.scope_checkers),
                     "location_file": clazz.location.file.name,
                     "location_start": clazz.extent.start.line,
                     "location_end": clazz.extent.end.line
@@ -349,31 +381,73 @@ class Designer:
                     "unique_id": func.get_usr(),
                     "qualified_name": CursorUtils.get_full_name(func),
                     "name": func.spelling,
+                    "out_of_scope": CursorUtils.is_out_of_any_scope(func, self.project.scope_checkers),
                     "location_file": func.location.file.name,
                     "location_start": func.extent.start.line,
                     "location_end": func.extent.end.line
                 }    
                 self.ingestor.ensure_node_batch("Function", func_props)
+                graph_nodes.add(GraphNode(func, "lightblue"))
         
         self.ingestor.flush_nodes()
 
         for filename, ptu in self.project.parsed_tus.items():
             for unique_id, func in ptu.def_cursors.items():
-                call_exprs = self.project.get_call_expr_nodes(func, [], unique=True)
+                if CursorUtils.is_out_of_any_scope(func, self.project.scope_checkers):
+                    continue
+                if not CursorUtils.is_callable(func):
+                    continue
+                call_exprs = CursorUtils.get_callees(func, unique=True)
                 for call_expr in call_exprs:
+                    callee = call_expr.referenced
+                    if func.get_usr() == callee.get_usr():
+                        continue
                     self.ingestor.ensure_relationship_batch(
                         ("Function", "unique_id", func.get_usr()), 
                         "CALLS",
-                        ("Function", "unique_id", call_expr.referenced.get_usr())
+                        ("Function", "unique_id", callee.get_usr())
                     )
+                    graph_edges.add(GraphEdge(func, callee, "black"))
+
+                    overridden_methods = self.project.get_overridden_methods(callee)
+                    for overridden_method in overridden_methods:
+                        if func.get_usr() == overridden_method.get_usr():
+                            continue
+                        self.ingestor.ensure_relationship_batch(
+                            ("Function", "unique_id", func.get_usr()), 
+                            "CALLS",
+                            ("Function", "unique_id", overridden_method.get_usr())
+                        )
+                        graph_edges.add(GraphEdge(func, overridden_method, "black"))
 
         self.ingestor.flush_relationships()
+
+        print(f"nodes: {len(graph_nodes)}; edges: {len(graph_edges)}")
+        from graphviz import Digraph
+        dot = Digraph(comment="call graph")
+        dot.attr(rankdir="LR")
+        dot.attr("node", shape="box", style='filled', fillcolor='lightblue')
+        for node in graph_nodes:
+            dot.node(node.node_id, node.node_label, fillcolor=node.fillcolor)
+        for edge in graph_edges:
+            dot.edge(edge.src_id, edge.dst_id, color=edge.color)    
+
+        try:
+            filename = "memgraph"
+            dot.format = "png"
+            dot.render(filename, view=False, cleanup=True)  
+            dot.format = "svg"
+            dot.render(filename, view=False, cleanup=True)  
+        except Exception as e:
+            print(e)    
     
     def design(self):
         nodes = self.get_topological_sorted_nodes()
-        for node in nodes[::-1]:
-            if "preliminary_design" in node:
-                continue
+        total = len(nodes)
+        for seq, node in enumerate(nodes[::-1]):
+            current_time = datetime.now()
+            print(f"{current_time.strftime('%Y%m%d-%H:%M:%S')} Running {node['qualified_name']}... progress: {seq+1}/{total}", flush=True)
+
             messages = [{"role": "system", "content": DESIGNER_SYSTEM_PROMPT}]
 
             unique_id = node["unique_id"]
@@ -395,9 +469,14 @@ class Designer:
             for message in messages:
                 print(message["content"])
             
+            preliminary_design         = node.get("preliminary_design")
+            preliminary_design_request = node.get("preliminary_design_request")   
+            if preliminary_design and messages[-1]["content"] == preliminary_design_request:
+                continue
+            
             self.set_property(unique_id=unique_id, name="preliminary_design_request", value=messages[-1]["content"])    
-            #agent = GlmAgent()
-            agent = GPTAgent()
+            agent = GlmAgent()
+            #agent = GPTAgent()
             results = agent.chat(messages)
             result = json.loads(results[0]["content"])
 
@@ -542,8 +621,10 @@ class Designer:
         for node in nodes[::-1]:
             translated_snippets = node.get("translated", [])
             if translated_snippets:
+                original_filename = node["location_file"]
                 for translated_snippet in translated_snippets:
                     translated_filename = translated_snippet.get("filename")
+                    translated_snippet["original_filename"] = original_filename
                     if translated_filename:
                         if translated_filename.endswith(".c"):
                             translated_filename += "u"
@@ -555,9 +636,9 @@ class Designer:
 
         for translated_filename, translated_snippets in group_translated_snippets.items():                    
             update_prompt = "### File Content before Translation\n"
-            original_filename = translated_filename
-            if translated_filename.endswith(".cu"):
-                original_filename = translated_filename[:-len(".cu")] + ".c"
+            original_filenames = [translated_snippet["original_filename"] for translated_snippet in translated_snippets]
+            assert all([original_filename == original_filenames[0] for original_filename in original_filenames])
+            original_filename = original_filenames[0]
             with open(original_filename) as f:
                 content = f.read()
             update_prompt += f"```cpp\n// filename:{original_filename}\n{content}\n```\n"    
@@ -729,6 +810,40 @@ def TEST_lenstool_mini_fetch_for_stmt():
 
     project.get_for_stmts(usr="c:Bspline.c@F@ft_approx_sin")
 
+def translate_raytracing():
+    project_config = {
+        "build_options": [
+            "-xc++", "-std=c++11", 
+            "-I/usr/lib/llvm-14/lib/clang/14.0.6/include",
+            "-I/usr/lib/gcc/x86_64-linux-gpu/12/include", 
+            "-I/media/jiangbo/datasets/raytracing.github.io/src",
+            "-I/media/jiangbo/datasets/raytracing.github.io/src/TheNextWeek"
+        ],
+        "force_build": False,
+        "build_dir": "/media/jiangbo/datasets/ast_cache/raytracing",
+        "src_dirs": ["/media/jiangbo/datasets/raytracing.github.io/src/TheNextWeek"],
+        "filter_by_dirs": ["/media/jiangbo/datasets/raytracing.github.io/src/TheNextWeek"]
+    }
+    project_root = "/media/jiangbo/datasets/raytracing.github.io/"
+    memgraph_config = {"host": "localhost", "port": 8604}
+
+    from git import Repo
+    repo = Repo(project_root)
+    #repo.git.execute(["git", "checkout", "--", "."])
+
+    st = time.time()
+    project = CppProject(**project_config, root_dir=project_root)
+    et = time.time()
+    print(f"It takes {et-st: .3f} second(s) to parse the project")
+
+    with MemgraphIngestor(**memgraph_config) as ingestor:
+        designer = Designer(project=project, ingestor=ingestor)
+        #designer.construct_graph()
+        #designer.design()
+        #designer.refine_interfaces()
+        #designer.translate()
+        designer.update_files()
+
 def translate_lenstool_cubetosou():
     config = {
         "project_root": "/home/jiangbo/lenstool-cubetosou",
@@ -760,62 +875,22 @@ def translate_lenstool_cubetosou():
     with MemgraphIngestor(**memgraph_config) as ingestor:
         designer = Designer(project=project, ingestor=ingestor)
         #designer.construct_graph()
-        designer.design()
+        #designer.design()
         #designer.refine_interfaces()
-        #designer.translate()
+        designer.translate()
         #designer.update_files()
 
-        return
 
-        designer.set_property(unique_id="c:@F@e_grad_pot", name="preliminary_design", value={
-            "qualified_name": "e_grad_pot",
-            "unique_id": "c:@F@e_grad_pot",
-            "runs_on": 0,
-            "requires_translation": 0,
-            "signature": "struct point e_grad_pot(const struct point *pi, long int ilens)",
-            "comment": "use the original code directly. The function calls host-only functions (e.g., sprintf, fprintf for I/O, raise for signal raising, Bspline_surface_point_red and sp_grad marked as host-only) and functions with unknown GPU compatibility (wcss2p), making it unable to execute on GPU. It also lacks a loop structure for parallelization, so no CUDA translation is feasible.",
-            "calls": [
-                "rotation_opt",
-                "sqrt",
-                "hypo",
-                "polxy",
-                "cos",
-                "sin",
-                "asin",
-                "asinh",
-                "rotation",
-                "csiemd",
-                "ci05",
-                "pow",
-                "log",
-                "fabs",
-                "ci05f",
-                "pi05",
-                "f_weight",
-                "f_weightx",
-                "f_weighty",
-                "f_newx_x",
-                "f_newx_y",
-                "f_newy_x",
-                "f_newy_y",
-                "Bspline_surface_point_red",
-                "dpl_from_kappa",
-                "ci15",
-                "ci10",
-                "sp_grad",
-                "nfw_dpl",
-                "nfwg_dpl",
-                "elli_tri",
-                "sprintf",
-                "fprintf",
-                "raise",
-                "sersic_dpl",
-                "einasto_alpha",
-                "hern_dpl",
-                "wcss2p",
-                "bilinear"
-            ]
+        designer.set_property(unique_id="c:Bspline.c@F@deboor_algorithms", name="preliminary_design", value={
+    "qualified_name": "deboor_algorithms",
+    "unique_id": "c:Bspline.c@F@deboor_algorithms",
+    "runs_on": 2,
+    "requires_translation": 1,
+    "signature": "__host__ __device__ void deboor_algorithms(int p, int k, double u, double *U, double *P, double *s)",
+    "comment": "The function contains nested for loops but has data dependencies in the inner loop (d[j] depends on d[j-1]), which limits full parallelization suitable for a __global__ kernel. It uses only basic arithmetic operations supported by CUDA, with no calls to functions incompatible with GPU execution. The variable-length array 'double d[p+1]' must be replaced: on the host, use malloc to allocate a double array of size p+1; on the device, use cudaMalloc (or device - side malloc in CUDA 12.4). The loops retain their structure as the dependencies prevent efficient parallel thread mapping, but the __host__ __device__ qualifier allows execution on both CPU and GPU. The result 'd[p]' is still stored in '*s' as in the original function.",
+    "calls": []
         })
 
 if __name__ == '__main__':
-    translate_lenstool_cubetosou()        
+    #translate_lenstool_cubetosou()        
+    translate_raytracing()

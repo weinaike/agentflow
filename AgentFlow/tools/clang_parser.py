@@ -1,5 +1,5 @@
 from collections import deque
-from typing import List, Union
+from typing import List, Union, Callable
 import json
 import os
 import time
@@ -9,19 +9,21 @@ from AgentFlow.tools.parser_base import ParserBase, TSNode, TSTree
 
 class TypeUtils:
     @staticmethod
-    def get_ultimate_type(kind: TypeKind):
+    def get_ultimate_type(typ: TypeKind):
         while True:
-            if kind.kind == TypeKind.POINTER:
-                kind = kind.get_pointee()
-            elif kind.kind in (TypeKind.LVALUEREFERENCE, TypeKind.RVALUEREFERENCE):
-                kind = kind.get_canonical()
+            if typ.kind in (TypeKind.POINTER, TypeKind.LVALUEREFERENCE):
+                typ = typ.get_pointee()
+            elif typ.kind in (TypeKind.RVALUEREFERENCE, ):
+                typ = typ.get_canonical()
+            #elif typ.kind == TypeKind.ELABORATED:
+            #    typ = typ.get_declaration()    
             else:
                 break
-        return kind
+        return typ
 
     @staticmethod
-    def is_builtin_type(kind: TypeKind):
-        return kind in [TypeKind.BOOL, TypeKind.CHAR_U, TypeKind.UCHAR, TypeKind.CHAR16, TypeKind.CHAR32, TypeKind.USHORT, TypeKind.UINT, TypeKind.ULONG, TypeKind.ULONGLONG, TypeKind.UINT128, TypeKind.CHAR_S, TypeKind.SCHAR, TypeKind.WCHAR, TypeKind.SHORT, TypeKind.INT, TypeKind.LONG, TypeKind.LONGLONG, TypeKind.INT128, TypeKind.FLOAT, TypeKind.DOUBLE, TypeKind.LONGDOUBLE, TypeKind.NULLPTR, TypeKind.FLOAT128, TypeKind.HALF, TypeKind.IBM128]
+    def is_builtin_type(typ: TypeKind):
+        return typ in [TypeKind.BOOL, TypeKind.CHAR_U, TypeKind.UCHAR, TypeKind.CHAR16, TypeKind.CHAR32, TypeKind.USHORT, TypeKind.UINT, TypeKind.ULONG, TypeKind.ULONGLONG, TypeKind.UINT128, TypeKind.CHAR_S, TypeKind.SCHAR, TypeKind.WCHAR, TypeKind.SHORT, TypeKind.INT, TypeKind.LONG, TypeKind.LONGLONG, TypeKind.INT128, TypeKind.FLOAT, TypeKind.DOUBLE, TypeKind.LONGDOUBLE, TypeKind.NULLPTR, TypeKind.FLOAT128, TypeKind.HALF, TypeKind.IBM128]
 
 class CursorUtils:
     @staticmethod
@@ -30,6 +32,81 @@ class CursorUtils:
             CursorKind.CLASS_TEMPLATE, CursorKind.STRUCT_DECL, 
             CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION]
     
+    @staticmethod
+    def get_ancestors(node):
+        ancestors = []
+        visited = set([node.get_usr()])
+        q = deque([node]) if CursorUtils.is_class_definition(node) else deque([])
+        while q:
+            cursor: Cursor = q.popleft()
+            bases = [c.get_definition() or c.type.get_declaration() for c in cursor.get_children() \
+                if c.kind == CursorKind.CXX_BASE_SPECIFIER
+            ]
+            bases = [c for c in bases if c.get_usr() not in visited]
+            ancestors.extend(bases)
+            q.extend(bases)
+            visited.update([c.get_usr() for c in bases])
+        return ancestors    
+
+    @staticmethod
+    def is_ancestor_of(lhs: Cursor, rhs: Cursor):   
+        ancestors = CursorUtils.get_ancestors(rhs)
+        return any([lhs.get_usr() == ancestor.get_usr() for ancestor in ancestors])
+
+    @staticmethod
+    def get_overridden_method(node):
+        overridden_method = None
+        if not node.is_virtual_method():
+            return overridden_method
+        name, sig = node.spelling, node.type.spelling    
+        ancestors = CursorUtils.get_ancestors(node.semantic_parent)
+        for ancestor in ancestors:
+            methods = CursorUtils.get_class_methods(ancestor)
+            methods = [method for method in methods if method.is_virtual_method() and 
+                       method.spelling == name and method.type.spelling == sig
+            ]
+            if len(methods) > 0:
+                overridden_method = methods[0]
+                break
+        return overridden_method    
+
+    @staticmethod
+    def is_out_of_any_scope(node: Cursor, scope_checkers: List[Callable[[Cursor], bool]]) -> bool:    
+        """Determine if a Clang AST node is outside ALL of the specified scopes.
+
+           A node is considered "out of any scope" if it does NOT belong to at least one of the
+           scopes defined by the `scope_checkers`. In other words:
+            - Returns True if the node is excluded from all checked scopes.
+            - Returns False if the node belongs to at least one of the checked scopes.
+        """
+        for checker in scope_checkers:
+            assert callable(checker), f"Scope checker must be callable, got {type(checker).__name__}"
+
+        is_in_at_least_one_scope = any(checker(node) for checker in scope_checkers)
+        return not is_in_at_least_one_scope
+
+    @staticmethod
+    def extract_non_locals(node: Cursor) -> List[Cursor]:
+        def is_out_of_range(a: Cursor, b: Cursor) -> bool:
+            if a.location.file.name != b.location.file.name:
+                return True    
+            astart, aend = a.extent.start, a.extent.end
+            bstart, bend = b.extent.start, b.extent.end
+            return astart.line > bend.line \
+                or (astart.line == bend.line and astart.column > bend.column) \
+                or aend.line < bstart.line \
+                or (aend.line == bstart.line and aend.column < bstart.column)
+
+        referenced_non_locals = []
+        decl_refs = [c.referenced for c in node.walk_preorder() if c.kind == CursorKind.DECL_REF_EXPR]    
+        for decl_ref in decl_refs:
+            if decl_ref.is_definition():
+                if is_out_of_range(decl_ref, node):
+                    referenced_non_locals.append(decl_ref)
+            else:
+                referenced_non_locals.append(decl_ref)
+        return list({non_local.get_usr(): non_local for non_local in referenced_non_locals}.values())
+                    
     @staticmethod
     def is_callable(node):
         return CursorUtils.is_function(node) or CursorUtils.is_method(node)
@@ -41,7 +118,7 @@ class CursorUtils:
     
     @staticmethod
     def is_method(node):
-        return node.kind in [CursorKind.CXX_METHOD, CursorKind.CONSTRUCTOR] or \
+        return node.kind in [CursorKind.CXX_METHOD, CursorKind.CONSTRUCTOR, CursorKind.DESTRUCTOR] or \
             (node.kind ==  CursorKind.FUNCTION_TEMPLATE and CursorUtils.is_class_definition(node.semantic_parent))   
     
     @staticmethod
@@ -75,7 +152,7 @@ class CursorUtils:
         namespace = ""
         while parent and parent.kind not in [CursorKind.TRANSLATION_UNIT, CursorKind.NAMESPACE]:
             parent = parent.semantic_parent
-        while parent.kind == CursorKind.NAMESPACE:
+        while parent and parent.kind == CursorKind.NAMESPACE:
             namespace = parent.spelling if namespace == "" else "::".join([parent.spelling, namespace])    
             parent = parent.semantic_parent
         return namespace    
@@ -92,6 +169,18 @@ class CursorUtils:
         return using_namespaces
     
     @staticmethod
+    def get_for_stmts(node: Cursor):
+        for_stmts = [c for c in node.walk_preorder() if c.kind == CursorKind.FOR_STMT]
+        return for_stmts
+
+    @staticmethod
+    def get_callees(node: Cursor, unique=True):
+        callees = [c for c in node.walk_preorder() if c.kind == CursorKind.CALL_EXPR and c.referenced]    
+        if unique:
+            callees = list({c.referenced.get_usr(): c for c in reversed(callees)}.values())[::-1]
+        return callees
+
+    @staticmethod
     def get_class_methods(node):
         assert CursorUtils.is_class_definition(node), "Only class nodes have methods"
         method_nodes = [c for c in node.get_children() if CursorUtils.is_method(c)]
@@ -105,7 +194,7 @@ class CursorUtils:
     
     @staticmethod
     def get_inner_classes(node):    
-        def _get_inner_class_recursively(node):
+        def _get_inner_class_aux(node):
             assert CursorUtils.is_class_definition(node), "Only class nodes have inner classes"
             inner_classes = [c for c in node.get_children() if CursorUtils.is_class_definition(c)]
             return inner_classes
@@ -113,7 +202,7 @@ class CursorUtils:
         task_queue = deque([node])
         while task_queue:
             node = task_queue.popleft()
-            inner_classes = _get_inner_class_recursively(node)
+            inner_classes = _get_inner_class_aux(node)
             all_inner_classes.extend(inner_classes)
             task_queue.extend(inner_classes)
         return all_inner_classes    
@@ -264,10 +353,10 @@ class CallGraph:
                 
 
 class ParsedTu:
-    def __init__(self, tu: TranslationUnit, parsed_time=None, filters=[]):
+    def __init__(self, tu: TranslationUnit, parsed_time=None, scope_checkers=[]):
         self.tu = tu
         self.parse_time = parsed_time or time.time()
-        self.filters = filters
+        self.scope_checkers = scope_checkers
         self.def_cursors = dict()
         self.decl_cursors = dict()
         self.classes = dict()
@@ -331,20 +420,15 @@ class ParsedTu:
             self._add_symbols(func_nodes, self.decl_cursors, False)
             self._add_symbols(func_nodes, self.def_cursors, True)
 
-    def _add_symbols(self, cursors, target, requires_def):
+    def _add_symbols(self, cursors: List[Cursor], target, requires_def):
         if not isinstance(cursors, list):
             cursors = [cursors]
         if requires_def:
-            cursors = [cursor for cursor in cursors if cursor.is_definition()]
+            cursors = [cursor for cursor in cursors if cursor.is_definition() or cursor.is_pure_virtual_method()]
         else:
             cursors = [cursor for cursor in cursors if not cursor.is_definition()]
         for cursor in cursors:
-            discard = False
-            for filter in self.filters:
-                if filter(cursor):
-                    discard = True    
-                    break
-            if not discard:
+            if not self.scope_checkers or not CursorUtils.is_out_of_any_scope(cursor, self.scope_checkers):
                 target[cursor.get_usr()] = cursor    
 
     def find_definition_by_cursor(self, decl_cursor: Cursor):
@@ -426,8 +510,8 @@ class ParsedTu:
         return refined_nodes    
 
 class ClangParser(ParserBase):
-    def __init__(self, filters):
-        self.filters = filters
+    def __init__(self, scope_checkers):
+        self.scope_checkers = scope_checkers
 
     def get_include_headers(self, source_file, index=None, args={}):
         index = index or Index.create()
@@ -435,7 +519,7 @@ class ClangParser(ParserBase):
         header_files = set([include.include.name for include in tu.get_includes()])
         return header_files
 
-    def parse(self, filename: str, *, index=None, args=[]):
+    def parse(self, filename: str, *, index=None, unsaved_files=None, args=[]):
         if filename.endswith(".ast"):
             tu = TranslationUnit.from_ast_file(filename)
             parsed_time = os.path.getctime(filename)
@@ -447,7 +531,7 @@ class ClangParser(ParserBase):
                 index = Index.create()    
             tu = index.parse(filename, args=args, options=options)    
             parsed_time = time.time()
-        return ParsedTu(tu, parsed_time, self.filters)
+        return ParsedTu(tu, parsed_time, self.scope_checkers)
 
     def get_call_expr_nodes(self, node: Union[TSNode, Cursor], filters=[], unique=False, sort=False) -> Union[List[TSNode], List[Cursor]]:
         call_expr_nodes = [node for node in node.walk_preorder() \
@@ -498,5 +582,37 @@ def TEST_MACROS():
             print(f"\t{i[0].extent.start.file.name}:{i[0].extent.start.line}|{i[0].extent.start.column} - {i[1].extent.start.file.name}:{i[1].extent.start.line}|{i[1].extent.start.column}")
         print()    
 
+def TEST_ancestors():
+    parser = ClangParser([])
+    filename = '/home/jiangbo/tmp/derive/main.cpp'
+    args = ["-I/usr/lib/gcc/x86_64-linux-gnu/12/include/"]
+    ptu: ParsedTu = parser.parse(filename=filename, index=None, args=args)
+    bar = ptu.find_class_by_name("Bar")[0]
+    print(bar.extent)
+    ancestors = CursorUtils.get_ancestors(bar)
+    [print(ancestor.extent) for ancestor in ancestors]
+    methods = CursorUtils.get_class_methods(bar)
+    show = [method for method in methods if method.spelling == 'show'][0]
+    od: Cursor = CursorUtils.get_overridden_method(show)
+    print(od.type.spelling)
+
+def TEST_destructor():
+    parser = ClangParser([])
+    filename = '/home/jiangbo/tmp/dtor/main.cpp'
+    args = ["-I/usr/lib/gcc/x86_64-linux-gnu/12/include/"]
+    ptu: ParsedTu = parser.parse(filename=filename, index=None, args=args)
+    ep = ptu.find_definition_by_name("main")[0]
+    callees = CursorUtils.get_callees(ep)
+    for callee in callees:
+        print(callee.spelling)
+    print("====")    
+    ep = ptu.find_definition_by_name("Add::~Add")[0]
+    callees = CursorUtils.get_callees(ep)
+    for callee in callees:
+        print(callee.spelling)
+    print("====")    
+
 if __name__ == '__main__':
-    TEST_MACROS()    
+    #TEST_MACROS()    
+    #TEST_ancestors()
+    TEST_destructor()

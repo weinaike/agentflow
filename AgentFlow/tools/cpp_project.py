@@ -1,3 +1,4 @@
+from hashlib import md5
 import json
 import os
 import time
@@ -30,13 +31,24 @@ class CppProject(ProjectBase):
         self.filter_by_dirs = filter_by_dirs
         self.filter_by_namespaces = filter_by_namespaces
         self.filters = []
-        if self.filter_by_dirs:
-            self.filters.append(lambda cursor: not any([os.path.commonpath([dir, cursor.location.file.name]) == dir for dir in self.filter_by_dirs]))
-        if self.filter_by_namespaces:
-            self.filters.append(lambda cursor: CursorUtils.get_namespace(cursor) not in self.filter_by_namespaces)
+        # if self.filter_by_dirs:
+        #     self.filters.append(lambda cursor: not any([os.path.commonpath([dir, cursor.location.file.name]) == dir for dir in self.filter_by_dirs]))
+        # if self.filter_by_namespaces:
+        #     self.filters.append(lambda cursor: CursorUtils.get_namespace(cursor) not in self.filter_by_namespaces)
+
+        self.scope_checkers = []
+        self.filter_by_dirs = filter_by_dirs or []
+        self.scope_checkers.append(
+            lambda cursor: any([cursor.location.file is not None and 
+                                os.path.commonpath([dir, cursor.location.file.name]) == dir for dir in self.filter_by_dirs])
+        )
+        self.namespace_scopes = filter_by_namespaces or []
+        # self.scope_checkers.append(
+        #     lambda cursor: CursorUtils.get_namespace(cursor) in self.namespace_scopes
+        # )
                 
         self.index = Index.create()
-        self.parser: ParserBase = ClangParser(filters=self.filters)
+        self.parser: ParserBase = ClangParser(scope_checkers=self.scope_checkers)
 
         self.parsed_tus = {}
 
@@ -74,13 +86,6 @@ class CppProject(ProjectBase):
                 
         return "Makefile doesn't exist in the project.\n"        
             
-    
-    def filter(self, cursors: List[Cursor], filters=None):
-        if filters is None:
-            filters = self.filters
-        result = [cursor for cursor in cursors if not any(f(cursor) for f in filters)]    
-        return result
-    
     def need_parse(self, source_file):
         if self.force_build:
             return True
@@ -247,24 +252,6 @@ class CppProject(ProjectBase):
 
         return None        
 
-    def get_for_stmts(self, *, symbol=None, usr=None, cursor=None, type=None):
-        targets = []
-        if symbol:
-            targets.extend(self.find_definition_by_name(symbol, type))
-        elif usr:
-            targets.append(self.find_definition_by_usr(usr))    
-        elif cursor:
-            targets.append(self.find_definition_by_cursor(cursor))    
-        assert len(targets) == 1
-
-        target: Cursor = targets[0]
-        for_stmts = [node for node in target.walk_preorder() \
-            if node.kind == CursorKind.FOR_STMT]
-        start = target.extent.start.line
-        for for_stmt in for_stmts:
-            pass
-
-    
     def get_call_expr_nodes(self, cursor: Cursor, filters=[], unique=False, sort=False):
         call_expr_nodes = [node for node in cursor.walk_preorder() \
             if node.kind == CursorKind.CALL_EXPR and node.referenced]
@@ -285,6 +272,36 @@ class CppProject(ProjectBase):
             refined_nodes = sorted(refined_nodes, key=lambda cursor: cursor.extent.start.line)
 
         return refined_nodes    
+
+    def get_for_stmts(self, cursor: Cursor) ->List[Cursor]:    
+        for_stmts = [node for node in cursor.walk_preorder() \
+                if node.kind == CursorKind.FOR_STMT
+            ]
+        return for_stmts    
+
+    def get_all_subclasses(self, cursor: Cursor):
+        subclasses = []
+        for ptu in self.parsed_tus.values():
+            for clazz in ptu.classes.values():    
+                if CursorUtils.is_ancestor_of(cursor, clazz):
+                    subclasses.append(clazz)
+        return subclasses            
+
+    def get_overridden_methods(self, cursor: Cursor):
+        overridden_methods = []
+        if not cursor.is_virtual_method():
+            return overridden_methods
+
+        class_node = cursor.semantic_parent   
+        subclasses = self.get_all_subclasses(class_node)
+        for subclass in subclasses:
+            methods = CursorUtils.get_class_methods(subclass)
+            for method in methods:
+                if method.is_virtual_method() and method.spelling == cursor.spelling and \
+                    method.type.spelling == cursor.type.spelling:
+                    overridden_methods.append(method)        
+        return overridden_methods            
+
 
     def _get_data_types_recursively(self, cursor: Cursor, broadcast=False):
         def __get_data_types(cursor: Cursor):
@@ -358,13 +375,19 @@ class CppProject(ProjectBase):
         callees = self.get_call_expr_nodes(def_cursor, filters=[], unique=True, sort=True)    
         data_types = self._get_data_types_recursively(def_cursor, broadcast=True)
         type_defs = [dt.get_declaration() for dt in data_types]
-        callees_in_project = self.filter(cursors=[callee.referenced for callee in callees if callee.referenced is not None])
-        type_defs_in_project = self.filter(cursors=type_defs)
+
+        callees_in_project = [callee.referenced for callee in callees if not CursorUtils.is_out_of_any_scope(callee.referenced, self.scope_checkers)]
+        callees_out_of_project = [callee.referenced for callee in callees if CursorUtils.is_out_of_any_scope(callee.referenced, self.scope_checkers)]
+
+        type_defs_in_project = [type_def for type_def in type_defs if not CursorUtils.is_out_of_any_scope(type_def, self.scope_checkers)]
+        type_defs_out_of_project = [type_def for type_def in type_defs if CursorUtils.is_out_of_any_scope(type_def, self.scope_checkers)]
         return {
             "callees": callees,
             "callees_in_project": callees_in_project,
+            "callees_out_of_project": callees_out_of_project,
             "type_defs": type_defs,
             "type_defs_in_project": type_defs_in_project,
+            "type_defs_out_of_project": type_defs_out_of_project,
             "definition": def_cursor,
             "declaration": symbol_decls[0] if symbol_decls else None
         }
@@ -434,7 +457,7 @@ class CppProject(ProjectBase):
                 #如果在调用链上已经出现该节点，不再展开
                 continue
             cursor = callgraph.node
-            call_expr_nodes = self.get_call_expr_nodes(cursor, self.filters, unique=True, sort=True)
+            call_expr_nodes = CursorUtils.get_callees(cursor, unique=True)
             for call_expr_node in call_expr_nodes:
                 def_cursor = self.find_definition_by_cursor(call_expr_node.referenced, call_expr_node.translation_unit.spelling)
                 if def_cursor is not None:
@@ -444,27 +467,125 @@ class CppProject(ProjectBase):
 
         return root    
 
+    def draw_complete_graph(self, filename):
+        class GraphNode:
+            def __init__(self, node: Cursor, fillcolor):
+                self.node_id = md5(node.get_usr().encode()).hexdigest()[:8]
+                self.node_label = CursorUtils.get_full_name(node)
+                #self.node_label = CursorUtils.get_full_displayname(node)
+                self.fillcolor = fillcolor
+
+            def __hash__(self):
+                return int(self.node_id, base=16)    
+
+            def __eq__(self, other):
+                return self.node_id == other.node_id    
+        class GraphEdge:
+            def __init__(self, src, dst, color):
+                self.src_id = md5(src.get_usr().encode()).hexdigest()[:8]
+                self.dst_id = md5(dst.get_usr().encode()).hexdigest()[:8]
+                self.color = color        
+
+            def __hash__(self):
+                return (int(self.src_id, base=16) << 8) + int(self.dst_id, base=16)   
+
+            def __eq__(self, other):
+                return self.src_id == other.src_id and self.dst_id == other.dst_id    
+
+        graph_nodes, graph_edges = set(), set()
+        
+        for ptu in self.parsed_tus.values():
+            for def_cursor in ptu.def_cursors.values():
+                if not CursorUtils.is_callable(def_cursor):
+                    continue
+                if CursorUtils.is_out_of_any_scope(def_cursor, self.scope_checkers):
+                    continue
+                    
+                all_callees = CursorUtils.get_callees(def_cursor, unique=True)
+                for_stmts = CursorUtils.get_for_stmts(def_cursor)
+                callees_in_loop = set()
+                for for_stmt in for_stmts:
+                    callees_in_loop.update([callee.referenced.get_usr() for callee in CursorUtils.get_callees(for_stmt)])
+
+                callees = [callee for callee in all_callees if not callee.referenced.is_default_method()]    
+
+                for callee in callees:
+                    referenced = callee.referenced
+                    out_of_scope = CursorUtils.is_out_of_any_scope(referenced, self.scope_checkers)
+                    if out_of_scope:
+                        continue
+
+                    if def_cursor.get_usr() == referenced.get_usr():
+                        # to avoid self-loop
+                        continue
+                    color = "red" if referenced.get_usr() in callees_in_loop else "blue"
+                    graph_edges.add(GraphEdge(def_cursor, referenced, color))
+                    if out_of_scope:
+                        fillcolor = "gray" if out_of_scope else "lightblue"
+                        graph_nodes.add(GraphNode(referenced, fillcolor))
+
+                # The node is in scope
+                node = GraphNode(def_cursor, "red" if len(for_stmts) != 0 else "lightblue")        
+                graph_nodes.add(node)
+                overridden_method = CursorUtils.get_overridden_method(def_cursor)
+                if overridden_method:
+                    # edge = GraphEdge(overridden_method, def_cursor, "purple")
+                    # graph_edges.add(edge)
+                    pass
+
+            # for decl_cursor in ptu.decl_cursors.values():        
+            #     if not CursorUtils.is_callable(decl_cursor):
+            #         continue
+            #     if CursorUtils.is_out_of_any_scope(decl_cursor, self.scope_checkers):
+            #         continue
+            #     node = GraphNode(decl_cursor, "lightblue")        
+            #     graph_nodes.add(node)
+
+        print(f"nodes: {len(graph_nodes)}; edges: {len(graph_edges)}")
+        from graphviz import Digraph
+        dot = Digraph(comment="call graph")
+        dot.attr(rankdir="LR")
+        dot.attr("node", shape="box", style='filled', fillcolor='lightblue')
+        for node in graph_nodes:
+            dot.node(node.node_id, node.node_label, fillcolor=node.fillcolor)
+        for edge in graph_edges:
+            dot.edge(edge.src_id, edge.dst_id, color=edge.color)    
+
+        try:
+            dot.format = "png"
+            dot.render(filename, view=False, cleanup=True)  
+            dot.format = "svg"
+            dot.render(filename, view=False, cleanup=True)  
+        except Exception as e:
+            print(e)    
+
     def fetch_context(self,*, symbol=None, usr=None, cursor=None, type=None):
         assert sum(1 for param in [symbol, usr, cursor] if param is not None) == 1, \
             "Exactly one of the parameters (symbol, usr, cursor) must be provided."
         
         results = self.inspect(symbol=symbol, usr=usr, cursor=cursor, type=type)
-        callees, callees_in_project, type_defs, type_defs_in_project, symbol_def, symbol_decl = (
-            results[key] for key in ("callees", "callees_in_project", "type_defs", "type_defs_in_project", "definition", "declaration")
+        callees, callees_in_project, callees_out_of_project, type_defs, type_defs_in_project, type_defs_out_of_project, symbol_def, symbol_decl = (
+            results[key] for key in ("callees", "callees_in_project", "callees_out_of_project", "type_defs", "type_defs_in_project", "type_defs_out_of_project", "definition", "declaration")
         )
         symbol = CursorUtils.get_full_name(symbol_def)
         context = "### Context Before Translation\n"
-        if callees:
-            if callees_in_project:
-                context += f"{symbol} calls the following function(s): {', '.join([CursorUtils.get_full_name(c) for c in callees])}, where only {', '.join([CursorUtils.get_full_name(c) for c in callees_in_project])} are/is defined in current project.\n"
-            else:
-                context += f"{symbol} calls the following function(s): {', '.join([CursorUtils.get_full_name(c) for c in callees])}.\n"
+        if callees_in_project:
+            context += f"{symbol} calls the following function(s) which are implemented in current project: \n"
+            for callee in callees_in_project:
+                context += f"  -  {CursorUtils.get_full_name(callee)}\n"
+        if callees_out_of_project:
+            context += f"{symbol} calls the following third-party library function(s): \n"
+            for callee in callees_out_of_project:
+                context += f"  -  {CursorUtils.get_full_name(callee)}\n"
                     
-        if type_defs:
-            if type_defs_in_project:
-                context += f"{symbol} depends on the following data structure(s): {', '.join([CursorUtils.get_full_name(c) for c in results['type_defs']])}, where {', '.join([CursorUtils.get_full_name(c) for c in results['type_defs_in_project']])} are/is defined in current project.\n"
-            else:
-                context += f"{symbol} depends on the following data structure(s): {', '.join([CursorUtils.get_full_name(c) for c in results['type_defs']])}.\n"
+        if type_defs_in_project:
+            context += f"{symbol} depends on the following data structure(s) which are defined in current project: \n"
+            for type_def in type_defs_in_project:
+                context += f"  -  {CursorUtils.get_full_displayname(type_def)}\n"
+        if type_defs_out_of_project:
+            context += f"{symbol} depends on the following third-party library data structures: \n"
+            for type_def in type_defs_out_of_project:
+                context += f"  -  {CursorUtils.get_full_displayname(type_def)}\n"
                     
         if symbol_decl:
             context += f"{symbol} is declared in the file {symbol_decl.location.file.name}.\n\n"
@@ -502,7 +623,7 @@ class CppProject(ProjectBase):
         code_methods = {}
         target_file_names = set([method_def.location.file.name for method_def in method_or_func_def])
         if method_or_func_def:
-            method_deps = self.find_dependence(method_or_func_def, self.filters)
+            method_deps = self.find_dependence(method_or_func_def, self.scope_checkers)
 
         if method_deps:
             #对method_refs按照文件名归类，确定文件的哪些行被引用到
@@ -622,49 +743,6 @@ class CppProject(ProjectBase):
 
         return code
 
-    def stat(self):
-        def get_all_loops(cursor: Cursor):
-            results = []
-            for node in cursor.walk_preorder():
-                #if node.kind in [CursorKind.FOR_STMT, CursorKind.WHILE_STMT, CursorKind.DO_STMT]:
-                if node.kind in [CursorKind.FOR_STMT]:
-                    results.append(node)
-            return results        
-
-        def is_leaf_node(cursor: Cursor):
-            results = []    
-            for node in cursor.walk_preorder():
-                if node.kind == CursorKind.CALL_EXPR and not any([f(node) for f in self.filters]):
-                    results.append(node)
-            return len(results) == 0        
-
-        def access_global(cursor: Cursor):
-            for node in cursor.walk_preorder():
-                if node.kind == CursorKind.VAR_DECL:
-                    var_def = node.get_definition()
-                    if (var_def is None) or \
-                        (var_def.location.file.name == cursor.location.file.name and var_def.location.line < cursor.extent.start.line):
-                        return True
-            return False    
-
-        self.classes = {}
-        self.callables = {}
-        self.callables_access_global = {}
-        self.callables_with_loop = {}
-        self.callables_access_global_and_with_loop = {}
-        self.leaves = {}
-
-        for parsed_tu in self.parsed_tus.values():
-            self.classes.update(parsed_tu.classes)
-            self.callables.update(parsed_tu.def_cursors)
-
-        self.callables_access_global = { usr: cursor for usr, cursor in self.callables.items() if access_global(cursor)}
-        self.callables_with_loop = { usr: cursor for usr, cursor in self.callables.items() if get_all_loops(cursor)}
-        self.callables_access_global_and_with_loop = { usr: cursor for usr, cursor in self.callables_access_global.items() if usr in self.callables_with_loop.keys()}
-        self.leaves = { usr: cursor for usr, cursor in self.callables.items() if is_leaf_node(cursor)}
-
-        print(f"structs={len(self.classes)}; functions={len(self.callables)}; functions_accessing_globals={len(self.callables_access_global)}; functions_with_loop={len(self.callables_with_loop)}; functions_accessing_globals_and_with_loop={len(self.callables_access_global_and_with_loop)}")
-
 def TEST_galsim_project():
     
     config = {
@@ -689,10 +767,7 @@ def TEST_lenstool_project():
     }
     project = CppProject(**config)
     #print(project.find_definition("main"))
-    #project.stat()
     call_graph = project.get_call_graph("o_chi_lhood0")
-    project.stat()
-    call_graph.draw_vis_graph("GuidedWalk_call_graph", highlight_nodes=project.callables_with_loop.keys())
     return
     
 def TEST_lenstool_project_fetch_source_code():
@@ -744,6 +819,52 @@ def TEST_lenstool_project_fetch_context():
     print(context)
 
     return
+
+def TEST_ImageMagick_draw_complete_graph():
+
+    config = {
+        "build_options": ["-I/usr/lib/gcc/x86_64-linux-gpu/12/include", "-I/media/jiangbo/datasets/ImageMagick"],
+        "force_build": False,
+        "build_dir": "/media/jiangbo/datasets/ast_cache/ImageMagick",
+        "src_dirs": ["/media/jiangbo/datasets/ImageMagick/MagickCore"],
+        "filter_by_dirs": ["/media/jiangbo/datasets/ImageMagick/MagickCore"]
+    }
+
+    project = CppProject(**config)
+    res = project.find_definition_by_name(symbol='DeskewImage')
+    project.draw_complete_graph("ImageMagick")
+
+def TEST_ray_tracing_draw_complete_graph():
+
+    config = {
+        "build_options": ["-I/usr/lib/gcc/x86_64-linux-gpu/12/include", "-I/media/jiangbo/datasets/raytracing.github.io/src/InOneWeekend"],
+        "force_build": False,
+        "build_dir": "/media/jiangbo/datasets/ast_cache/raytracing",
+        "src_dirs": ["/media/jiangbo/datasets/raytracing.github.io/src/InOneWeekend"],
+        "filter_by_dirs": ["/media/jiangbo/datasets/raytracing.github.io/src/InOneWeekend"]
+    }
+
+    project = CppProject(**config)
+    project.draw_complete_graph("raytracing")
+
+def TEST_ray_tracing_v2_draw_complete_graph():
+
+    config = {
+        "build_options": [
+            "-xc++", "-std=c++11", 
+            "-I/usr/lib/llvm-14/lib/clang/14.0.6/include",
+            "-I/usr/lib/gcc/x86_64-linux-gpu/12/include", 
+            "-I/media/jiangbo/datasets/raytracing.github.io/src",
+            "-I/media/jiangbo/datasets/raytracing.github.io/src/TheNextWeek"
+        ],
+        "force_build": False,
+        "build_dir": "/media/jiangbo/datasets/ast_cache/raytracing",
+        "src_dirs": ["/media/jiangbo/datasets/raytracing.github.io/src/TheNextWeek"],
+        "filter_by_dirs": ["/media/jiangbo/datasets/raytracing.github.io/src/TheNextWeek"]
+    }
+
+    project = CppProject(**config)
+    project.draw_complete_graph("raytracingv2_simplified")
 
 def TEST_lenstool_mini_query_graph():
     with MemgraphIngestor(host="localhost", port=7687) as ingestor:
@@ -838,72 +959,10 @@ def TEST_lenstool_mini_update_graph():
         for node in sorted_nodes:
             print(node)
     
-    
-
-import cmd
-class AstCmd(cmd.Cmd):
-    def __init__(self):
-        super().__init__()
-        config = {
-            "build_options": ["-I/home/jiangbo/lenstool-cubetosou/include", "-I/usr/lib/gcc/x86_64-linux-gnu/12/include/"],
-            "force_build": True,
-            "build_dir": "/home/jiangbo/lenstool-cubetosou/build",
-            "src_dirs": ["/home/jiangbo/lenstool-cubetosou/src", "/home/jiangbo/lenstool-cubetosou/liblt"],
-            "filter_by_dirs": ["/home/jiangbo/lenstool-cubetosou/include", "/home/jiangbo/lenstool-cubetosou/src", "/home/jiangbo/lenstool-cubetosou/liblt"]
-        }
-        self.project = CppProject(**config)
-        self.project.stat()
-        self.prompt = ">>>"
-        self.completekey = "tab"
-
-    def do_help(self, arg: str) -> bool | None:
-        return super().do_help(arg)    
-
-    def do_exit(self, args: str) -> bool | None:
-        return True
-
-    def do_find_call_expr(self, args: str):
-        args = [arg.strip() for arg in args.split()]
-        arg  = args[0].strip()   
-        def_cursors = self.project.find_definition_by_name(arg)
-        if def_cursors:
-            results = []
-            for cursor in def_cursors:
-                call_expr_nodes = self.project.get_call_expr_nodes(cursor, filters=self.project.filters, unique=True, sort=True)
-                print("[")
-                [print(call_expr.spelling) for call_expr in call_expr_nodes ]
-                print("]")
-        else:
-            print( f"can't find the specified symbol `{arg}`"    )
-
-    def do_fetch_source_code(self, args: str):
-        args = [arg.strip() for arg in args.split()]
-        arg  = args[0].strip()   
-        print(self.project.fetch_source_code(arg))
-
-    def do_fetch_context(self, args: str):
-        args = [arg.strip() for arg in args.split()]
-        arg  = args[0].strip()   
-        print(self.project.fetch_context(arg))
-            
-
-    def do_draw_call_graph(self, args: str):    
-        args = [arg.strip() for arg in args.split()]
-        symbol  = args[0].strip()   
-        formats = args[1:] if len(args) > 1 else ["svg"]
-        call_graph = self.project.get_call_graph(symbol)
-        filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), "to_be_deleted", f"{symbol}_call_graph")
-
-        call_graph.draw_vis_graph(filename, loops=self.project.callables_with_loop.keys(), access_globals=self.project.callables_access_global.keys(), formats=formats)
-        [print(f"callgraph is saved to file `{filename}.{format}") for format in formats]
-
-def run_cli():
-    ast_cmd = AstCmd()
-    ast_cmd.cmdloop("Welcome to AST cmd tool!")
-
 if __name__ == '__main__':
     if len(sys.argv) == 2 and sys.argv[1] == "-d":
-        run_cli()
+        # run_cli()
+        pass
     else:     
         #TEST_galsim_project()        
         #TEST_lenstool_project_find_definition_by_name()
@@ -911,6 +970,9 @@ if __name__ == '__main__':
         #TEST_lenstool_project_fetch_context()
         #TEST_lenstool_project_fetch_source_code()
         #TEST_lenstool_mini_query_graph()
-        TEST_lenstool_mini_update_graph()
+        #TEST_lenstool_mini_update_graph()
         #TEST_lenstool_mini_fetch_for_stmt()
+        #TEST_ImageMagick_draw_complete_graph()
+        #TEST_ray_tracing_draw_complete_graph()
+        TEST_ray_tracing_v2_draw_complete_graph()
 
