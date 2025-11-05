@@ -9,7 +9,6 @@ PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE:-docker.io/library/python:3.11.4-slim-bull
 PYPI_REPOSITORY=${PYPI_REPOSITORY:-https://pypi.tuna.tsinghua.edu.cn/simple}
 PYPI_TIMEOUT=${PYPI_TIMEOUT:-15}
 BUILD_ENGINE=${BUILD_ENGINE:-podman}
-MONGO_URI=${MONGO_URI:-mongodb://host.containers.internal:27017}
 DATABASE_NAME=${DATABASE_NAME:-shrimp_db}
 HOST=${HOST:-0.0.0.0}
 PORT=${PORT:-4444}
