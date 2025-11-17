@@ -71,6 +71,21 @@ class CursorUtils:
         return overridden_method    
 
     @staticmethod
+    def has_virtual_methods(node: Cursor) -> bool:
+        assert CursorUtils.is_class_definition(node), "Must be a class definition."
+        methods = CursorUtils.get_class_methods(node)
+        for method in methods:
+            if method.is_virtual_method():
+                return True
+        ancestors = CursorUtils.get_ancestors(node)        
+        for ancestor in ancestors:
+            methods = CursorUtils.get_class_methods(ancestor)
+            for method in methods:
+                if method.is_virtual_method():
+                    return True
+        return False            
+
+    @staticmethod
     def is_out_of_any_scope(node: Cursor, scope_checkers: List[Callable[[Cursor], bool]]) -> bool:    
         """Determine if a Clang AST node is outside ALL of the specified scopes.
 

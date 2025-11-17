@@ -1,0 +1,15 @@
+{
+  "function_names": {
+      "rand": "When translating C/C++ code to CUDA, the C standard library function rand can be replaced with relevant functions from the `curand` library. It is important to note that when using device-side curand functions, you typically need to first call curand_init within the kernel function to initialize an independent random number generator state for each thread—this initialization and the random number generation process can be completed in the same kernel function.",
+
+      "std::rand": "When translating C/C++ code to CUDA, the std::rand function can be replaced with relevant functions from the `curand` library. It is important to note that when using device-side curand functions, you typically need to first call curand_init within the kernel function to initialize an independent random number generator state for each thread—this initialization and the random number generation process can be completed in the same kernel function.",
+
+      "bouncing_spheres": "The `world` variable passed to the `cam.render` method will be accessed by the GPU kernel. Since it contains virtual functions, this indicates that it cannot be constructed on the CPU side and then copied to the GPU. Instead, it must be created directly within a GPU kernel. Therefore, you should create the object in the GPU kernel and access it via a double pointer."
+  },
+
+  "function_types": {
+      "pure_virtual": "When migrating C/C++ code to CUDA, pure virtual functions in a base class can be temporarily marked as __host__ __device__ to enable execution on both CPU and GPU. Later, adjustments will be made based on the specific implementations of derived classes, ensuring the final consistency of corresponding function signatures.",
+
+      "virtual": "When porting C/C++ code to CUDA, one of our goals is to adapt virtual functions for execution on both CPU and GPU wherever feasible. The adaptation strategies include: \n - Utilizing the __CUDA_ARCH__ macro to compile different code paths for CPU and GPU execution environments. \n - Replacing functions with their functional equivalents available on both CPU and GPU.\n - Implementing other minor, feasible code modifications.\nIf these adjustments enable the function to operate correctly on both CPU and GPU, we can tentatively mark this virtual function with the __host__ __device__ qualifiers. During the initial analysis of the virtual function itself, we can temporarily disregard overrides in derived classes. Subsequently, adjustments will be made based on the specific implementations in the derived classes to ensure the final consistency of all corresponding function signatures."
+  }
+}

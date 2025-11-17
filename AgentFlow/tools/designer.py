@@ -1,6 +1,7 @@
 from AgentFlow.tools.memgraph.graph_service import MemgraphIngestor
 from AgentFlow.tools.project_base import ProjectBase
 from AgentFlow.tools.cpp_project import CppProject
+from AgentFlow.tools.cpp_project import CursorUtils
 from AgentFlow.tools.agents.glm_agent import GlmAgent, GPTAgent
 
 from datetime import datetime
@@ -359,7 +360,6 @@ class Designer:
                 return self.src_id == other.src_id and self.dst_id == other.dst_id    
         graph_nodes, graph_edges = set(), set()
 
-        from AgentFlow.tools.cpp_project import CursorUtils
         self.ingestor.clean_database()
         self.ingestor.flush_all()
 
@@ -370,6 +370,7 @@ class Designer:
                     "qualified_name": CursorUtils.get_full_name(clazz),
                     "name": clazz.spelling,
                     "out_of_scope": CursorUtils.is_out_of_any_scope(clazz, self.project.scope_checkers),
+                    "has_virtual_methods": CursorUtils.has_virtual_methods(clazz),
                     "location_file": clazz.location.file.name,
                     "location_start": clazz.extent.start.line,
                     "location_end": clazz.extent.end.line
@@ -382,6 +383,8 @@ class Designer:
                     "qualified_name": CursorUtils.get_full_name(func),
                     "name": func.spelling,
                     "out_of_scope": CursorUtils.is_out_of_any_scope(func, self.project.scope_checkers),
+                    "is_pure_virtual_method": func.is_pure_virtual_method(),
+                    "is_virtual_method": func.is_virtual_method(),
                     "location_file": func.location.file.name,
                     "location_start": func.extent.start.line,
                     "location_end": func.extent.end.line
@@ -407,7 +410,9 @@ class Designer:
                         "CALLS",
                         ("Function", "unique_id", callee.get_usr())
                     )
-                    graph_edges.add(GraphEdge(func, callee, "black"))
+                    edge = GraphEdge(func, callee, "black")
+                    graph_edges.add(edge)
+                    # print(f"{edge.dst_id} ==> {CursorUtils.get_full_displayname(edge.dst_node)}")
 
                     overridden_methods = self.project.get_overridden_methods(callee)
                     for overridden_method in overridden_methods:
@@ -419,6 +424,17 @@ class Designer:
                             ("Function", "unique_id", overridden_method.get_usr())
                         )
                         graph_edges.add(GraphEdge(func, overridden_method, "black"))
+                    
+                    if CursorUtils.is_out_of_any_scope(callee, self.project.scope_checkers):
+                        callee_props = {
+                            "unique_id": callee.get_usr(),
+                            "qualified_name": CursorUtils.get_full_name(callee),
+                            "name": callee.spelling,
+                            "out_of_scope": True,
+                        }    
+                        self.ingestor.ensure_node_batch("Function", callee_props)
+                        graph_nodes.add(GraphNode(callee, "gray"))
+                            
 
         self.ingestor.flush_relationships()
 
@@ -442,6 +458,10 @@ class Designer:
             print(e)    
     
     def design(self):
+        with open("/home/jiangbo/agentflow/docs/knowledge/DesignKnowledge.json") as f:
+            cont = f.read()
+            design_knowledge = json.loads(cont)
+
         nodes = self.get_topological_sorted_nodes()
         total = len(nodes)
         for seq, node in enumerate(nodes[::-1]):
@@ -453,19 +473,36 @@ class Designer:
             unique_id = node["unique_id"]
             qualified_name = node["qualified_name"]
             callees = self.get_callees(unique_id=unique_id)
+            cursor = self.project.find_definition_by_usr(usr=unique_id)
+
             context = self.project.fetch_context(usr=unique_id)
             design_task = CURRENT_DESIGN_TASK.format(function_name=qualified_name, unique_id=unique_id, function_context=context)
+            guidelines = []
             if callees:
                 partially_completed_design = ""
                 for callee in callees:
-                    callee_prelim_design = callee["preliminary_design"]
-                    partially_completed_design += f"The function `{callee['qualified_name']}` will be run on {callee_prelim_design['runs_on']}, and its function signature is designed as {callee_prelim_design['signature']} in the CUDA project. \n"
-                     
+                    callee_prelim_design = callee.get("preliminary_design", None)
+                    if callee_prelim_design:
+                        partially_completed_design += f"The function `{callee['qualified_name']}` will be run on {callee_prelim_design['runs_on']}, and its function signature is designed as {callee_prelim_design['signature']} in the CUDA project. \n"
+                    howto = design_knowledge["function_names"].get(callee["qualified_name"], None) 
+                    if howto:
+                        guidelines.append(howto)
                 partially_completed_design = PARTIALLY_COMPLETED_DESIGN.format(partially_completed_design=partially_completed_design)
-                messages.append({"role": "user", "content": design_task + "\n" + partially_completed_design})     
-            else:
-                messages.append({"role": "user", "content": design_task})     
+                design_task += "\n" + partially_completed_design
+            
+            if cursor.is_pure_virtual_method():
+                howto = design_knowledge["function_types"]["pure_virtual"]    
+                guidelines.append(howto)
+            elif cursor.is_virtual_method():    
+                howto = design_knowledge["function_types"]["virtual"]    
+                guidelines.append(howto)
 
+            if guidelines:
+                guidelines = "\n".join(guidelines)   
+                guidelines = "### Guidelines\n" + guidelines
+                design_task += "\n" + guidelines
+
+            messages.append({"role": "user", "content": design_task})
             for message in messages:
                 print(message["content"])
             
@@ -844,6 +881,134 @@ def translate_raytracing():
         #designer.translate()
         designer.update_files()
 
+def translate_AES():
+    project_config = {
+        "build_options": [
+            "-xc++", "-std=c++11", 
+            "-I/usr/lib/llvm-14/lib/clang/14.0.6/include",
+            "-I/usr/lib/gcc/x86_64-linux-gpu/12/include", 
+        ],
+        "force_build": False,
+        "build_dir": "/media/jiangbo/datasets/ast_cache/AES",
+        "src_dirs": ["/media/jiangbo/datasets/AES/src"],
+        "filter_by_dirs": ["/media/jiangbo/datasets/AES/src"]
+    }
+    project_root = "/media/jiangbo/datasets/AES/"
+    memgraph_config = {"host": "localhost", "port": 8700}
+
+    from git import Repo
+    repo = Repo(project_root)
+    #repo.git.execute(["git", "checkout", "--", "."])
+
+    st = time.time()
+    project = CppProject(**project_config, root_dir=project_root)
+    et = time.time()
+    print(f"It takes {et-st: .3f} second(s) to parse the project")
+
+    with MemgraphIngestor(**memgraph_config) as ingestor:
+        designer = Designer(project=project, ingestor=ingestor)
+        designer.construct_graph()
+        #designer.design()
+        #designer.refine_interfaces()
+        #designer.translate()
+        #designer.update_files()
+
+def translate_project3_fof():
+    project_config = {
+        "build_options": [
+            "-xc++", "-std=c++11", 
+            "-I/usr/lib/llvm-14/lib/clang/14.0.6/include",
+            "-I/usr/lib/gcc/x86_64-linux-gpu/12/include", 
+        ],
+        "force_build": False,
+        "build_dir":       "/media/jiangbo/datasets/ast_cache/project3_fofmain",
+        "src_dirs":       ["/media/jiangbo/datasets/ascl.net/repo/project3_FoF-Halo-finder"],
+        "filter_by_dirs": ["/media/jiangbo/datasets/ascl.net/repo/project3_FoF-Halo-finder"]
+    }
+    project_root = "/media/jiangbo/datasets/ascl.net/repo/project3_FoF-Halo-finder"
+    memgraph_config = {"host": "localhost", "port": 8700}
+
+    from git import Repo
+    repo = Repo(project_root)
+    #repo.git.execute(["git", "checkout", "--", "."])
+
+    st = time.time()
+    project = CppProject(**project_config, root_dir=project_root)
+    et = time.time()
+    print(f"It takes {et-st: .3f} second(s) to parse the project")
+
+    with MemgraphIngestor(**memgraph_config) as ingestor:
+        designer = Designer(project=project, ingestor=ingestor)
+        designer.construct_graph()
+        # designer.design()
+        # designer.refine_interfaces()
+        # designer.translate()
+        #designer.update_files()
+
+def translate_project6_cjam():
+    project_config = {
+        "build_options": [
+            "-xc++", "-std=c++11", 
+            "-I/usr/lib/llvm-14/lib/clang/14.0.6/include",
+            "-I/usr/lib/gcc/x86_64-linux-gpu/12/include", 
+        ],
+        "force_build": False,
+        "build_dir":       "/media/jiangbo/datasets/ast_cache/project6_cjam",
+        "src_dirs":       ["/media/jiangbo/datasets/ascl.net/repo/project6_CJAM/src"],
+        "filter_by_dirs": ["/media/jiangbo/datasets/ascl.net/repo/project6_CJAM"]
+    }
+    project_root = "/media/jiangbo/datasets/ascl.net/repo/project6_CJAM"
+    memgraph_config = {"host": "localhost", "port": 8700}
+
+    from git import Repo
+    repo = Repo(project_root)
+    #repo.git.execute(["git", "checkout", "--", "."])
+
+    st = time.time()
+    project = CppProject(**project_config, root_dir=project_root)
+    et = time.time()
+    print(f"It takes {et-st: .3f} second(s) to parse the project")
+
+    with MemgraphIngestor(**memgraph_config) as ingestor:
+        designer = Designer(project=project, ingestor=ingestor)
+        designer.construct_graph()
+        # designer.design()
+        # designer.refine_interfaces()
+        # designer.translate()
+        #designer.update_files()
+
+def translate_project9_ZENO():
+    project_config = {
+        "build_options": [
+            "-xc++", "-std=c++11", 
+            "-I/usr/lib/llvm-14/lib/clang/14.0.6/include",
+            "-I/usr/lib/gcc/x86_64-linux-gpu/12/include", 
+        ],
+        "force_build": False,
+        "build_dir":       "/media/jiangbo/datasets/ast_cache/project9_ZENO",
+        "src_dirs":       ["/media/jiangbo/datasets/ascl.net/repo/project9_ZENO/src"],
+        "filter_by_dirs": ["/media/jiangbo/datasets/ascl.net/repo/project9_ZENO/src"]
+    }
+    project_root = "/media/jiangbo/datasets/ascl.net/repo/project9_ZENO/"
+    memgraph_config = {"host": "localhost", "port": 8700}
+
+    from git import Repo
+    repo = Repo(project_root)
+    #repo.git.execute(["git", "checkout", "--", "."])
+
+    st = time.time()
+    project = CppProject(**project_config, root_dir=project_root)
+    et = time.time()
+    print(f"It takes {et-st: .3f} second(s) to parse the project")
+
+    with MemgraphIngestor(**memgraph_config) as ingestor:
+        designer = Designer(project=project, ingestor=ingestor)
+        # designer.construct_graph()
+        # designer.design()
+        # designer.refine_interfaces()
+        # designer.translate()
+        designer.update_files()
+
 def translate_lenstool_cubetosou():
     config = {
         "project_root": "/home/jiangbo/lenstool-cubetosou",
@@ -893,4 +1058,5 @@ def translate_lenstool_cubetosou():
 
 if __name__ == '__main__':
     #translate_lenstool_cubetosou()        
-    translate_raytracing()
+    #translate_project9_ZENO()
+    translate_project6_cjam()

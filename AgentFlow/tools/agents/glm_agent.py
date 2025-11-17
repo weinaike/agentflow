@@ -67,7 +67,8 @@ class GPTAgent:
         data = json.dumps(data).encode("utf-8")
         req = urllib.request.Request(self.url, data=data, method="POST")
         req.add_header('Content-Type', 'application/json')
-        req.add_header('Authorization', 'Bearer sk-E7gOgfTjf0tREnYXEa1767178b7f43499eBdA49389CdD905')
+        access_key = os.environ.get("OPENAI_API_KEY")
+        req.add_header('Authorization', access_key)
         try: 
             with urllib.request.urlopen(req) as response:
                 response_content = response.read().decode('utf-8')
