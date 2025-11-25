@@ -90,7 +90,8 @@ class BaseFlow(ABC):
         format_prompt = f"将以上结果以json格式输出。```json\ncontent\n```,具体各内容字段要求：{NodeCheckList.model_json_schema().__str__()}\n"
 
         
-        llm_config = get_model_config(flow_param.llm_config, ModelEnum.GPT4O)
+        #llm_config = get_model_config(flow_param.llm_config, ModelEnum.GPT4O)
+        llm_config = get_model_config(flow_param.llm_config)
         model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
         agent = AssistantAgent(name='Designer', model_client=model_client)
         await Console(agent.on_messages_stream([TextMessage(content=prompt, source = 'user')],CancellationToken()) )

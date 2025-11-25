@@ -20,8 +20,8 @@ language = "C++"
 project_path = "/home/jiangbo/GalSim/"
 source_path = "/home/jiangbo/GalSim/src/"
 header_path = ["/home/jiangbo/GalSim/include/galsim/","/home/jiangbo/GalSim/include/", "/home/jiangbo/GalSim/src", "/home/jiangbo/GalSim/src/cuda_kernels"]
-build_path = "/home/jiangbo/GalSim/build/"
-namespace = "galsim"
+build_path  = "/home/jiangbo/GalSim/build/"
+namespace   = "galsim"
 
 
 [[flows]]

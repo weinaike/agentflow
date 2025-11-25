@@ -4,9 +4,24 @@ task = '''
 通过迭代开发的方式生成正确的CUDA迁移代码：
 1. 首次迭代时，根据查询到的代码，生成CUDA迁移代码，不要出现伪代码；
 2. 此后每次迭代时，代码都会被回滚至原始状态并重新开发，但是你可以参考此前迭代过程中遇到的错误，避免这次迭代时再出现类似的错误。
-3. 如果是修改某个文件的代码，请以unified diff格式输出修改后的内容，我将通过patch来更新原始的文件；如果是新创建文件的代码，请输出完整的代码。
-'''
+3. 如果是新创建文件的代码，请输出完整的代码；如果是修改某个文件的代码，请输出SEARCH&REPLACE代码块，我将通过搜索并替换的方式来更新原始的文件。
+4. SEARCH&REPLACE代码块标准：
+For each individual code modification, use a single block with the following structure:
+<<<<<<< SEARCH
+[Exact original code lines to be replaced, including their original formatting (indentation, spacing, etc.)]
+=======
+[New code lines that will replace the original ones, maintaining appropriate formatting]
+>>>>>>> REPLACE
 
+Important guidelines for creating these blocks:
+- The content between "<<<<<<< SEARCH" and "=======" must be an exact, verbatim copy of the original code lines from the file, including all whitespace, indentation, and syntax. This allows for precise identification of the code to be modified.
+- The content between "=======" and ">>>>>>> REPLACE" should be the corrected/revised code that replaces the original section.
+- Each block should contain the minimum necessary code to implement a single logical change. For related changes that must be applied together, use multiple consecutive blocks.
+- Ensure that the original code in each block is unique enough within the file to avoid ambiguity about its location.
+- Maintain consistent formatting (indentation style, line breaks) with the original code in your replacement.
+- Do not include any explanations, comments, or additional text outside of these blocks unless explicitly requested. All code modifications must be contained within these structured blocks.
+- The three markers "<<<<<<< SEARCH", "=======", and ">>>>>>> REPLACE" must appear within the search&replace blocks.
+'''
 
 
 [manager]

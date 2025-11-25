@@ -14,14 +14,14 @@ participants = ["assistant"]
 #]
 
 questions = [
-    "将生成的CUDA迁移代码，依次写入到代码库中。对于diff格式的内容，调用file_edit_patch_file将unified diff内容更新到原文件中；对于非diff格式的内容，首先调用read_file_content读取原始文件内容，如果提示文件不存在，则直接调用file_edit_save_to_file将代码内容写入文件(文件会变新建)，如文件已经存在，你需要基于语义将代码合并，然后通过file_edit_save_to_file将合并后的代码写入文件。",
+    "将生成的CUDA迁移代码，依次写入到代码库中。对于含有'<<<<<<< SEARCH', '======='以及'>>>>>>> REPLACE'标记的内容，调用file_edit_search_and_replace将修改的内容替换到原文件中；对于不包含这三个标记的内容，则直接调用file_edit_save_to_file将代码内容写入文件。",
 ]
 
 
 
 [[agents]]
 name = "assistant"
-tools = ["get_cpp_dir_structure", "read_file_content", "file_edit_save_to_file", "file_edit_patch_file"]
+tools = ["get_cpp_dir_structure", "read_file_content", "file_edit_save_to_file", "file_edit_search_and_replace"]
 system_prompt =  '''
 角色：软件工程师
 职责：
@@ -33,7 +33,7 @@ system_prompt =  '''
 3. 写入代码必须完整，不能包含未实现的内容
 4. 写入代码与原仓库格式兼容
 5. 原有的注释、日志输出等尽可能地保持不变。
-5. 编辑完成后，记得保存，以免编辑丢失。通过工具file_edit_patch_file将unified diff格式的内容应用到原始文件，通过工具file_edit_save_to_file将文件写入并覆盖指定的文件。
+5. 编辑完成后，记得保存，以免编辑丢失。通过工具file_edit_search_and_replace将SEARCH&REPLACE代码块更新到原始文件，通过工具file_edit_save_to_file将文件写入并覆盖指定的文件。
 
 重要：
 对于编辑后的缺陷反馈，需要及时回复，以实现正确编辑。

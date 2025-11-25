@@ -79,7 +79,8 @@ class AgentNode(BaseNode) :
         param = AgentParam(name = 'summary_agent', system_prompt = SUMMARY_SYSTEM_PROMPT)
         self.summary_agent : AssistantAgent = self.create_agent(param, self._node_param.llm_config)
 
-        llm_config = get_model_config(config.llm_config, ModelEnum.GPT4O)
+        #llm_config = get_model_config(config.llm_config, ModelEnum.GPT4O)
+        llm_config = get_model_config(config.llm_config)
         model_client = OpenAIChatCompletionClient(**llm_config.model_dump())
         self._model_client = model_client
     

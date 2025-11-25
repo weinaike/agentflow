@@ -1,4 +1,3 @@
-
 import os
 import subprocess
 from tempfile import NamedTemporaryFile
@@ -9,6 +8,7 @@ from .file_edit import FileEditClass
 from .abstract_syntax_tree import AST
 import json
 import logging
+import filelock
 
 logger = logging.getLogger(__name__)
    
@@ -485,6 +485,30 @@ def file_edit_patch_file(original_file: Annotated[str, "the original file that t
         else:
             print(f"successfully apply the patch command `{command}'")
             return f"save file `{original_file}` successfully."
+
+def file_edit_search_and_replace(original_file: Annotated[str, "the original file that will be edited"], 
+                                 search_replace_blocks: Annotated[str, "A string that contains one or more SEARCH-REPLACE blocks"]):
+    '''
+    Update the specified file with the search&replace blocks.
+    '''                             
+    pattern = r'<<<<<<< SEARCH\n(.*?)\n=======\n(.*?)\n>>>>>>> REPLACE'
+    matches = re.findall(pattern, search_replace_blocks, re.DOTALL)
+    if len(matches) == 0:
+        raise ValueError(f"Format Error! The search&replace blocks must conform to the following regular expression: re.compile('<<<<<<< SEARCH\\n(.*?)\\n=======\\n(.*?)\\n>>>>>>> REPLACE', re.DOTALL)")
+
+    lock = filelock.FileLock(f"{original_file}.lock")
+    with lock:
+        with open(original_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        for match in matches:
+            search, replacement = match
+            if search not in content:
+                raise ValueError(f"Not found `{search}`")        
+            content = content.replace(search, replacement, 1)        
+
+        with open(original_file, 'w', encoding='utf-8') as f:
+            f.write(content)
 
 def file_edit_rollback_files(filenames: Annotated[List[str], "files to be restored"])->str:
     '''将指定列表filenames中的文件回滚或删除，使git仓库恢复到修改前的状态'''

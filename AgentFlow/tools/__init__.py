@@ -30,6 +30,7 @@ tool_mapping = {
     "file_edit_save": file_edit_save,
     "file_edit_save_to_file": file_edit_save_to_file,
     "file_edit_patch_file": file_edit_patch_file,
+    "file_edit_search_and_replace": file_edit_search_and_replace,
     "file_edit_rollback_files": file_edit_rollback_files,
     "save_code_to_new_file": save_code_to_new_file,
     "run_cmake_and_make": run_cmake_and_make,

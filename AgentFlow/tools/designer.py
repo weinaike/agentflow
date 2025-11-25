@@ -390,7 +390,7 @@ class Designer:
                     "location_end": func.extent.end.line
                 }    
                 self.ingestor.ensure_node_batch("Function", func_props)
-                graph_nodes.add(GraphNode(func, "lightblue"))
+                graph_nodes.add(GraphNode(func, "lightblue" if len(CursorUtils.get_for_stmts(func)) == 0 else "red"))
         
         self.ingestor.flush_nodes()
 
@@ -401,6 +401,11 @@ class Designer:
                 if not CursorUtils.is_callable(func):
                     continue
                 call_exprs = CursorUtils.get_callees(func, unique=True)
+                for_stmts = CursorUtils.get_for_stmts(func)
+                call_exprs_in_loop = set()
+                for for_stmt in for_stmts:
+                    call_exprs_in_this_loop = CursorUtils.get_callees(for_stmt)
+                    call_exprs_in_loop.update([c.referenced.get_usr() for c in call_exprs_in_this_loop if c.referenced])
                 for call_expr in call_exprs:
                     callee = call_expr.referenced
                     if func.get_usr() == callee.get_usr():
@@ -410,7 +415,8 @@ class Designer:
                         "CALLS",
                         ("Function", "unique_id", callee.get_usr())
                     )
-                    edge = GraphEdge(func, callee, "black")
+                    edge_color = "red" if callee.get_usr() in call_exprs_in_loop else "black"
+                    edge = GraphEdge(func, callee, edge_color)
                     graph_edges.add(edge)
                     # print(f"{edge.dst_id} ==> {CursorUtils.get_full_displayname(edge.dst_node)}")
 
@@ -423,7 +429,7 @@ class Designer:
                             "CALLS",
                             ("Function", "unique_id", overridden_method.get_usr())
                         )
-                        graph_edges.add(GraphEdge(func, overridden_method, "black"))
+                        graph_edges.add(GraphEdge(func, overridden_method, edge_color))
                     
                     if CursorUtils.is_out_of_any_scope(callee, self.project.scope_checkers):
                         callee_props = {
@@ -466,7 +472,7 @@ class Designer:
         total = len(nodes)
         for seq, node in enumerate(nodes[::-1]):
             current_time = datetime.now()
-            print(f"{current_time.strftime('%Y%m%d-%H:%M:%S')} Running {node['qualified_name']}... progress: {seq+1}/{total}", flush=True)
+            print(f"[TRACE] {current_time.strftime('%Y%m%d-%H:%M:%S')} Running {node['qualified_name']}... progress: {seq+1}/{total}", flush=True)
 
             messages = [{"role": "system", "content": DESIGNER_SYSTEM_PROMPT}]
 
@@ -1003,11 +1009,45 @@ def translate_project9_ZENO():
 
     with MemgraphIngestor(**memgraph_config) as ingestor:
         designer = Designer(project=project, ingestor=ingestor)
-        # designer.construct_graph()
+        designer.construct_graph()
         # designer.design()
         # designer.refine_interfaces()
         # designer.translate()
-        designer.update_files()
+        #designer.update_files()
+
+def translate_arctic():
+    project_config = {
+        "build_options": [
+            "-xc++", "-std=c++11", 
+            "-I/usr/lib/llvm-14/lib/clang/14.0.6/include",
+            "-I/usr/lib/gcc/x86_64-linux-gpu/12/include", 
+            "-I/home/jiangbo/arctic/gsl-2.7.1",
+            "-I/home/jiangbo/arctic/arctic/include",
+        ],
+        "force_build": False,
+        "build_dir":       "/media/jiangbo/datasets/ast_cache/arctic",
+        "src_dirs":       ["/home/jiangbo/arctic/arctic/src", "/home/jiangbo/arctic/arctic/include"],
+        "filter_by_dirs": ["/home/jiangbo/arctic/arctic/src", "/home/jiangbo/arctic/arctic/include"]
+    }
+    project_root = "/home/jiangbo/arctic/arctic"
+    memgraph_config = {"host": "localhost", "port": 8700}
+
+    from git import Repo
+    repo = Repo(project_root)
+    #repo.git.execute(["git", "checkout", "--", "."])
+
+    st = time.time()
+    project = CppProject(**project_config, root_dir=project_root)
+    et = time.time()
+    print(f"It takes {et-st: .3f} second(s) to parse the project")
+
+    with MemgraphIngestor(**memgraph_config) as ingestor:
+        designer = Designer(project=project, ingestor=ingestor)
+        designer.construct_graph()
+        #designer.design()
+        # designer.refine_interfaces()
+        # designer.translate()
+        #designer.update_files()
 
 def translate_lenstool_cubetosou():
     config = {
@@ -1058,5 +1098,5 @@ def translate_lenstool_cubetosou():
 
 if __name__ == '__main__':
     #translate_lenstool_cubetosou()        
-    #translate_project9_ZENO()
-    translate_project6_cjam()
+    translate_arctic()
+    #translate_project6_cjam()

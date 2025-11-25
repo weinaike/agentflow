@@ -197,7 +197,7 @@ class CursorUtils:
 
     @staticmethod
     def get_class_methods(node):
-        assert CursorUtils.is_class_definition(node), "Only class nodes have methods"
+        #assert CursorUtils.is_class_definition(node), "Only class nodes have methods"
         method_nodes = [c for c in node.get_children() if CursorUtils.is_method(c)]
         return method_nodes   
     
