@@ -441,7 +441,6 @@ class Designer:
                         self.ingestor.ensure_node_batch("Function", callee_props)
                         graph_nodes.add(GraphNode(callee, "gray"))
                             
-
         self.ingestor.flush_relationships()
 
         print(f"nodes: {len(graph_nodes)}; edges: {len(graph_edges)}")

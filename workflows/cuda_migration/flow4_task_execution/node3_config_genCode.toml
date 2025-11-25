@@ -8,7 +8,7 @@ task = '''
 4. SEARCH&REPLACE代码块标准：
 For each individual code modification, use a single block with the following structure:
 <<<<<<< SEARCH
-[Exact original code lines to be replaced, including their original formatting (indentation, spacing, etc.)]
+[exact original code lines to be replaced, including their original formatting (indentation, spacing, etc.)]
 =======
 [New code lines that will replace the original ones, maintaining appropriate formatting]
 >>>>>>> REPLACE
@@ -22,7 +22,6 @@ Important guidelines for creating these blocks:
 - Do not include any explanations, comments, or additional text outside of these blocks unless explicitly requested. All code modifications must be contained within these structured blocks.
 - The three markers "<<<<<<< SEARCH", "=======", and ">>>>>>> REPLACE" must appear within the search&replace blocks.
 '''
-
 
 [manager]
 summary_prompt = '''
