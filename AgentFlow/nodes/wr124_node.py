@@ -112,6 +112,10 @@ class WR124Node(InteractiveNode):
 
             if len(content.strip()) < len('_I_HAVE_COMPLETED_') * 2:
                 content = last_2nd_msg.content if isinstance(last_2nd_msg, TextMessage) else "" +'\n'+ content
+                
+                if len(content.strip()) == 0 and result and result.stop_reason:
+                    # 出现异常，没有TextMessage输出， 仅有工具调用时， 则输出停止原因
+                    content = result.stop_reason
             summary = Response(
                 chat_message=TextMessage(
                     content=content,

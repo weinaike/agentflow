@@ -113,7 +113,7 @@ class TeamManager:
 
             if 'codebase' in config:
                 config['config']['codebase'] = config['codebase']
-                config['config']['description'] += f"\n** 项目必要信息**\n** 项目代码库路径 ** : {config['codebase']}\n"
+                config['config']['description'] = f"\n** 项目必要信息**\n** 项目代码库路径 ** : {config['codebase']}\n"
 
             if 'run_id' in config:
                 os.makedirs('workspace', exist_ok=True)

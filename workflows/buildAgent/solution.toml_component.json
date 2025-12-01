@@ -8,7 +8,7 @@
     "config": {
         "project_name": "C++项目开发环境构建",
         "project_id": "xtd",
-        "description": "\n** 项目必要信息**\n** 项目代码库路径 ** : /root/project\n",
+        "description": "",
         "workspace_path": "workspace/xtd",
         "llm_config": "docs/OAI_CONFIG_LIST.json",
         "codebase": "/root/project",

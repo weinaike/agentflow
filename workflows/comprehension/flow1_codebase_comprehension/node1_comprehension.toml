@@ -20,3 +20,5 @@ system_prompt = '''
 '''
 model = 'glm'
 max_tool_iterations=40
+max_compress_count=5
+max_tokens=60000
