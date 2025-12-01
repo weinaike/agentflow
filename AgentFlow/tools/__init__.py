@@ -94,10 +94,11 @@ async def register_mcp_tools(param: Union[StdioServerParams, StreamableHttpServe
         # print_tools(tools)
         for tool in tools:
             mcp_tool_mapping[tool.schema['name']] = tool
-        print(f"Successfully registered {len(tools)} MCP tools")
+        print(f"{param}； Successfully registered {len(tools)} MCP tools")
+        return True
     except Exception as e:
-        print(f"ERROR! Failed to register MCP tools: {str(e)}; {param}")
-        print("ERROR! Continuing without MCP tools. If MCP tools are needed, please ensure the MCP server is running.")
+        print(f"ERROR! {param} Failed to register MCP tools: {str(e)}; ")    
+        return False    
         # Don't raise the exception - allow the workflow to continue without MCP tools        
 
 

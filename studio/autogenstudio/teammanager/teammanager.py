@@ -135,14 +135,19 @@ class TeamManager:
                     headers={"Authorization": f"Bearer {mcp_token}"},
                     sse_read_timeout=3600,  # Set SSE read timeout to 1 hour
                 )
-                await solution.register_tools(command_mcp_server)
+                ret = await solution.register_tools(command_mcp_server)
+                if ret == False:
+                    raise RuntimeError(f"MCP服务器 {mcp_server}:{mcp_port} 工具注册失败,请检查MCP服务是否正常运行")
+                    
             else:
                 command_mcp_server = StreamableHttpServerParams(
                         url="http://localhost:8080/mcp",
                         headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN"},
                     sse_read_timeout = 3600,  # 设置SSE读取超时时间为1小时
                 )
-                await solution.register_tools(command_mcp_server)
+                ret = await solution.register_tools(command_mcp_server)
+                if ret == False:
+                    raise RuntimeError("默认MCP服务器工具注册失败,请检查MCP服务是否正常运行")
 
             # Check if localhost:4444 health endpoint is available and register MCP service
             if await self.check_health("http://localhost:4444/api/health"):
@@ -158,7 +163,9 @@ class TeamManager:
                     sse_read_timeout=600,
                     timeout=30,
                 )
-                await solution.register_tools(command_mcp_server)
+                ret = await solution.register_tools(command_mcp_server)
+                if ret == False:
+                    raise RuntimeError("localhost:4444 MCP服务器工具注册失败,请检查MCP服务是否正常运行")
             else:
                 logger.info("Health check failed for localhost:4444, skipping MCP service registration")
 
