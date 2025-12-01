@@ -5,7 +5,7 @@ from .shell_tool import *
 from autogen_ext.tools.mcp import mcp_server_tools
 from autogen_ext.tools.mcp import StdioServerParams, StreamableHttpServerParams, SseServerParams
 from autogen_ext.tools.mcp import StdioMcpToolAdapter
-from typing import List
+from typing import List, Union
 from rich.console import Console as RichConsole
 
 def print_tools(tools: List[StdioMcpToolAdapter]) -> None:
@@ -89,10 +89,16 @@ tool_mapping = {
 mcp_tool_mapping = {}
 
 async def register_mcp_tools(param: Union[StdioServerParams, StreamableHttpServerParams, SseServerParams]):
-    tools = await mcp_server_tools(param)
-    print_tools(tools)
-    for tool in tools:
-        mcp_tool_mapping[tool.schema['name']] = tool        
+    try:
+        tools = await mcp_server_tools(param)
+        # print_tools(tools)
+        for tool in tools:
+            mcp_tool_mapping[tool.schema['name']] = tool
+        print(f"Successfully registered {len(tools)} MCP tools")
+    except Exception as e:
+        print(f"ERROR! Failed to register MCP tools: {str(e)}; {param}")
+        print("ERROR! Continuing without MCP tools. If MCP tools are needed, please ensure the MCP server is running.")
+        # Don't raise the exception - allow the workflow to continue without MCP tools        
 
 
 
