@@ -29,7 +29,7 @@ class SequentialFlow(BaseFlow):
         logger.debug(json.dumps(self._flow_param.model_dump(), indent=4, ensure_ascii=False))
     
     async def before_run(self, context: Context, specific_node: list[str] = []):
-        self._nodes = await self.create_node(self._flow_param)
+        self._nodes = await self.create_node(self._flow_param, context)
         if context.input_func:
             for node in self._nodes:
                 node.set_input_func(context.input_func)

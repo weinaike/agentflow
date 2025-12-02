@@ -137,6 +137,11 @@ async def init_managers(database_uri: str, config_dir: str | Path, app_root: str
         # Initialize team manager
         _team_manager = TeamManager()
         logger.info("Team manager initialized")
+        
+        # 将 WebSocket 管理器设置给 TeamManager，以便它可以访问集成的 MCP 隧道
+        from ..teammanager.teammanager import set_websocket_manager
+        set_websocket_manager(_websocket_manager)
+        logger.info("WebSocket manager registered with TeamManager for MCP tunnel access")
 
     except Exception as e:
         logger.error(f"Failed to initialize managers: {str(e)}")

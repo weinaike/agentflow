@@ -1,5 +1,5 @@
 from .base_node import BaseNode, ToolNode
-from ..data_model import ToolModeEnum, ToolNodeParam, AgentNodeParam, ClaudeCodeParam, NodeTypeEnum, AgentModeEnum
+from ..data_model import Context, ToolModeEnum, ToolNodeParam, AgentNodeParam, ClaudeCodeParam, NodeTypeEnum, AgentModeEnum
 from .questionnaire_node import QuestionnaireNode
 from .loop_questionnaire_node import LoopQuestionnaireNode
 from .selector_group_chat_node import SelectorGroupChatNode
@@ -7,12 +7,12 @@ from .reflective_node import ReflectiveNode
 from .claude_code_node import ClaudeCodeNode
 from .interactive_node import InteractiveNode
 from .wr124_node import WR124Node
-from typing import Union, Dict
+from typing import Union, Dict, Optional
 
 
 class NodeFactory:
     @staticmethod
-    def create_node(node_type: str, config: Union[Dict, ToolNodeParam, AgentNodeParam, ClaudeCodeParam]) -> BaseNode:
+    def create_node(node_type: str, config: Union[Dict, ToolNodeParam, AgentNodeParam, ClaudeCodeParam], context: Optional[Context] = None) -> BaseNode:
         if node_type == NodeTypeEnum.TOOL:   
 
             tool_type = 'unknown'
@@ -37,17 +37,17 @@ class NodeFactory:
             
             # 对于带 manager 的标准 AgentNodeParam
             if config.manager.mode == AgentModeEnum.Questionnaire :
-                return QuestionnaireNode(config)
+                return QuestionnaireNode(config, context)
             elif config.manager.mode == AgentModeEnum.LoopQuestionnaire:
-                return LoopQuestionnaireNode(config)
+                return LoopQuestionnaireNode(config, context)
             elif config.manager.mode == AgentModeEnum.SelectorGroupChat:
-                return SelectorGroupChatNode(config)
+                return SelectorGroupChatNode(config, context)
             elif config.manager.mode == AgentModeEnum.ReflectiveTeam:
-                return ReflectiveNode(config)
+                return ReflectiveNode(config, context)
             elif config.manager.mode == AgentModeEnum.Interactive:
-                return InteractiveNode(config)
+                return InteractiveNode(config, context)
             elif config.manager.mode == AgentModeEnum.WR124Node:
-                return WR124Node(config)
+                return WR124Node(config, context)
             else:                          
                 raise NotImplementedError(f"Unknown agent mode: {config.manager.mode}")
         else:

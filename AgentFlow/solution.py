@@ -2,7 +2,8 @@ from .flows import BaseFlow, FlowFactory
 from .nodes import BaseNode
 from .data_model import SolutionParam, Context, LanguageEnum, get_model_config, RunParam, RepositoryParam
 from .tools.utils import get_json_content
-from .tools import AST, register_mcp_tools, mcp_tool_mapping
+from .tools import AST
+from autogen_ext.tools.mcp import mcp_server_tools
 import os
 import toml
 import json
@@ -100,6 +101,7 @@ class Solution(ComponentBase, Component):
         
         self.input_func : Optional[Callable] = None
         self.mcps:list[StdioServerParams | StreamableHttpServerParams | SseServerParams] = []
+        self.mcp_tool_mapping: Dict = {}  # 实例级别的 MCP 工具映射
 
     def set_input_func(self, input_func: Callable):
         """
@@ -107,6 +109,40 @@ class Solution(ComponentBase, Component):
         This function will be used to get user input during the execution of the solution.
         """
         self.input_func = input_func
+
+    async def register_tools(self, tools: Union[Dict, StdioServerParams, StreamableHttpServerParams, SseServerParams]) -> bool:
+        """
+        Register tools to the solution's tool mapping.
+        
+        Args:
+            tools: Can be one of:
+                - Dict[str, tool_adapter]: Direct tool mapping (e.g., from McpTunnelToolAdapter)
+                - StdioServerParams | StreamableHttpServerParams | SseServerParams: MCP server params
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if isinstance(tools, dict):
+            # 直接工具映射 (如 McpTunnelToolAdapter)
+            self.mcp_tool_mapping.update(tools)
+            logger.info(f"Registered {len(tools)} tools from mapping")
+            return True
+        elif isinstance(tools, (StdioServerParams, StreamableHttpServerParams, SseServerParams)):
+
+            try:
+                mcp_tools = await mcp_server_tools(tools)
+                for tool in mcp_tools:
+                    self.mcp_tool_mapping[tool.schema['name']] = tool
+                logger.info(f"{tools}; Successfully registered {len(mcp_tools)} MCP tools")
+                # MCP server params
+                self.mcps.append(tools)
+                return True
+            except Exception as e:
+                logger.error(f"ERROR! {tools} Failed to register MCP tools: {str(e)}")
+                return False
+        else:
+            logger.error(f"Unsupported tool type: {type(tools)}")
+            return False
 
     def get_previous_flow_nodes(self, flow_nodes: List[str]) -> Dict[str, BaseNode]:
 
@@ -131,6 +167,9 @@ class Solution(ComponentBase, Component):
             logger.error("Only one flow can be specified for execution")
             return
         context= Context(project_description=self._souluton_param.description)
+        context.mcps = self.mcps        
+        context.codebase = self._souluton_param.codebase
+        context.mcp_tool_mapping = self.mcp_tool_mapping  # 传递实例级别的工具映射        
         for flow in self.flows:            
             if specific_flow and flow.id not in specific_flow:
                 logger.info(f"skip {flow.id}")
@@ -151,6 +190,7 @@ class Solution(ComponentBase, Component):
         context.cancellation_token = cancellation_token
         context.mcps = self.mcps        
         context.codebase = self._souluton_param.codebase
+        context.mcp_tool_mapping = self.mcp_tool_mapping  # 传递实例级别的工具映射
         if task is not None and isinstance(task, str):
             context.goal = task
         
@@ -216,10 +256,3 @@ class Solution(ComponentBase, Component):
         Create a Solution instance from a configuration object.
         """
         return cls(config)
-    
-    async def register_tools(self, param: Union[StdioServerParams, StreamableHttpServerParams, SseServerParams]):
-        """
-        Register MCP tools for the solution.
-        """
-        self.mcps.append(param)
-        await register_mcp_tools(param)

@@ -282,6 +282,70 @@ async def run_websocket(
                     else:
                         logger.warning(f"Invalid input response format for run {run_id}")
 
+                elif message.get("type") == "mcp_register":
+                    # VSCode 端注册 MCP 隧道（在同一个 WebSocket 连接中）
+                    server_info = message.get("serverInfo", {})
+                    capabilities = message.get("capabilities", {})
+                    
+                    logger.info(
+                        f"MCP 隧道注册: {server_info.get('name')} v{server_info.get('version')}, "
+                        f"工具数量: {capabilities.get('toolCount', 0)} (run_id: {run_id})"
+                    )
+                    
+                    try:
+                        # 在 WebSocketManager 中注册 MCP 隧道
+                        connection = await ws_manager.register_mcp_tunnel(run_id, server_info, capabilities)
+                        
+                        # 在后台任务中初始化 MCP 连接
+                        async def do_initialize():
+                            try:
+                                init_success = await connection.initialize()
+                                if init_success:
+                                    await websocket.send_json({
+                                        "type": "mcp_initialized",
+                                        "status": "success",
+                                        "message": f"MCP 隧道初始化成功，已获取 {len(connection.tools)} 个工具",
+                                        "tools": [t.get("name") for t in connection.tools],
+                                        "timestamp": datetime.utcnow().isoformat()
+                                    })
+                                    logger.info(f"MCP 隧道初始化成功 (run_id: {run_id}, tools: {len(connection.tools)})")
+                                else:
+                                    await websocket.send_json({
+                                        "type": "mcp_initialized",
+                                        "status": "failed",
+                                        "message": "MCP 隧道初始化失败",
+                                        "timestamp": datetime.utcnow().isoformat()
+                                    })
+                                    logger.warning(f"MCP 隧道初始化失败 (run_id: {run_id})")
+                            except Exception as e:
+                                logger.error(f"MCP 隧道初始化异常 (run_id: {run_id}): {e}")
+                                await websocket.send_json({
+                                    "type": "mcp_initialized",
+                                    "status": "error",
+                                    "message": f"MCP 隧道初始化异常: {str(e)}",
+                                    "timestamp": datetime.utcnow().isoformat()
+                                })
+                        
+                        asyncio.create_task(do_initialize())
+                        
+                    except Exception as e:
+                        logger.error(f"MCP 隧道注册失败 (run_id: {run_id}): {e}")
+                        await websocket.send_json({
+                            "type": "error",
+                            "error": f"MCP 隧道注册失败: {str(e)}",
+                            "timestamp": datetime.utcnow().isoformat()
+                        })
+
+                elif message.get("type") == "mcp_response":
+                    # VSCode 端返回的 MCP 响应
+                    request_id = message.get("requestId")
+                    response = message.get("response", {})
+                    
+                    if request_id:
+                        await ws_manager.handle_mcp_response(run_id, request_id, response)
+                    else:
+                        logger.warning(f"收到无效的 MCP 响应（缺少 requestId）(run_id: {run_id})")
+
             except json.JSONDecodeError:
                 logger.warning(f"Invalid JSON received for run {run_id}: {raw_message}")
                 await websocket.send_json(
@@ -294,3 +358,4 @@ async def run_websocket(
         logger.error(f"WebSocket error: {str(e)}")
     finally:
         await ws_manager.disconnect(run_id)
+

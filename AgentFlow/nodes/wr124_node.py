@@ -30,9 +30,8 @@ QUESTION_TEMPLATE = '''
 '''
 
 class WR124Node(InteractiveNode):
-    def __init__(self, config: Union[Dict, AgentNodeParam]):
-        super().__init__(config)
-
+    def __init__(self, config: Union[Dict, AgentNodeParam], context: Optional[Context] = None):
+        super().__init__(config, context)
         if len(self._node_param.manager.participants) != 1:
             raise ValueError(f"WR124Node {self._node_param.id} must have exactly one participant")
 

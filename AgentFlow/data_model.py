@@ -282,6 +282,7 @@ class Context(BaseModel):
     goal: Optional[str] = None  # 目标描述，用于指导工作流执行
     mcps: list[StdioServerParams | StreamableHttpServerParams | SseServerParams] = []
     codebase: Union[RepositoryParam, str] | None = None
+    mcp_tool_mapping: Dict = dict()  # MCP 工具映射，实例级别避免全局变量混乱
     def get_node_output(self, flow_id : str, node_id: str) -> Optional[NodeOutput]:
         key = f'{flow_id}.{node_id}'
         return self.node_output.get(key, None)

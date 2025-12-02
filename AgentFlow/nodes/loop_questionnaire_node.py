@@ -79,8 +79,8 @@ async def execute_task_stream(task:TaskItem, context:Context, node_param:AgentNo
 
 
 class LoopQuestionnaireNode(AgentNode):
-    def __init__(self, config: Union[Dict, AgentNodeParam]):
-        super().__init__(config)
+    def __init__(self, config: Union[Dict, AgentNodeParam], context: Optional[Context] = None):
+        super().__init__(config, context)
         self._node_param : AgentNodeParam
         if isinstance(config, Dict):
             self._node_param = AgentNodeParam(**config)

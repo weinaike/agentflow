@@ -30,7 +30,7 @@ from ..prompt_template import *
 
 class BaseNode(ABC, ComponentBase[BaseModel]):
     component_type = "node"
-    def __init__(self, config: Union[Dict, NodeParam]):
+    def __init__(self, config: Union[Dict, NodeParam], context: Optional[Context] = None):
         self._node_param : NodeParam 
 
 
@@ -87,7 +87,7 @@ class ToolNode(BaseNode) :
 
 
 class AgentNode(BaseNode) :
-    def __init__(self, config: Union[Dict, AgentNodeParam]):
+    def __init__(self, config: Union[Dict, AgentNodeParam], context: Optional[Context] = None):
         self.first_iteration = True
         self._node_param : AgentNodeParam
         if isinstance(config, Dict):
@@ -106,6 +106,11 @@ class AgentNode(BaseNode) :
         self.cancellation_token = CancellationToken()
         self.termination_condition = TextMentionTermination(self.temrminate_word) | ExternalTermination()
 
+        # 必须在 create_agent 之前初始化，因为 create_agent 会访问 _context
+        self._context: Optional[Context] = context  # 用于存储 context，支持延迟创建 agent 时获取工具映射
+        self.response: str = ''
+        self._input_func: Optional[Callable] = None
+
         param = AgentParam(name = 'summary_agent', system_prompt = SUMMARY_SYSTEM_PROMPT)
         self.summary_agent : AssistantAgent = self.create_agent(param, self._node_param.llm_config)
 
@@ -116,9 +121,6 @@ class AgentNode(BaseNode) :
         if self.use_check or self._node_param.interactive:
             check_param = AgentParam(name = 'checker', system_prompt = CHECK_SYSTEM_PROMPT, model = ModelEnum.DEFAULT)
             self.check_agent = self.create_agent(check_param, self._node_param.llm_config)
-            
-        self.response: str = ''
-        self._input_func: Optional[Callable] = None
     # def set_input_func(self, input_func: Optional[Callable]) -> None:
     #     """
     #     Set the input function for the user proxy agent.
@@ -190,10 +192,12 @@ class AgentNode(BaseNode) :
         
         name = agent_param.name
         tools = []
-
+        
         for tool in agent_param.tools:
             if tool in mcp_tool_mapping:
                 tools.append(mcp_tool_mapping[tool])
+            elif self._context and  tool in self._context.mcp_tool_mapping:
+                tools.append(self._context.mcp_tool_mapping[tool])
             elif tool in tool_mapping:                
                 tools.append(tool_mapping[tool])
             else:

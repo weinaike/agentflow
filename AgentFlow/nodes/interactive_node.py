@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 from ..prompt_template import *
 
 class InteractiveNode(AgentNode):
-    def __init__(self, config: Union[Dict, AgentNodeParam]):
-        super().__init__(config)
+    def __init__(self, config: Union[Dict, AgentNodeParam], context: Optional[Context] = None):
+        super().__init__(config, context)
         self.questions = self._node_param.manager.questions
 
         if len(self._node_param.agents) < len(self._node_param.manager.participants):

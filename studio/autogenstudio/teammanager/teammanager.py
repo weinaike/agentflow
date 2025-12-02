@@ -17,10 +17,25 @@ from autogen_agentchat.teams import BaseGroupChat
 from autogen_core import EVENT_LOGGER_NAME, CancellationToken, ComponentModel
 from autogen_core.logging import LLMCallEvent
 from autogen_ext.tools.mcp import StreamableHttpServerParams
+from loguru import logger
 from ..datamodel.types import EnvironmentVariable, LLMCallEventMessage, TeamResult
 from ..web.managers.run_context import RunContext
 from AgentFlow import Solution, solution
-logger = logging.getLogger(__name__)
+
+
+# 全局变量用于保存 WebSocket 管理器实例（用于 MCP 隧道）
+_websocket_manager = None
+
+
+def set_websocket_manager(manager):
+    """设置 WebSocket 管理器实例（用于 MCP 隧道功能）"""
+    global _websocket_manager
+    _websocket_manager = manager
+
+
+def get_websocket_manager():
+    """获取 WebSocket 管理器实例"""
+    return _websocket_manager
 
 
 class RunEventLogger(logging.Handler):
@@ -137,9 +152,11 @@ class TeamManager:
                 )
                 ret = await solution.register_tools(command_mcp_server)
                 if ret == False:
-                    raise RuntimeError(f"MCP服务器 {mcp_server}:{mcp_port} 工具注册失败,请检查MCP服务是否正常运行")
+                    logger.warning(f"{mcp_server}:{mcp_port} MCP服务器工具注册失败,请检查MCP服务是否正常运行,将继续执行")
+                else:
+                    logger.info(f"成功注册 MCP 服务: {mcp_server}:{mcp_port}")
                     
-            else:
+            elif config.get('use_local_mcp', False):
                 command_mcp_server = StreamableHttpServerParams(
                         url="http://localhost:8080/mcp",
                         headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN"},
@@ -147,7 +164,40 @@ class TeamManager:
                 )
                 ret = await solution.register_tools(command_mcp_server)
                 if ret == False:
-                    raise RuntimeError("默认MCP服务器工具注册失败,请检查MCP服务是否正常运行")
+                    logger.warning("本地 localhost:8080 MCP服务器工具注册失败,请检查MCP服务是否正常运行,将继续执行")
+                else:
+                    logger.info("成功注册 本地 localhost:8080 MCP 服务")
+            # 检查是否有 MCP 隧道连接（VSCode 端通过同一个 WebSocket 连接）
+            run_id = config.get('run_id')
+            ws_manager = get_websocket_manager()
+            
+            if run_id and ws_manager:
+                # 等待隧道连接初始化完成（最多等待 5 秒）
+                max_wait_time = 5.0
+                wait_interval = 0.2
+                waited = 0.0
+                
+                while waited < max_wait_time:
+                    if ws_manager.has_mcp_tunnel(run_id):
+                        break
+                    logger.debug(f"等待 MCP 隧道连接初始化... (run_id: {run_id}, waited: {waited:.1f}s)")
+                    await asyncio.sleep(wait_interval)
+                    waited += wait_interval
+                
+                if ws_manager.has_mcp_tunnel(run_id):
+                    logger.info(f"检测到 MCP 隧道连接 (run_id: {run_id})，正在创建隧道工具映射...")
+                    try:
+                        from ..web.managers.mcp_tunnel import register_mcp_tunnel_tools_from_ws
+                        tunnel_tool_mapping = await register_mcp_tunnel_tools_from_ws(ws_manager, run_id)
+                        # 注册到 solution 实例的内部工具映射
+                        await solution.register_tools(tunnel_tool_mapping)
+                        logger.info(f"成功注册 {len(tunnel_tool_mapping)} 个 MCP 隧道工具到 Solution")
+                    except Exception as e:
+                        logger.warning(f"创建 MCP 隧道工具映射失败: {e}，将继续执行")
+                else:
+                    logger.info(f"未检测到 run_id {run_id} 的 MCP 隧道连接（等待超时），跳过隧道工具注册")
+            elif run_id:
+                logger.info(f"WebSocket 管理器未初始化，跳过隧道工具注册")
 
             # Check if localhost:4444 health endpoint is available and register MCP service
             if await self.check_health("http://localhost:4444/api/health"):
@@ -165,7 +215,9 @@ class TeamManager:
                 )
                 ret = await solution.register_tools(command_mcp_server)
                 if ret == False:
-                    raise RuntimeError("localhost:4444 MCP服务器工具注册失败,请检查MCP服务是否正常运行")
+                    logger.warning("任务管理 MCP 服务注册失败,请检查本地4444端口的MCP服务是否正常运行,将继续执行")
+                else:
+                    logger.info("成功注册 任务管理 MCP 服务")
             else:
                 logger.info("Health check failed for localhost:4444, skipping MCP service registration")
 
@@ -186,11 +238,11 @@ class TeamManager:
         start_time = time.time()
         team = None
 
-        # Setup logger correctly
-        logger = logging.getLogger(EVENT_LOGGER_NAME)
-        logger.setLevel(logging.INFO)
+        # Setup event logger correctly (use different name to avoid shadowing global loguru logger)
+        event_logger = logging.getLogger(EVENT_LOGGER_NAME)
+        event_logger.setLevel(logging.INFO)
         llm_event_logger = RunEventLogger()
-        logger.handlers = [llm_event_logger]  # Replace all handlers
+        event_logger.handlers = [llm_event_logger]  # Replace all handlers
 
         try:
             team = await self._create_team(team_config, input_func, env_vars)
@@ -263,8 +315,8 @@ class TeamManager:
                     # yield event
         finally:
             # Cleanup - remove our handler
-            if llm_event_logger in logger.handlers:
-                logger.handlers.remove(llm_event_logger)
+            if llm_event_logger in event_logger.handlers:
+                event_logger.handlers.remove(llm_event_logger)
 
             # Ensure cleanup happens
             if team and hasattr(team, "_participants"):

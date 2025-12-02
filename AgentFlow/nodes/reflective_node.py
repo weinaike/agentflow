@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 from ..prompt_template import *
       
 class ReflectiveNode(QuestionnaireNode):
-    def __init__(self, config: Union[Dict, AgentNodeParam]):
-        super().__init__(config)
+    def __init__(self, config: Union[Dict, AgentNodeParam], context: Optional[Context] = None):
+        super().__init__(config, context)
         self.questions = self._node_param.manager.questions
         if len(self.questions) == 0:
             raise ValueError("QuestionnaireNode must have at least one question")

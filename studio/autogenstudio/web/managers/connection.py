@@ -35,6 +35,7 @@ from ...datamodel import (
 )
 from ...teammanager import TeamManager
 from .run_context import RunContext
+from .mcp_tunnel import McpTunnelConnection
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,8 @@ class WebSocketManager:
         # Track explicitly closed connections
         self._closed_connections: set[int] = set()
         self._input_responses: Dict[int, asyncio.Queue] = {}
+        # MCP 隧道连接（集成在同一个 WebSocket 中）
+        self._mcp_tunnels: Dict[int, McpTunnelConnection] = {}
 
         self._cancel_message = TeamResult(
             task_result=TaskResult(
@@ -66,6 +69,48 @@ class WebSocketManager:
             usage="",
             duration=0,
         ).model_dump()
+
+    # ==================== MCP 隧道相关方法 ====================
+    
+    async def register_mcp_tunnel(self, run_id: int, server_info: dict, capabilities: dict) -> McpTunnelConnection:
+        """注册 MCP 隧道连接（复用已有的 WebSocket 连接）"""
+        if run_id not in self._connections:
+            raise ValueError(f"No WebSocket connection for run {run_id}")
+        
+        websocket = self._connections[run_id]
+        connection = McpTunnelConnection(websocket, run_id)
+        connection.server_info = server_info
+        connection.capabilities = capabilities
+        self._mcp_tunnels[run_id] = connection
+        
+        logger.info(f"MCP 隧道已注册 (run_id: {run_id})")
+        return connection
+    
+    def get_mcp_tunnel(self, run_id: int) -> Optional[McpTunnelConnection]:
+        """获取 MCP 隧道连接"""
+        return self._mcp_tunnels.get(run_id)
+    
+    def has_mcp_tunnel(self, run_id: int) -> bool:
+        """检查是否有活跃的 MCP 隧道连接"""
+        conn = self._mcp_tunnels.get(run_id)
+        return conn is not None and conn.initialized
+    
+    async def handle_mcp_response(self, run_id: int, request_id: str, response: dict) -> None:
+        """处理 MCP 响应"""
+        conn = self._mcp_tunnels.get(run_id)
+        if conn:
+            conn.handle_response(request_id, response)
+            logger.debug(f"收到 MCP 响应 (run_id: {run_id}, requestId: {request_id})")
+        else:
+            logger.warning(f"收到 MCP 响应但隧道不存在 (run_id: {run_id})")
+    
+    async def cleanup_mcp_tunnel(self, run_id: int) -> None:
+        """清理 MCP 隧道"""
+        if run_id in self._mcp_tunnels:
+            del self._mcp_tunnels[run_id]
+            logger.info(f"MCP 隧道已清理 (run_id: {run_id})")
+
+    # ==================== WebSocket 连接管理 ====================
 
     async def connect(self, websocket: WebSocket, run_id: int) -> bool:
         try:
@@ -277,6 +322,9 @@ class WebSocketManager:
 
         # Cancel any running tasks
         await self.stop_run(run_id, "Connection closed")
+
+        # Clean up MCP tunnel
+        await self.cleanup_mcp_tunnel(run_id)
 
         # Clean up resources
         self._connections.pop(run_id, None)
@@ -509,6 +557,7 @@ class WebSocketManager:
             self._cancellation_tokens.clear()
             self._closed_connections.clear()
             self._input_responses.clear()
+            self._mcp_tunnels.clear()
 
     @property
     def active_connections(self) -> set[int]:

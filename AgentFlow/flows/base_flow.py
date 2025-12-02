@@ -67,7 +67,7 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
                 return node
         return None
 
-    async def create_node(self, flow_param: flowDetailParam) -> List[BaseNode]:
+    async def create_node(self, flow_param: flowDetailParam, context: Optional[Context] = None) -> List[BaseNode]:
 
         prompt = f'## 工作流 {flow_param.flow_id} : {flow_param.flow_name} \n本工作流的职责:{flow_param.description}\n'
         nodes : List[BaseNode] = []
@@ -156,7 +156,7 @@ class BaseFlow(ABC, ComponentBase[BaseModel]):
                     else:
                         continue
             
-            nodes.append(NodeFactory.create_node(node_config['type'], node_config))
+            nodes.append(NodeFactory.create_node(node_config['type'], node_config, context))
 
 
             with open(os.path.join(flow_param.backup_dir,node_config['config']), 'w') as f:
