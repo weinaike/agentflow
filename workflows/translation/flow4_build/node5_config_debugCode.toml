@@ -1,0 +1,45 @@
+
+type = "Agent"
+task = '''编译代码'''
+
+[manager]
+summary_prompt = '''总结调试过程与结果。要求以json的格式输出：当构建成功时，将"status"的值设为"本次构建成功"，当构建失败时，将"status"的值设为"本次构建失败"； "details"的值详细描述总结的相关信息。具体格式如下：
+```json
+{
+    "status": "本次构建成功|本次构建失败",
+    "details": "针对错误1的总结; 针对错误2的总结;...; 针对错误n的总结" 
+}
+```
+'''
+max_turns = 10
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "编译代码，对编译结果进行总结。",
+]
+
+
+
+[[agents]]
+name = "assistant"
+tools = ["run_shell_code", "run_cmake_and_make"]
+system_prompt =  '''
+角色：软件工程师
+职责：负责构建程序。如果构建成功，只需要简单地输出构建成功即可； 如果构建失败，请详细地列出构建时的错误（例如执行make/g++命令时输出的错误信息）
+
+## 调试步骤
+首先：执行run_cmake_and_make命令，查看编译日志，定位错误
+其次：根据构建的日志，明确地指出本次构建是成功还是失败
+最后：如果构建失败，列出详细的错误信息
+'''
+
+
+[[agents]]
+name = "user"
+tools =  []
+system_prompt =  '''
+角色: 高级软件工程师
+
+职责：审查编译结果，当所有需要迁移的代码都完成正确编译，则回复"TERMINATE"，否则回复"continue"
+
+'''

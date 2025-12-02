@@ -1,0 +1,166 @@
+{
+    "provider": "AgentFlow.solution.Solution",
+    "component_type": "solution",
+    "version": 2,
+    "component_version": 2,
+    "description": "将原项目翻译成CUDA-C或者CUDA-C++项目，以实现CUDA并行加速",
+    "label": "CUDA并行化加速",
+    "config": {
+        "project_name": "CUDA并行化加速",
+        "project_id": "xtd",
+        "description": "",
+        "workspace_path": "workspace/xtd",
+        "llm_config": "docs/OAI_CONFIG_LIST.json",
+        "codebase": "/root/project",
+        "flows": [
+            {
+                "flow_name": "架构理解",
+                "flow_id": "flow1",
+                "config": "workflows/translation/flow1_build/flow_architect_understand.toml",
+                "previous_flows": [],
+                "workspace_path": "workspace/xtd/flow1",
+                "backup_dir": "workspace/xtd/cache",
+                "llm_config": "docs/OAI_CONFIG_LIST.json",
+                "flow_type": "SEQUENTIAL",
+                "description": "### 架构理解流程\n该流程的目的是帮助架构师：\n1. 分析业务，理解项目的主要功能；\n2. 提炼实现核心功能的主要类或者模块，分析类或模块之间的关系；\n3. 提炼实现核心业务的主要流程，及其涉及的相关内容。\n\n",
+                "nodes": [
+                    {
+                        "name": "业务分析",
+                        "id": "node1",
+                        "inputs": [],
+                        "config": "node1_BusinessAnalysis.toml"
+                    },
+                    {
+                        "name": "概要分析",
+                        "id": "node2",
+                        "inputs": ["node1"],
+                        "config": "node2_ConceptionAnalysis.toml"
+                    },
+                    {
+                        "name": "核心模块分析",
+                        "id": "node3",
+                        "inputs": ["node1", "node2"],
+                        "config": "node3_CoreModule.toml"
+                    },
+                    {
+                        "name": "系统架构汇总",
+                        "id": "node4",
+                        "inputs": ["node1", "node2", "node3"],
+                        "config": "node4_SystemArchitect.toml"
+                    }
+                ]
+            },
+            {
+                "flow_name": "迁移方案",
+                "flow_id": "flow2",
+                "config": "workflows/translation/flow2_build/flow_solution.toml",
+                "previous_flows": [],
+                "workspace_path": "workspace/xtd/flow1",
+                "backup_dir": "workspace/xtd/cache",
+                "llm_config": "docs/OAI_CONFIG_LIST.json",
+                "flow_type": "SEQUENTIAL",
+                "description": "## 方案设计目标\n{requirement}\n\n",
+                "nodes": [
+                    {
+                        "name": "迁移方案",
+                        "id": "node1",
+                        "inputs": ["flow1.node2", "flow1.node3", "flow1.node4"],
+                        "config": "node1_Solution.toml"
+                    }
+                ]
+            },
+            {
+                "flow_name": "任务分解",
+                "flow_id": "flow3",
+                "config": "workflows/translation/flow3_build/flow_task_decomposition.toml",
+                "previous_flows": [],
+                "workspace_path": "workspace/xtd/flow1",
+                "backup_dir": "workspace/xtd/cache",
+                "llm_config": "docs/OAI_CONFIG_LIST.json",
+                "flow_type": "SEQUENTIAL",
+                "description": "## 任务分解\n1. 迁移方案已经确定, 先需要将迁移方案细化与分解具体任务，便于后续具体实施。\n2. 任务分解过程中需要考虑任务的依赖关系，以及任务颗粒度。\n\n",
+                "nodes": [
+                    {
+                        "name": "待CUDA迁移函数列表",
+                        "id": "node1",
+                        "inputs": ["flow2.node1"],
+                        "config": "node1_FunctionList.toml"
+                    },
+                    {
+                        "name": "优先级排序",
+                        "id": "node2",
+                        "inputs": ["flow2.node1", "node1"],
+                        "config": "node2_TaskPrioritySort.toml"
+                    },
+                    {
+                        "name": "任务价值评价",
+                        "id": "node3",
+                        "inputs": ["node2"],
+                        "config": "node3_TaskEvaluation.toml"
+                    },
+                    {
+                        "name": "任务汇总",
+                        "id": "node4",
+                        "inputs": ["node2", "node3"],
+                        "config": "node4_TaskDecompositionSummary.toml"
+                    }
+                ]
+            },
+            {
+                "flow_name": "执行翻译",
+                "flow_id": "flow4",
+                "config": "workflows/translation/flow4_build/flow_task_execution.toml",
+                "previous_flows": [],
+                "workspace_path": "workspace/xtd/flow1",
+                "backup_dir": "workspace/xtd/cache",
+                "llm_config": "docs/OAI_CONFIG_LIST.json",
+                "flow_type": "AUTOSCHEDLOOP",
+                "description": "## 执行翻译\n当前工作流的目标是执行任务，完成目标函数或者模块的代码CUDA迁移工作，包括代码查询，代码生成，代码编辑，代码构建与调试。\n\n",
+                "loop": {
+                    "dependencies": ["flow3.node4"],
+                    "mode": "Iteration",
+                    "prompt": "将任务分解，将需要迁移的模块，根据要求格式化输出，形成任务列表，便于后续遍历执行。每个子任务请详细描述任务内容。\n每个子任务描述需要遵循如下的模板（<namespace>，<class_name>和<method>需要根据实际情况替换）：1. 将<namespace>::<class_name>::<method>方法中耗时的代码，封装到名字空间<namespace>中的cuda函数<class_name>_<method>_kernel中；在名字空间<namespace>内实现接口函数<class_name>_<method>_cuda，该函数负责调用<class_name>_<method>_kernel，PhotonArray对光子位置及通量进行了显存分配，无需再进行显存分配及数据传输，以及CUDA核函数错误检查；同时，该接口函数作为C++代码中访问CUDA版本的接口。2. <class_name>_<method>_cuda和<class_name>_<method>_kernel两个函数的实现保存至src/cuda_kernels/<class_name>_<method>.cu文件中，<class_name>_<method>_cuda的声明保存至src/cuda_kernels/<class_name>_<method>.h文件中。3. 在<namespace>::<class_name>::<method>方法所在的文件，判断如果定义>了ENABLE_CUDA，则添加#include \"src/cuda_kernels/<class_name>_<method>.h\"，同时在该方法中需要通过宏定义ENABLE_CUDA选择调用原始函数实现还是调用<class_name>_<method>_cuda。"
+                },
+                "nodes": [
+                    {
+                        "name": "任务相关代码查询",
+                        "id": "node1",
+                        "inputs": [],
+                        "config": "node1_config_QueryCode.toml"
+                    },
+                    {
+                        "name": "分析指定的函数是否需要进行CUDA迁移",
+                        "id": "node2",
+                        "inputs": ["node1"],
+                        "config": "node2_config_AnalyzeCode.toml"
+                    },
+                    {
+                        "name": "代码生成",
+                        "id": "node3",
+                        "inputs": ["node1", "node6"],
+                        "config": "node3_config_genCode.toml"
+                    },
+                    {
+                        "name": "编辑代码",
+                        "id": "node4",
+                        "inputs": ["node3"],
+                        "config": "node4_config_editCode.toml"
+                    },
+                    {
+                        "name": "构建调试",
+                        "id": "node5",
+                        "inputs": ["node4"],
+                        "config": "node5_config_debugCode.toml"
+                    },
+                    {
+                        "name": "回滚代码",
+                        "id": "node6",
+                        "inputs": ["node5"],
+                        "config": "node6_config_RollbackCode.toml"
+                    }
+                ]
+            }
+        ],
+        "backup_dir": "workspace/xtd/cache"
+    }
+}

@@ -1,0 +1,12 @@
+flow_name = "迁移方案"
+flow_type = "SEQUENTIAL"
+description =  '''
+## 方案设计目标
+{requirement}
+'''
+
+[[nodes]]
+id = "node1"
+name = "迁移方案"
+inputs = ["flow1.node2", "flow1.node3", "flow1.node4"]
+config = "node1_Solution.toml"

@@ -1,0 +1,68 @@
+flow_name = "代码执行"
+flow_type = "AUTOSCHEDLOOP"
+description =  '''
+## 任务执行
+当前工作流的目标是执行任务，完成目标函数或者模块的代码CUDA迁移工作，包括代码查询，代码生成，代码编辑，代码构建与调试。
+'''
+# 循环执行参数
+[loop]
+dependencies = ['flow3.node4']
+mode = "Iteration"
+prompt = '''
+将任务分解，将需要迁移的模块，根据要求格式化输出，形成任务列表，便于后续遍历执行。每个子任务请详细描述任务内容。
+每个子任务描述需要遵循如下的模板（<namespace>，<class_name>和<method>需要根据实际情况替换）：1. 将<namespace>::<class_name>::<method>方法中耗时的代码，封装到名字空间<namespace>中的cuda函数<class_name>_<method>_kernel中；在名字空间<namespace>内实现接口函数<class_name>_<method>_cuda，该函数负责调用<class_name>_<method>_kernel，PhotonArray对光子位置及通量进行了显存分配，无需再进行显存分配及数据传输，以及CUDA核函数错误检查；同时，该接口函数作为C++代码中访问CUDA版本的接口。2. <class_name>_<method>_cuda和<class_name>_<method>_kernel两个函数的实现保存至src/cuda_kernels/<class_name>_<method>.cu文件中，<class_name>_<method>_cuda的声明保存至src/cuda_kernels/<class_name>_<method>.h文件中。3. 在<namespace>::<class_name>::<method>方法所在的文件，判断如果定义了ENABLE_CUDA，则添加#include "src/cuda_kernels/<class_name>_<method>.h"，同时在该方法中需要通过宏定义ENABLE_CUDA选择调用原始函数实现还是调用<class_name>_<method>_cuda。
+'''
+
+[auto_sched]
+max_sched_times = 25
+start_node_id = "node1"
+sched_prompt = '''
+任务由多个节点协作完成。各节点职责和调度规则如下：
+1. 节点id="node1"，负责查询任务相关的代码。如果查询成功，next_to_run=node2, inputs=[node1]；如果查询失败，next_to_run=node1，inputs=[]
+2. 节点id="node2"，负责分析指定的函数是否需要进行CUDA迁移。如果需要迁移，next_to_run=node3, inputs=[node1]；如果不需要迁移，next_to_run=QUIT, inputs=[]
+3. 节点id="node3"，负责生成任务相关的代码。无论成功或失败，next_to_run=node4, inputs=[node3]
+4. 节点id="node4", 负责将生成的代码写入git仓库。如果写入成功，next_to_run=node5, inputs=[node4]；如果写入失败，next_to_run=node3, inputs=[node4]
+5. 节点id="node5"，负责构建程序。如果构建成功，next_to_run=QUIT，inputs=[]；如果构建失败，next_to_run=node6，inputs=[]
+6. 节点id="node6"，负责回滚git仓库代码。无论成功或失败，next_to_run=node3，inputs=[node1, node5]
+
+你负责分析当前节点的执行状态并判断是成功或者失败后，输出下一个要执行的节点(next_to_run)，以及下一个执行节点的输入是什么(inputs)，输出为json格式:
+```json
+{"next_to_run": "<node_id>", "inputs": ["<node_id>", ..., "<node_id>"]}
+```
+'''
+
+[[nodes]]
+id = "node1"
+name = "任务相关代码查询"
+inputs = []
+config = "node1_config_QueryCode.toml"
+
+[[nodes]]
+id = "node2"
+name = "分析指定的函数是否需要进行CUDA迁移"
+inputs = ["node1"]
+config = "node2_config_AnalyzeCode.toml"
+
+[[nodes]]
+id = "node3"
+name = "代码生成"
+inputs = ["node1", "node6"]
+config = "node3_config_genCode.toml"
+
+[[nodes]]
+id = "node4"
+name = "编辑代码"
+inputs = ["node3"]
+config = "node4_config_editCode.toml"
+
+[[nodes]]
+id = "node5"
+name = "构建调试"
+inputs = ["node4"]
+config = "node5_config_debugCode.toml"
+
+[[nodes]]
+id = "node6"
+name = "回滚代码"
+inputs = ["node5"]
+config = "node6_config_RollbackCode.toml"

@@ -1,0 +1,179 @@
+
+type = "Agent"
+task = '''
+通过迭代开发的方式生成正确的CUDA迁移代码：
+1. 首次迭代时，根据查询到的代码，生成CUDA迁移代码，不要出现伪代码；
+2. 此后每次迭代时，代码都会被回滚至原始状态并重新开发，但是你可以参考此前迭代过程中遇到的错误，避免这次迭代时再出现类似的错误。
+'''
+
+
+
+[manager]
+summary_prompt = '''
+整合以上讨论CUDA迁移代码内容，输出任务目标所需的完整代码内容（若有缺省，进行补全）, 以便于后续编辑，要求如下：
+1. 不要输出查询、讨论等过程信息.
+2. 不同功能代码块独立输出，并且明确存入的文件与行地址. 
+3. 如果在代码中需要包含新增的头文件，需要明确包含时的相对路径，避免找不到包含的头文件。可以查看CMakeLists.txt中include_directories相关设置。
+4. 写入代码块要求完整，缺省内容需要补全
+5. 请列出新增文件和修改文件中的完整代码，即原有代码和新增、修改的代码需要合并成，形成完整的文件内容。不要只列出其中的部分代码块。
+
+'''
+max_turns = 5
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "根据提供的代码，以及在迭代开发中出现的错误（若有），生成正确的CUDA迁移代码。生成的代码文件中不要出现伪代码、未修改的代码片断必须输出",
+]
+
+
+[[agents]]
+name = "assistant"
+tools = ["find_definition", "find_declaration", "read_file_content", "get_cpp_dir_structure"]
+#model = "deepseek"
+system_prompt =  '''
+角色：软件工程师
+职责：
+1. 根据查询到的代码信息，实现CUDA迁移
+
+下面以PhotonArray::addTo为例，介绍各个步骤
+2.1 编写核函数
+    核函数保存到src/cuda_kernels/PhotonArray_addTo.cu文件中
+    ```cpp
+    //filename: src/cuda_kernels/PhotonArray_addTo.cu
+        template <typename T>
+        __global__ void photonArray_addTo_Kernel(double* added_flux, double* x, double* y, double* flux, size_t size, T* target, cuBounds* cub)
+        {
+            size_t i = blockIdx.x * blockDim.x + threadIdx.x;
+            if (i < size) {
+                int ix = int(floor(x[i] + 0.5));
+                int iy = int(floor(y[i] + 0.5));
+                if (ix >= cub->xmin && ix <= cub->xmax && iy >= cub->ymin && iy <= cub->ymax) 
+                {
+                    long int idx = (ix - cub->xmin) * cub->step +  (iy - cub->ymin) * cub->stride;
+                    atomicAdd(&(target[idx]), flux[i]);
+                    atomicAdd(added_flux,flux[i]); 
+                }
+            }
+        }
+    ```
+
+2.2 编写接口函数
+    2.2.1 接口函数头文件
+        接口函数声明保存到src/cuda_kernels/PhotonArray_addTo.h文件中
+        ```cpp
+        //filename: src/cuda_kernels/PhotonArray_addTo.h
+        #include <iostream>
+        #include "PhotonArray.h"
+        namespace galsim {
+            template <typename T>
+            double PhotonArray_addTo_cuda(ImageView<T> &target, double* _x, double* _y, double* _flux, size_t size);
+        }
+        ```
+    2.2.2 接口函数实现
+        将接口函数定义保存到与核函数相同的文件中， src/cuda_kernels/PhotonArray_addTo.cu, 同时需要添加模板实例化以及namespace， 
+        ```cpp
+        //filename: src/cuda_kernels/PhotonArray_addTo.cu
+    
+        #include "PhotonArray_addTo.h"
+        namespace galsim {   
+            template <typename T>
+            double PhotonArray_addTo_cuda(ImageView<T> &target, double* d_x, double* d_y, double* d_flux, size_t size)
+            {
+                Bounds<int> b = target.getBounds();
+                cuBounds cub = {0};
+                cub.xmin = b.getXMin();
+                cub.xmax = b.getXMax();
+                cub.ymin = b.getYMin();
+                cub.ymax = b.getYMax();
+                cub.step = target.getStep();
+                cub.stride = target.getStride();
+
+                double addedFlux = 0.;
+
+                // allocate GPU memory
+                double* d_added_flux;
+                cuBounds* d_cub;
+
+                CUDA_CHECK_RETURN(cudaMalloc((void**) &d_added_flux, sizeof(double)));
+                CUDA_CHECK_RETURN(cudaMalloc((void**) &d_cub, sizeof(cuBounds)));
+                // copy the cpu memory to GPU       
+                CUDA_CHECK_RETURN(cudaMemcpy(d_added_flux, &addedFlux, sizeof(double), cudaMemcpyHostToDevice));
+                CUDA_CHECK_RETURN(cudaMemcpy(d_cub, &cub, sizeof(cuBounds), cudaMemcpyHostToDevice));
+
+                T * d_target = target.getGpuData();
+                    
+                
+                dim3 blocks((size + 256 - 1) / 256);
+                dim3 threads(256);    
+                photonArray_addTo_Kernel_1<<<blocks, threads>>>(d_added_flux, d_x, d_y, d_flux, size, d_target, d_cub);  
+                cudaDeviceSynchronize();   
+
+                // copy memory back to CPU
+                CUDA_CHECK_RETURN(cudaMemcpy(&addedFlux, d_added_flux, sizeof(double), cudaMemcpyDeviceToHost));
+
+                return addedFlux;
+            }
+
+            template __global__ void photonArray_addTo_Kernel(double* added_flux, double* x, double* y, double* flux, size_t size, float* target,   cuBounds* cub);
+            template __global__ void photonArray_addTo_Kernel(double* added_flux, double* x, double* y, double* flux, size_t size, double* target,   cuBounds* cub);
+            template double PhotonArray_addTo_cuda(ImageView<float> & target, double* _x, double* _y, double* _flux, size_t size);
+            template double PhotonArray_addTo_cuda(ImageView<double> & target, double* _x, double* _y, double* _flux, size_t size);
+        }
+        ```
+
+
+2.3 修改原函数
+    为原函数PhotonArray::addTo添加ENABLE_CUDA宏条件, ENABLE_CUDA生效调用cuda分支函数, 否则原始调用C++分支函数
+    ```cpp
+    //filename: src/PhotonArray.cpp
+    namespace galsim {
+        template <class T>
+        double PhotonArray::addTo(ImageView<T> target) const
+        {
+        #ifdef ENABLE_CUDA
+            double addedFlux = PhotonArray_addTo_cuda(target, _x_gpu, _y_gpu, _flux_gpu, _N);   
+            return addedFlux;
+        #else
+            Bounds<int> b = target.getBounds();
+            double addedFlux = 0.;
+            for (size_t i=0; i<size(); i++) {
+                int ix = int(floor(_x[i] + 0.5));
+                int iy = int(floor(_y[i] + 0.5));
+                if (b.includes(ix,iy)) {
+                    target(ix,iy) += _flux[i];
+                    addedFlux += _flux[i];
+                }
+            }
+            return addedFlux;
+        #endif
+        }
+    }   
+
+在编写代码时，需要注意如下几点：
+1. 充分利用代码仓库中已有的成员变量与函数，不要自行臆测
+2. 编码过程要注意namespace的使用，接口函数，头文件的namespace尽可能与原有的namespace保持一致
+3. 检查cuda API的返回值。在src/cuda_kernels/cuda_check.h文件中定义了宏CUDA_CHECK_RETURN，用于检查该返回值
+4. 明确代码所需保存的文件路径，cuda核函数和接口函数头文件和实现文件保存至src/cuda_kernels/目录下。
+'''
+
+
+
+[[agents]]
+name = "user"
+tools = []
+system_prompt =  '''
+角色: 高级软件工程师
+
+职责：对普通工程师生成的代码进行审查。
+
+## Constraints
+1. 要求代码的正确性和完整性。
+2. 要求新增cuda代码与原来的项目代码兼容性。
+3. 要求cuda核函数独立文件存储，使其能够独立编译
+4. 要求提供cuda核函数的c++接口函数，供目标函数调用
+
+## Commands
+如果提交的代码无需修改，请回复"TERMINATE" 
+
+'''
+

@@ -1,0 +1,36 @@
+flow_name = "任务分解"
+flow_type = "SEQUENTIAL"
+description =  '''
+## 任务分解
+迁移方案已经确定, 先需要将迁移方案细化与分解具体任务，便于后续具体实施. 
+任务分解过程中需要考虑任务的依赖关系，以及任务颗粒度。
+'''
+
+
+[[nodes]]
+id = "node1"
+name = "待CUDA迁移函数列表"
+inputs = ['flow2.node1']
+config = "node1_FunctionList.toml"
+
+[[nodes]]
+id = "node2"
+name = "优先级排序" 
+inputs = ['flow2.node1','node1']
+config = "node2_TaskPrioritySort.toml"
+
+
+[[nodes]]
+id = "node3"
+name = "任务价值评价"
+inputs = ['node2'] # Loop
+config = "node3_TaskEvaluation.toml"
+
+
+[[nodes]]
+id = "node4"
+name = "任务汇总"
+inputs = ['node2','node3']
+config = "node4_TaskDecompositionSummary.toml"
+
+

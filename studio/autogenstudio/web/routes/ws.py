@@ -220,6 +220,9 @@ async def run_websocket(
                                 elif team_config["id"] == 4: # 4 代表开发环境构建智能体
                                     with open('workflows/buildAgent/solution.toml_component.json') as f:
                                         team_cfg = json.load(f)
+                                elif team_config["id"] == 5: # 5 代表代码翻译智能体
+                                    with open('workflows/translation/solution.toml_component.json') as f:
+                                        team_cfg = json.load(f)
                                 else:
                                     logger.error(f"Team with id {team_config['id']} not found")
                                     await websocket.send_json(

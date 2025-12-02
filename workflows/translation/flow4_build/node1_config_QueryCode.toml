@@ -1,0 +1,37 @@
+
+type = "Agent"
+task = "查询代码"
+
+[manager]
+summary_prompt = "汇总所有查询到的代码"
+max_turns = 5
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "根据任务目标查询主函数代码与依赖函数代码，了解代码结构，为后续代码迁移与编辑做准备",
+]
+
+
+[[agents]]
+name = "assistant"
+tools = ["fetch_source_code", "find_definition", "find_declaration", "read_function_from_file", "read_code_from_file", "get_cpp_dir_structure"]
+system_prompt =  '''
+角色：软件工程师
+职责：
+1. 查询代码及其依赖函数
+2. 尽可能优先使用fetch_source_code工具，可一次查询相关的代码，避免多次查询；如果fetch_source_code返回的代码不够全面，再结合其它工具查询。
+3. fetch_source_code工具通常会返回多个文件中的代码，且只与指定的方法/函数相关，如果要获取一个文件中的全部代码，请使用read_code_from_file
+
+'''
+
+
+[[agents]]
+name = "user"
+system_prompt =  '''
+角色: 高级软件工程师
+职责: 
+1. 代码查询完整，信息已足够CUDA迁移，输出 TERMINATE 结束任务
+2. 代码查询不完整，需要继续查询，输出 CONTINUE 继续任务
+
+'''
+
