@@ -15,6 +15,7 @@ from uml_tool import *
 from code_tool import *
 from shell_tool import *
 from file_tool import *
+from code_graph_tool import *
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -49,6 +50,21 @@ app.add_tool(read_file_content)
 app.add_tool(create_ast)
 app.add_tool(get_ast_status)
 app.add_tool(glob_search)
+
+app.add_tool(parse_project)
+app.add_tool(get_code_graph_schema)
+app.add_tool(get_nodes_by_name)
+app.add_tool(get_node_by_id)
+app.add_tool(get_translation_tasks_topologically)
+app.add_tool(get_src_nodes_of)
+app.add_tool(get_dst_nodes_of)
+app.add_tool(get_file_content)
+app.add_tool(get_code_snippet)
+app.add_tool(insert_initial_translation_plan)
+app.add_tool(insert_optimized_translation_plan)
+app.add_tool(insert_translated_code_snippets)
+app.add_tool(list_files_to_merge)
+app.add_tool(get_file_merging_task)
 
 @app.custom_route("/health", methods=["GET"])
 async def health_check() -> Response:

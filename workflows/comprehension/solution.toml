@@ -4,7 +4,7 @@ description = ''
 workspace_path = "workspace/xtd"
 llm_config = "docs/OAI_CONFIG_LIST.json"
 
-codebase = '/root/project/'
+codebase = '/home/jiangbo/gptq'
 
 [[flows]]
 flow_name = "代码库理解"

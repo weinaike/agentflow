@@ -42,7 +42,8 @@ def main():
             #     args=[],
             # )
             command_mcp_server = StreamableHttpServerParams(
-                url="http://localhost:8080/mcp",
+                #url="http://localhost:8080/mcp",
+                url="http://localhost:4444/mcp",
                 headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN"},
                 sse_read_timeout = 3600,  # 设置SSE读取超时时间为1小时
             )

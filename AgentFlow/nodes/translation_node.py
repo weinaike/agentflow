@@ -29,18 +29,18 @@ QUESTION_TEMPLATE = '''
 
 '''
 
-class WR124Node(InteractiveNode):
+class TranslationNode(InteractiveNode):
     def __init__(self, config: Union[Dict, AgentNodeParam], context: Optional[Context] = None):
         super().__init__(config, context)
         if len(self._node_param.manager.participants) != 1:
-            raise ValueError(f"WR124Node {self._node_param.id} must have exactly one participant")
+            raise ValueError(f"TranslationNode {self._node_param.id} must have exactly one participant")
 
-        self.agents : List[ChatAgent | Team] = []  #//(sf): 在InteractiveNode中会创建self.agents，这里又清空
+        self.agents : List[ChatAgent | Team] = []
         for name in self._node_param.manager.participants:
             found = False
             for agent_param in self._node_param.agents:
-                if agent_param.name == name and agent_param.type == 'WR124Agent':
-                    self.team = self.create_agent(agent_param, self._node_param.llm_config) ## 仅单个WR124Agent
+                if agent_param.name == name and agent_param.type == 'TranslationAgent':
+                    self.team = self.create_agent(agent_param, self._node_param.llm_config) ## 仅单个TranslationAgent
                     found = True
                     break
             if not found:

@@ -1,5 +1,5 @@
 import os
-from clang.cindex import Cursor, CursorKind, TranslationUnit, Index, Diagnostic
+from clang.cindex import Cursor, CursorKind, TypeKind, TranslationUnit, Index, Diagnostic
 import copy
 import json
 import time
@@ -14,6 +14,23 @@ except:
     sys.path.append(os.path.abspath(os.path.dirname(__file__)))    
     from utils import thread_safe_singleton
 
+class TypeUtils:
+    @staticmethod
+    def get_ultimate_type(typ: TypeKind):
+        while True:
+            if typ.kind in (TypeKind.POINTER, TypeKind.LVALUEREFERENCE):
+                typ = typ.get_pointee()
+            elif typ.kind in (TypeKind.RVALUEREFERENCE, ):
+                typ = typ.get_canonical()
+            #elif typ.kind == TypeKind.ELABORATED:
+            #    typ = typ.get_declaration()    
+            else:
+                break
+        return typ
+
+    @staticmethod
+    def is_builtin_type(typ: TypeKind):
+        return typ in [TypeKind.BOOL, TypeKind.CHAR_U, TypeKind.UCHAR, TypeKind.CHAR16, TypeKind.CHAR32, TypeKind.USHORT, TypeKind.UINT, TypeKind.ULONG, TypeKind.ULONGLONG, TypeKind.UINT128, TypeKind.CHAR_S, TypeKind.SCHAR, TypeKind.WCHAR, TypeKind.SHORT, TypeKind.INT, TypeKind.LONG, TypeKind.LONGLONG, TypeKind.INT128, TypeKind.FLOAT, TypeKind.DOUBLE, TypeKind.LONGDOUBLE, TypeKind.NULLPTR, TypeKind.FLOAT128, TypeKind.HALF, TypeKind.IBM128]
 
 class CursorUtils:
     @staticmethod
@@ -67,7 +84,7 @@ class CursorUtils:
         namespace = ""
         while parent and parent.kind not in [CursorKind.TRANSLATION_UNIT, CursorKind.NAMESPACE]:
             parent = parent.semantic_parent
-        while parent.kind == CursorKind.NAMESPACE:
+        while parent and parent.kind == CursorKind.NAMESPACE:
             namespace = parent.spelling if namespace == "" else "::".join([parent.spelling, namespace])    
             parent = parent.semantic_parent
         return namespace    
@@ -85,7 +102,7 @@ class CursorUtils:
     
     @staticmethod
     def get_class_methods(node):
-        assert CursorUtils.is_class_definition(node), "Only class nodes have methods"
+        #assert CursorUtils.is_class_definition(node), "Only class nodes have methods"
         method_nodes = [c for c in node.get_children() if CursorUtils.is_method(c)]
         return method_nodes   
     

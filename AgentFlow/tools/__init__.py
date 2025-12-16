@@ -77,13 +77,13 @@ tool_mapping = {
     # "show_dir_content": show_dir_content,
     # "get_environment": get_environment,
     # "write_file": write_file,
-    # "read_file": read_file,
+    "read_file": read_file,
     # "list_directory": list_directory,
     # "get_working_directory": get_working_directory,
-    # "run_command": run_command,
+    "run_command": run_command,
     # "create_ast": create_ast,
     # "get_ast_status": get_ast_status,
-    # "glob_search": glob_search,
+    "glob_search": glob_search,
 }
 
 mcp_tool_mapping = {}

@@ -8,10 +8,10 @@
     "config": {
         "project_name": "项目代码库理解",
         "project_id": "xtd",
-        "description": "",
+        "description": "\n** 项目必要信息**\n** 项目代码库路径 ** : /home/jiangbo/gptq\n",
         "workspace_path": "workspace/xtd",
         "llm_config": "docs/OAI_CONFIG_LIST.json",
-        "codebase": "/root/project/",
+        "codebase": "/home/jiangbo/gptq",
         "flows": [
             {
                 "flow_name": "代码库理解",
