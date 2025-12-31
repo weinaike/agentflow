@@ -68,7 +68,7 @@ class CodeGraph:
                     "id": {"type": "string", "description": "The unique identifier of the node in the graph.", "required": True},
                     "name": {"type": "string", "description": "The name of the node in the graph.", "required": True},
                     "type": {"type": "string", "description": "The type of the node, e.g., FUNCTION, METHOD, CLASS, VARIABLE, CONSTRUCTOR, DESTRUCTOR.", "required": True},
-                    "is_pod": {"type": "boolean", "description": "It indicates whether a CLASS node is a POD (plain old data) type", "required": False},
+                    "is_pod": {"type": "boolean", "description": "It indicates whether a `Class` node represents a POD (Plain Old Data) type. Non-POD objects should not be copied using `memcpy()` or `cudaMemcpy()` (as this may lead to undefined behavior).", "required": False},
                     "is_virtual": {"type": "boolean", "description": "It indicates whether a METHOD node is a virtual method", "required": False},
                     "is_pure_virtual": {"type": "boolean", "description": "It indicated whether a METHOD node is a pure virtual method", "required": False},
                     "is_default_constructor": {"type": "boolean", "description": "It indicates whether a CONSTRUCTOR node is a default method", "required": False},
@@ -278,9 +278,9 @@ class CodeGraph:
             nodes.append(node_info)
         return nodes
 
-    def get_node_by_unique_id(self, unique_id: str) -> Dict[str, Any]|None:
-        if self.graph.has_node(unique_id):
-            node = self.graph.nodes[unique_id]
+    def get_node_by_node_id(self, node_id: str) -> Dict[str, Any]|None:
+        if self.graph.has_node(node_id):
+            node = self.graph.nodes[node_id]
             return node
         return None
 
@@ -336,7 +336,7 @@ class CodeGraph:
         :param self: A CodeGraph
         :param reverse: Whether to return the order in reverse
         :type reverse: bool
-        :return: A list of sets, each set contains node IDs that form a strongly connected component. Each element in the set is a unique_id of a function/method node.
+        :return: A list of sets, each set contains node IDs that form a strongly connected component. Each element in the set is the id of a function/method node.
         :rtype: List[set]
         '''
         subgraph = self.get_subgraph_view(
@@ -350,13 +350,13 @@ class CodeGraph:
             scc_topo_sets.reverse()
         return scc_topo_sets
 
-    def get_src_nodes_of(self, dst_unique_id: str, edge_type: str) -> List[Dict[str, Any]]:
+    def get_src_nodes_of(self, dst_node_id: str, edge_type: str) -> List[Dict[str, Any]]:
         '''
         Docstring for get_src_nodes_of
         
         :param self: Description
-        :param dst_unique_id: Description
-        :type dst_unique_id: str
+        :param dst_node_id: Description
+        :type dst_node_id: str
         :param edge_type: Description
         :type edge_type: str
         :return: Description
@@ -364,32 +364,32 @@ class CodeGraph:
         '''
         assert edge_type in ["CALLS", "INHERITS", "OVERRIDES", "HAS_METHOD"]
         srcs = []
-        if not self.graph.has_node(dst_unique_id):
+        if not self.graph.has_node(dst_node_id):
             return srcs
         
-        for pred in self.graph.predecessors(dst_unique_id):
-            for key in self.graph[pred][dst_unique_id]:
-                edge_data = self.graph[pred][dst_unique_id][key]
+        for pred in self.graph.predecessors(dst_node_id):
+            for key in self.graph[pred][dst_node_id]:
+                edge_data = self.graph[pred][dst_node_id][key]
                 if edge_data.get("type", "") == edge_type:
                     node = self.graph.nodes[pred]
                     srcs.append(node)
         return srcs
 
-    def get_dst_nodes_of(self, src_unique_id: str, edge_type: str) -> List[Dict[str, Any]]:
+    def get_dst_nodes_of(self, src_node_id: str, edge_type: str) -> List[Dict[str, Any]]:
         assert edge_type in ["CALLS", "INHERITS", "OVERRIDES", "HAS_METHOD"]
         dsts = []    
-        if not self.graph.has_node(src_unique_id):
+        if not self.graph.has_node(src_node_id):
             return dsts
         
-        for succ in self.graph.successors(src_unique_id):
-            for key in self.graph[src_unique_id][succ]:
-                edge_data = self.graph[src_unique_id][succ][key]
+        for succ in self.graph.successors(src_node_id):
+            for key in self.graph[src_node_id][succ]:
+                edge_data = self.graph[src_node_id][succ][key]
                 if edge_data.get("type", "") == edge_type:
                     node = self.graph.nodes[succ]
                     dsts.append(node)
         return dsts    
 
-    def get_callers_of(self, function_unique_id: str) -> List[Dict[str, Any]]:
+    def get_callers_of(self, node_id: str) -> List[Dict[str, Any]]:
         '''
         Get all caller nodes of a given function/method node.
         
@@ -401,12 +401,12 @@ class CodeGraph:
         :rtype: List[Dict[str, Any]]
         '''
         callers = []
-        if not self.graph.has_node(function_unique_id):
+        if not self.graph.has_node(node_id):
             return callers
         
-        for pred in self.graph.predecessors(function_unique_id):
-            for key in self.graph[pred][function_unique_id]:
-                edge_data = self.graph[pred][function_unique_id][key]
+        for pred in self.graph.predecessors(node_id):
+            for key in self.graph[pred][node_id]:
+                edge_data = self.graph[pred][node_id][key]
                 if edge_data.get("type", "") == "CALLS":
                     node_attrs = self.graph.nodes[pred]
                     node_info = {}
@@ -414,7 +414,7 @@ class CodeGraph:
                     callers.append(node_info)
         return callers
 
-    def get_callees_of(self, function_unique_id: str) -> List[Dict[str, Any]]:
+    def get_callees_of(self, node_id: str) -> List[Dict[str, Any]]:
         '''
         Get all callee nodes of a given function/method node.
         
@@ -426,12 +426,12 @@ class CodeGraph:
         :rtype: List[Dict[str, Any]]
         '''
         callees = []
-        if not self.graph.has_node(function_unique_id):
+        if not self.graph.has_node(node_id):
             return callees
         
-        for succ in self.graph.successors(function_unique_id):
-            for key in self.graph[function_unique_id][succ]:
-                edge_data = self.graph[function_unique_id][succ][key]
+        for succ in self.graph.successors(node_id):
+            for key in self.graph[node_id][succ]:
+                edge_data = self.graph[node_id][succ][key]
                 if edge_data.get("type", "") == "CALLS":
                     node_attrs = self.graph.nodes[succ]
                     node_info = {}
@@ -660,13 +660,13 @@ def TEST_ray_tracing_draw_complete_graph():
         callers = cg.get_callers_of(node["id"])
         print(f"Callers of function {node['name']}:")
         for caller in callers:
-            print(f"- {caller.get('name', '')} (ID: {caller.get('unique_id', '')})")
+            print(f"- {caller.get('name', '')} (ID: {caller.get('id', '')})")
         print("------------------------------")
 
         callees = cg.get_callees_of(node["id"])
         print(f"Callees of function {node['name']}:")
         for callee in callees:
-            print(f"- {callee.get('name', '')} (ID: {callee.get('unique_id', '')}) (qualified_name: {callee.get('qualified_name', '')})")        
+            print(f"- {callee.get('name', '')} (ID: {callee.get('id', '')}) (qualified_name: {callee.get('qualified_name', '')})")        
 
 def TEST_edge_retrieval():
     parser_args = ["-I/usr/lib/gcc/x86_64-linux-gnu/12/include"]
@@ -685,7 +685,7 @@ def TEST_edge_retrieval():
     cg = CodeGraph(parser, project_dir=config["src_dirs"][0], **config)
     node_infos = cg.get_nodes_by_name("camera::render")    
     for node in node_infos:
-        dst_nodes = cg.get_dst_nodes_of(node['unique_id'], 'CALLS')
+        dst_nodes = cg.get_dst_nodes_of(node['id'], 'CALLS')
         for dst_node in dst_nodes:
             print(dst_node)
             print()

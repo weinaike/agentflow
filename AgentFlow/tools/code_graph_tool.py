@@ -34,15 +34,15 @@ def get_code_graph_schema() -> Dict[str, Any]:
 
 def get_nodes_by_name(name: Annotated[str, "A name of a class, method, function, etc."]) -> List[Dict[str, Any]]:
     '''
-    Returns the node(s) of the specified name. 
+    Returns the node(s) of the specified name. This function may return multiple nodes instead of a single one. 
     '''
     return code_graph.get_nodes_by_name(name=name)
 
 def get_node_by_id(node_id: Annotated[str, "the unique identifier of a class, method, function, etc."])->Dict[str, Any]|None:   
     '''Returns the node of the specified ID, or None if the ID doesn't exist in the code graph'''
-    node = code_graph.get_node_by_unique_id(node_id)
+    node = code_graph.get_node_by_node_id(node_id)
     if node is None:
-        return f"The specified node_id `{node_id} doesn't exist in the code graph. "
+        return f"The specified node_id `{node_id}` doesn't exist in the code graph. "
     return node   
 
 def get_translation_tasks_topologically(reverse: Annotated[bool, "A boolean parameter to control the topological sorting order"])->List[set]:
@@ -99,10 +99,10 @@ def get_file_content(
     except Exception as e:
         return f"read file `{filename} failed: {str(e)}"
 
-def get_code_snippet(
+def read_code_snippet_from_file(
     filename: Annotated[str, "the absolute path of a file"],
-    start: Annotated[Tuple[int, int], "the start location of the code snippet"],
-    end: Annotated[Tuple[int, int], "the end location of the code snippet"]
+    start: Annotated[Tuple[int, int], "the start location (start-line, start-column) of the code snippet"],
+    end: Annotated[Tuple[int, int], "the end location (end-line, end-column) of the code snippet"]
 )->str:
     try:
         content = code_graph.get_code_snippet(filename, start, end)        
@@ -154,6 +154,10 @@ def insert_translated_code_snippets(
         return "It failed to insert the translated code snippets into the specified node."
             
 def list_files_to_merge() -> List[str]:
+    '''
+    Lists the files which need to be merged. 
+    For each listed file, `get_file_merging_task` can be called to get the file merging task.
+    '''
     files_to_merge = []
     for _, node in code_graph.graph.nodes(data=True):
         translation_results = node.get("translation_results", [])
@@ -172,7 +176,7 @@ def list_files_to_merge() -> List[str]:
             
 
 def get_file_merging_task(filename: Annotated[str, "A filename which is from the function `list_files_to_merge`"])->Dict[str, str]:
-    task = ""
+    ''''''
     original_files = set()
     original_file_content = ""
     translated_code_snippets = ""
@@ -187,7 +191,6 @@ def get_file_merging_task(filename: Annotated[str, "A filename which is from the
 
     for original_file in original_files:
         original_file_content += f"```cpp\n//filename: {original_file}\n{code_graph.get_file_content(original_file)}```"
-        
 
     return {
         "original_file_content": original_file_content,

@@ -267,6 +267,13 @@ class ClangParser(ParserBase):
 class TranslationUnitIngestor:
     """Translation Unit Ingestor
     """
+
+    @staticmethod
+    def usr2hash(usr: str)->str:
+        import hashlib
+        hash_obj = hashlib.sha256(usr.encode("utf-8"))
+        return hash_obj.hexdigest()[:16]
+
     def __init__(self, graph, scopes=None):
         self.scopes = []
         if scopes:
@@ -281,9 +288,9 @@ class TranslationUnitIngestor:
         self.graph = graph
         
     def ingest_node(self, cursor: Cursor, extra_props: Dict[str, Any]={}):    
-        unique_id = cursor.get_usr()
+        node_id = TranslationUnitIngestor.usr2hash(cursor.get_usr())
         properties = {
-            "unique_id": unique_id,
+            "id": node_id,
             "name": cursor.spelling,
             "qualified_name": CursorUtils.get_full_name(cursor),
             "type": "unknown",
@@ -303,14 +310,14 @@ class TranslationUnitIngestor:
                 }
             }
             properties["definition" if cursor.is_definition() else "declaration"] = location
-        if not self.graph.has_node(unique_id):
-            self.graph.add_node(unique_id, **properties)
+        if not self.graph.has_node(node_id):
+            self.graph.add_node(node_id, **properties)
         else:
-            self.graph.nodes[unique_id].update(properties)
+            self.graph.nodes[node_id].update(properties)
 
     def ingest_edge(self, src:Cursor, dst:Cursor, edge_attrs):
-        src_id = src.get_usr()
-        dst_id = dst.get_usr()
+        src_id = TranslationUnitIngestor.usr2hash(src.get_usr())
+        dst_id = TranslationUnitIngestor.usr2hash(dst.get_usr())
         key = edge_attrs["type"]
         self.graph.add_edge(src_id, dst_id, key=key, **edge_attrs)        
         
