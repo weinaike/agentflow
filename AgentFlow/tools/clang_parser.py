@@ -218,6 +218,13 @@ class CursorUtils:
         #assert node.kind == CursorKind.NAMESPACE
         function_nodes = [c for c in node.get_children() if CursorUtils.is_method(c) or CursorUtils.is_function(c)]
         return function_nodes
+
+    @staticmethod
+    def get_global_variables(node):
+        global_vars = []    
+        if node.kind in [CursorKind.CLASS_DECL, CursorKind.NAMESPACE, CursorKind.TRANSLATION_UNIT]:
+            global_vars = [c for c in node.get_children() if c.kind == CursorKind.VAR_DECL]
+        return global_vars    
     
     @staticmethod
     def get_inner_classes(node):    
@@ -331,7 +338,7 @@ class TranslationUnitIngestor:
             )
             
             #(1) ingest variables
-            variable_cursors = [child for child in cursor.get_children() if child.kind == CursorKind.VAR_DECL]
+            variable_cursors = CursorUtils.get_global_variables(cursor)
             for variable_cursor in variable_cursors:
                 if not CursorUtils.is_out_of_any_scope(variable_cursor, self.scopes):
                     self.ingest_node(variable_cursor, {"type": "VARIABLE"})
@@ -371,6 +378,9 @@ class TranslationUnitIngestor:
                         out_of_scope = CursorUtils.is_out_of_any_scope(callee.referenced, self.scopes)
                         if out_of_scope:
                             self.ingest_node(callee.referenced, {"type": method_type, "out_of_scope": True})
+                static_variables = CursorUtils.get_global_variables(class_cursor)            
+                for static_variable in static_variables:
+                    self.ingest_node(static_variable, {"type": "VARIABLE"})
 
             #(3) ingest functions/methods and call relations
             func_cursors = [func for func in CursorUtils.get_functions(cursor) if \

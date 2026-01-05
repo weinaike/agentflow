@@ -4,9 +4,14 @@ from code_graph import CodeGraph
 from typing_extensions import Annotated, List, Dict, Tuple, Union, Any
 
 code_graph: CodeGraph = None
-__parser = ClangParser(["-I/usr/lib/gcc/x86_64-linux-gnu/12/include"])
+__parser = ClangParser(["-I/usr/lib/gcc/x86_64-linux-gnu/12/include",
+                        "-fsyntax-only",
+                        "-fno-debug-info",
+                        "-w",
+                        "-xc++"
+                       ])
 
-def parse_project(
+def construct_code_graph(
     project_dir: Annotated[str, "The root directory of a C/C++ project"], 
     include_dirs: Annotated[List[str], "The include directories where the header files will be searched"] = [],
     source_dirs: Annotated[List[str], "The source files in these directories will be parsed into Translation Units"] =[],

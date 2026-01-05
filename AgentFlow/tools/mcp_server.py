@@ -51,7 +51,7 @@ app.add_tool(create_ast)
 app.add_tool(get_ast_status)
 app.add_tool(glob_search)
 
-app.add_tool(parse_project)
+app.add_tool(construct_code_graph)
 app.add_tool(get_code_graph_schema)
 app.add_tool(get_nodes_by_name)
 app.add_tool(get_node_by_id)
