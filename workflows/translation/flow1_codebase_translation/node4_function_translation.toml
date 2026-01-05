@@ -1,0 +1,21 @@
+type = "Agent"
+task = '''按照拓扑排序，对每个函数，优化它的翻译规划'''
+
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+questions = [
+    "调用get_translation_tasks_topologically(reverse=False)，获取函数列表",
+    "针对每个函数(有唯一的id)，获取该函数的信息，根据代码及其翻译规划，完成代码翻译，并将翻译后的代码保存到知识图谱",
+]
+participants = ["assistant"]
+summary_prompt = '''
+总结以上所作工作
+'''
+
+[[agents]]
+name = "assistant"
+tools = ["get_translation_tasks_topologically", "get_node_by_id", 'read_code_snippet_from_file', "insert_translated_code_snippets", "get_code_graph_schema"]
+system_prompt =  '''
+为每个函数完成CUDA翻译。若无法理解工具返回结果中的字段的含义，可以调用get_code_graph_schema阅读其说明
+'''

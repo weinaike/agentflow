@@ -1,0 +1,43 @@
+flow_name = "C++代码库CUDA翻译"
+flow_type = "SEQUENTIAL"
+description =  '''
+
+### C++代码库CUDA翻译
+C++代码库CUDA翻译的大致流程
+1. 查看C++代码库结构，构建C++代码库的知识图谱，为后续CUDA翻译提供基础保证
+2. 按照函数调用关系的拓扑排序（逆序），针对每个函数，结合它依赖的函数实现、翻译规划，确定该函数的初步翻译规划（翻译后函数的签名、函数如何翻译、翻译后函数存放的文件名等等）
+3. 按照函数调用关系的拓扑排序（正序），针对每个函数，结合它依赖的函数实现、初步的和优化后的翻译规划，优化该函数的翻译规划（翻译后函数的签名、函数如何翻译、翻译后函数存放的文件名等等）
+4. 通过函数调用关系的拓扑排序（逆序），针对每个函数，按照优化后的翻译规划，完成该函数的翻译
+5. 将翻译后的函数按文件合并，并保存文件
+'''
+
+# 了解C++代码库的结构，构建代码库的知识图谱
+[[nodes]]
+id = "node1"
+name = "构建C++代码库的知识图谱"
+inputs = []
+config = "node1_construct_knowledge_graph.toml"
+
+[[nodes]]
+id = "node2"
+name = "代码翻译初步规划"
+inputs = []
+config = "node2_preliminary_design.toml"
+
+[[nodes]]
+id = "node3"
+name = "优化翻译规划"
+inputs = []
+config = "node3_optimize_design.toml"
+
+[[nodes]]
+id = "node4"
+name = "函数翻译"
+inputs = []
+config = "node4_function_translation.toml"
+
+[[nodes]]
+id = "node5"
+name = "文件合并及保存"
+inputs = []
+config = "node5_file_merge_and_save.toml"

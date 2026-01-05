@@ -100,7 +100,7 @@ class TranslationAgent(AssistantAgent):
         self.ingestor.flush_nodes()
         return [updated_node["properties"] for updated_node in updated_nodes] if updated_nodes else []
 
-    def parse_project(self):
+    def construct_code_graph(self):
         pass
 
     def design_interface(self):

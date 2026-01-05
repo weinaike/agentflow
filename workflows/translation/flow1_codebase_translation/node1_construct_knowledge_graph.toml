@@ -1,0 +1,21 @@
+
+type = "Agent"
+task = "总体了解项目，熟悉项目的核心业务， 归纳实现业务的主要方法与流程"
+
+# 最好能够有文档支撑
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+participants = ["assistant"]
+questions = [
+    "调用construct_code_graph构建C++代码库的知识图谱，为了成功调用该工具，你需要了解C++项目库的目录结构，以传递正确的参数，其中project_dir是必传参数"
+]
+summary_prompt = '整理以上所作的工作'
+
+
+[[agents]]
+name = "assistant"
+tools = ['glob_search', 'run_command', 'construct_code_graph'] # RAG工具，获取背景信息
+system_prompt = '''
+你是一个资深的软件开发者，负责构建C++代码库的知识图谱，为后续的CUDA翻译提供基础知识
+'''

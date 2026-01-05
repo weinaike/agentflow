@@ -6,7 +6,8 @@ import time
 from clang.cindex import Index, TranslationUnit, Cursor, CursorKind, TypeKind
 import networkx as nx
 from pyparsing import Diagnostics
-
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from parser_base import ParserBase
 
 class TypeUtils:
@@ -288,7 +289,7 @@ class TranslationUnitIngestor:
             self.scopes.append(
                 lambda cursor: any(
                     [cursor.location.file is not None and 
-                    os.path.commonpath([dir, cursor.location.file.name]) == dir for dir in dirs]
+                    os.path.commonpath([dir, os.path.abspath(cursor.location.file.name)]) == dir for dir in dirs]
                 )
             )
 

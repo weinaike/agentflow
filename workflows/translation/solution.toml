@@ -1,0 +1,14 @@
+project_name = "C++代码库CUDA加速"
+project_id = "xtd"
+description = ''
+workspace_path = "workspace/xtd"
+llm_config = "docs/OAI_CONFIG_LIST.json"
+
+codebase = '/media/jiangbo/datasets/raytracing.github.io/artifacts/raytracing/cpu'
+
+[[flows]]
+flow_name = "C++代码库CUDA加速"
+flow_id = "flow1"
+config = "workflows/translation/flow1_codebase_translation/flow_codebase_translation.toml"
+previous_flows = []
+

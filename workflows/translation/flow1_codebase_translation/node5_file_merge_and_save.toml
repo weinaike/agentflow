@@ -1,0 +1,30 @@
+type = "Agent"
+task = '''获取要合并的文件任务，对每个文件进行合并和保存'''
+
+[manager]
+max_turns = 5
+mode = 'Questionnaire'
+questions = [
+    "调用list_files_to_merge，获取要合并的文件列表",
+    "针对每个文件，调用get_file_merging_task获取到与该文件相关的合并任务，合并完成后，调用write_file将代码写入到文件中",
+]
+participants = ["assistant"]
+summary_prompt = '''
+总结以上所作工作
+'''
+
+[[agents]]
+name = "assistant"
+tools = ["list_files_to_merge", "get_file_merging_task", "write_file"]
+system_prompt =  '''
+Retrieve the list of files that need to be merged. For each file in this list, invoke the get_file_merging_task function (with the current file as the input parameter) to obtain the specific merging task, then execute the merging operation and save the final merged result in accordance with the following rules:
+1. Merge Criteria
+- Prior to merging, adjust the order of translated code fragments to align with the content structure and logical sequence of the original code file.
+- During the merging process, replace the original functions (including all relevant declarations, definitions, and associated implementations) with the translated versions in full.
+- During the merging process, ensure that all necessary header files are properly included and referenced to guarantee the compilability and functionality of the merged code.
+- During the merging process, retain all other non-target code (code that does not require translation or replacement) as unchanged as possible to preserve the original file's additional functionality and structure.
+- After the merging is completed, check if the merged file contains CUDA-related code. If yes, modify the file extension from .c, .cpp, .cc, or .cxx to .cu; if no, keep the original file extension unchanged.
+
+2. ** Save Merged Code**
+The fully merged code should be saved by the tool write_file.
+'''

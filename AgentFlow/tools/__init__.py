@@ -2,6 +2,7 @@ from .code_tool import *
 from .file_tool import *
 from .uml_tool import *
 from .shell_tool import *
+from .code_graph_tool import *
 from autogen_ext.tools.mcp import mcp_server_tools
 from autogen_ext.tools.mcp import StdioServerParams, StreamableHttpServerParams, SseServerParams
 from autogen_ext.tools.mcp import StdioMcpToolAdapter
@@ -84,6 +85,21 @@ tool_mapping = {
     # "create_ast": create_ast,
     # "get_ast_status": get_ast_status,
     "glob_search": glob_search,
+
+    "construct_code_graph": construct_code_graph,
+    "get_code_graph_schema": get_code_graph_schema,
+    "get_nodes_by_name": get_nodes_by_name,
+    "get_node_by_id": get_node_by_id,
+    "get_translation_tasks_topologically": get_translation_tasks_topologically,
+    "get_src_nodes_of": get_src_nodes_of,
+    "get_dst_nodes_of": get_dst_nodes_of,
+    "get_file_content": get_file_content,
+    "read_code_snippet_from_file": read_code_snippet_from_file,
+    "insert_initial_translation_plan": insert_initial_translation_plan,
+    "insert_optimized_translation_plan": insert_optimized_translation_plan,
+    "insert_translated_code_snippets": insert_translated_code_snippets,
+    "list_files_to_merge": list_files_to_merge,
+    "get_file_merging_task": get_file_merging_task
 }
 
 mcp_tool_mapping = {}

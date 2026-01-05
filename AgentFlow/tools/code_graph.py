@@ -48,7 +48,9 @@ class CodeGraph:
         self.build_options = build_options
         self.force_build = force_build
         self.build_dir = build_dir or os.path.join(project_dir, ".ast_cache")
-        self.src_dirs = src_dirs
+        self.src_dirs = src_dirs or [project_dir]
+        if not any(val for val in scopes.values()):
+            scopes["dirs"] = [self.project_dir]
 
                 
         self.index = Index.create()
@@ -113,7 +115,7 @@ class CodeGraph:
                         "type": "object", "description": "The initial translation plan of the function or method.", "required": False, 
                         "properties": {
                             "signature": {"type": "string", "description": "the signature of the initial plan."},
-                            "guide": {"type": "string", "description": "During the porting of C/C++ code to CUDA: if the target function needs to be split into multiple functions, list the signature of each split function in detail and specify their implementation specifications; if no splitting is required, there is no need to list split function signatures, but the implementation specifications for the original function must still be clearly defined. Ensure that other developers can fully understand how to complete the end-to-end porting and implementation of the function from C/C++ to CUDA based on these details."
+                            "guideline": {"type": "string", "description": "During the porting of C/C++ code to CUDA: if the target function needs to be split into multiple functions, list the signature of each split function in detail and specify their implementation specifications; if no splitting is required, there is no need to list split function signatures, but the implementation specifications for the original function must still be clearly defined. Ensure that other developers can fully understand how to complete the end-to-end porting and implementation of the function from C/C++ to CUDA based on these details."
                             }
                         }
                     },
@@ -122,7 +124,7 @@ class CodeGraph:
                         "type": "object", "description": "The optimized translation plan of the function or method.", "required": False, 
                         "properties": {
                             "signature": {"type": "string", "description": "the signature of the translated function/method after ."},
-                            "guide": {"type": "string", "description": "During the porting of C/C++ code to CUDA: if the target function needs to be split into multiple functions, list the signature of each split function in detail and specify their implementation specifications; if no splitting is required, there is no need to list split function signatures, but the implementation specifications for the original function must still be clearly defined. Ensure that other developers can fully understand how to complete the end-to-end porting and implementation of the function from C/C++ to CUDA based on these details."
+                            "guideline": {"type": "string", "description": "During the porting of C/C++ code to CUDA: if the target function needs to be split into multiple functions, list the signature of each split function in detail and specify their implementation specifications; if no splitting is required, there is no need to list split function signatures, but the implementation specifications for the original function must still be clearly defined. Ensure that other developers can fully understand how to complete the end-to-end porting and implementation of the function from C/C++ to CUDA based on these details."
                             }
                         }
                     }, 
@@ -316,12 +318,16 @@ class CodeGraph:
         def node_filter(n):
             if not node_types:
                 return True
-            node_type = self.graph.nodes[n].get("type", "")
+            node = self.graph.nodes[n]
+            if node.get("out_of_scope", False): # Ignore the functions out of the project
+                return False    
+            node_type = node.get("type", "")
             return node_type in node_types
 
         def edge_filter(u, v, k):
             if not edge_types:
                 return True
+            #src, dst = self.graph.nodes[u], self.graph.nodes[v]   
             edge_type = self.graph.edges[u, v, k].get("type", "")
             return edge_type in edge_types
 
@@ -595,7 +601,7 @@ def TEST_ray_tracing_draw_complete_graph():
             "/media/jiangbo/datasets/raytracing.github.io/artifacts/raytracing/cpu"
         ],
         "scopes": {
-            "dirs": ["/media/jiangbo/datasets/raytracing.github.io/artifacts/raytracing/cpu"]
+            #"dirs": ["/media/jiangbo/datasets/raytracing.github.io/artifacts/raytracing/cpu"]
         }
     }
 
@@ -691,6 +697,6 @@ def TEST_edge_retrieval():
             print()
         
 if __name__ == '__main__':
-    #TEST_ray_tracing_draw_complete_graph()
-    TEST_edge_retrieval()
+    TEST_ray_tracing_draw_complete_graph()
+    #TEST_edge_retrieval()
 
